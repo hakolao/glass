@@ -1,0 +1,69 @@
+name: CI
+
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  lint:
+    name: Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v2
+      - uses: actions-rs/toolchain@v1
+        with:
+          toolchain: nightly
+          override: true
+      - name: Rust Lint Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "${{ runner.os }}-rust-lint"
+      - run: rustup component add rustfmt
+      - name: check rustfmt
+        run: cargo fmt -- --check --color always
+      - run: rustup component add clippy
+      - run: cargo fetch
+      - name: cargo clippy
+        run: cargo clippy --all-targets -- -D warnings
+
+  windows_stable:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Rust Windows Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "${{ runner.os }}-rust-windows"
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
+  linux_stable:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Rust Linux Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "${{ runner.os }}-rust-linux"
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
+  macos_stable:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v3
+      - name: Rust Macos Cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "${{ runner.os }}-rust-macos"
+      - name: Build
+        run: cargo build --verbose
+      - name: Run tests
+        run: cargo test --verbose
