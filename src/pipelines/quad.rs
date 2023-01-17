@@ -150,9 +150,9 @@ impl QuadPipeline {
         bind_group
     }
 
-    pub fn draw<'r, 's>(
+    pub fn draw<'r>(
         &'r self,
-        rpass: &'s mut RenderPass<'r>,
+        rpass: &mut RenderPass<'r>,
         bind_group: &'r BindGroup,
         view_pos: [f32; 4],
         view_proj: [[f32; 4]; 4],
