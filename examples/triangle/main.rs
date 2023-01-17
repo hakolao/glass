@@ -93,6 +93,5 @@ fn create_triangle_pipeline(app: &mut TriangleApp, context: &GlassContext) {
             multisample: MultisampleState::default(),
             multiview: None,
         });
-    app.pipelines
-        .add_draw_pipeline(TRIANGLE_PIPELINE, layout, pipeline);
+    app.pipelines.add_draw_pipeline(TRIANGLE_PIPELINE, pipeline);
 }

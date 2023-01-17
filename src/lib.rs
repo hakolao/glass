@@ -3,6 +3,7 @@ mod glass;
 mod glass_app;
 #[cfg(feature = "iced_gui")]
 pub mod iced_utils;
+pub mod pipelines;
 pub mod texture;
 pub mod utils;
 pub mod window;

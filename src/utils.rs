@@ -1,6 +1,6 @@
 use std::{collections::HashMap, future::Future};
 
-use wgpu::{ComputePipeline, PipelineLayout, RenderPipeline};
+use wgpu::{ComputePipeline, RenderPipeline};
 
 pub fn wait_async<F: Future>(fut: F) -> F::Output {
     pollster::block_on(fut)
@@ -22,26 +22,14 @@ impl Pipelines {
         self.compute_pipelines.get(key)
     }
 
-    pub fn add_draw_pipeline(
-        &mut self,
-        pipeline_key: PipelineKey,
-        layout: PipelineLayout,
-        pipeline: RenderPipeline,
-    ) {
+    pub fn add_draw_pipeline(&mut self, pipeline_key: PipelineKey, pipeline: RenderPipeline) {
         self.draw_pipelines.insert(pipeline_key, DrawPipeline {
-            layout,
             pipeline,
         });
     }
 
-    pub fn add_compute_pipeline(
-        &mut self,
-        pipeline_key: PipelineKey,
-        layout: PipelineLayout,
-        pipeline: ComputePipeline,
-    ) {
+    pub fn add_compute_pipeline(&mut self, pipeline_key: PipelineKey, pipeline: ComputePipeline) {
         self.compute_pipelines.insert(pipeline_key, CalcPipeline {
-            layout,
             pipeline,
         });
     }
@@ -62,12 +50,10 @@ impl PipelineKey {
 
 #[derive(Debug)]
 pub struct DrawPipeline {
-    pub layout: PipelineLayout,
     pub pipeline: RenderPipeline,
 }
 
 #[derive(Debug)]
 pub struct CalcPipeline {
-    pub layout: PipelineLayout,
     pub pipeline: ComputePipeline,
 }
