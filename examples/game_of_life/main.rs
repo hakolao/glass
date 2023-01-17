@@ -249,7 +249,7 @@ fn draw_game_of_life(
     });
     let (end, start) = app.cursor_to_canvas(width, height);
     let pc = GameOfLifePushConstants::new(start, end, 10.0);
-    cpass.set_pipeline(&draw_pipeline);
+    cpass.set_pipeline(draw_pipeline);
     cpass.set_bind_group(0, &app.data().draw_bind_group, &[]);
     cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
     cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
@@ -266,7 +266,7 @@ fn update_game_of_life(
         label: Some("Update"),
     });
     let pc = GameOfLifePushConstants::new(Vec2::ZERO, Vec2::ZERO, 0.0);
-    cpass.set_pipeline(&update_pipeline);
+    cpass.set_pipeline(update_pipeline);
     cpass.set_bind_group(0, &app.data().update_bind_group, &[]);
     cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
     cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
@@ -284,7 +284,7 @@ fn init_game_of_life(app: &mut GameOfLifeApp, context: &mut GlassContext) {
         let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
             label: Some("Init"),
         });
-        cpass.set_pipeline(&init_pipeline);
+        cpass.set_pipeline(init_pipeline);
         cpass.set_bind_group(0, &app.data().init_bind_group, &[]);
         cpass.set_push_constants(
             0,

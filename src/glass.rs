@@ -344,8 +344,7 @@ impl GlassContext {
     }
 
     pub fn common_pipeline(&self) -> &CommonPipelines {
-        &self
-            .common_pipelines
+        self.common_pipelines
             .as_ref()
             .expect("No common pipelines, create with config `with_common_pipelines: true`")
     }

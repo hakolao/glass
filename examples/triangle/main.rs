@@ -49,7 +49,7 @@ impl GlassApp for TriangleApp {
             depth_stencil_attachment: None,
         });
         let triangle_pipeline = context.draw_pipeline(&TRIANGLE_PIPELINE).unwrap();
-        rpass.set_pipeline(&triangle_pipeline);
+        rpass.set_pipeline(triangle_pipeline);
         rpass.draw(0..3, 0..1);
     }
 }
