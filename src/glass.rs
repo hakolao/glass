@@ -1,5 +1,5 @@
 use indexmap::IndexMap;
-use wgpu::{Adapter, Device, Instance, PowerPreference, Queue};
+use wgpu::{Adapter, ComputePipeline, Device, Instance, PowerPreference, Queue, RenderPipeline};
 use winit::{
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
@@ -8,6 +8,7 @@ use winit::{
 
 use crate::{
     device_context::{DeviceConfig, DeviceContext},
+    pipelines::{CalcPipeline, DrawPipeline, PipelineKey, Pipelines},
     window::{GlassWindow, WindowConfig},
     GlassApp, RenderData,
 };
@@ -189,6 +190,7 @@ impl Default for GlassConfig {
 /// You can use the context to create windows at runtime. Or access devices, which are often
 /// needed for render or compute functionality.
 pub struct GlassContext {
+    custom_pipelines: Pipelines,
     device_context: DeviceContext,
     windows: IndexMap<WindowId, GlassWindow>,
 }
@@ -207,6 +209,7 @@ impl GlassContext {
             })
             .collect::<Vec<(WindowConfig, Window)>>();
         let mut app = Self {
+            custom_pipelines: Pipelines::default(),
             device_context: DeviceContext::new(
                 &config.device_config,
                 // Needed to ensure our queue families are compatible with surface
@@ -292,5 +295,23 @@ impl GlassContext {
             .with_title(config.title);
 
         window_builder.build(event_loop).unwrap()
+    }
+
+    pub fn draw_pipeline(&self, key: &PipelineKey) -> Option<&DrawPipeline> {
+        self.custom_pipelines.draw_pipeline(key)
+    }
+
+    pub fn compute_pipeline(&self, key: &PipelineKey) -> Option<&CalcPipeline> {
+        self.custom_pipelines.compute_pipeline(key)
+    }
+
+    pub fn add_draw_pipeline(&mut self, pipeline_key: PipelineKey, pipeline: RenderPipeline) {
+        self.custom_pipelines
+            .add_draw_pipeline(pipeline_key, pipeline)
+    }
+
+    pub fn add_compute_pipeline(&mut self, pipeline_key: PipelineKey, pipeline: ComputePipeline) {
+        self.custom_pipelines
+            .add_compute_pipeline(pipeline_key, pipeline)
     }
 }

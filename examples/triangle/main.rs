@@ -1,9 +1,6 @@
 use std::borrow::Cow;
 
-use glass::{
-    utils::{PipelineKey, Pipelines},
-    Glass, GlassApp, GlassConfig, GlassContext, RenderData,
-};
+use glass::{pipelines::PipelineKey, Glass, GlassApp, GlassConfig, GlassContext, RenderData};
 use wgpu::{
     MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipelineDescriptor,
     ShaderModuleDescriptor, TextureFormat,
@@ -23,16 +20,14 @@ fn main() {
 }
 
 #[derive(Default)]
-struct TriangleApp {
-    pipelines: Pipelines,
-}
+struct TriangleApp;
 
 impl GlassApp for TriangleApp {
     fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
-        create_triangle_pipeline(self, context);
+        create_triangle_pipeline(context);
     }
 
-    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
+    fn render(&mut self, context: &GlassContext, render_data: RenderData) {
         let RenderData {
             encoder,
             frame,
@@ -53,13 +48,13 @@ impl GlassApp for TriangleApp {
             })],
             depth_stencil_attachment: None,
         });
-        let triangle_pipeline = self.pipelines.draw_pipeline(&TRIANGLE_PIPELINE).unwrap();
+        let triangle_pipeline = context.draw_pipeline(&TRIANGLE_PIPELINE).unwrap();
         rpass.set_pipeline(&triangle_pipeline.pipeline);
         rpass.draw(0..3, 0..1);
     }
 }
 
-fn create_triangle_pipeline(app: &mut TriangleApp, context: &GlassContext) {
+fn create_triangle_pipeline(context: &mut GlassContext) {
     let shader = context
         .device()
         .create_shader_module(ShaderModuleDescriptor {
@@ -93,5 +88,5 @@ fn create_triangle_pipeline(app: &mut TriangleApp, context: &GlassContext) {
             multisample: MultisampleState::default(),
             multiview: None,
         });
-    app.pipelines.add_draw_pipeline(TRIANGLE_PIPELINE, pipeline);
+    context.add_draw_pipeline(TRIANGLE_PIPELINE, pipeline);
 }

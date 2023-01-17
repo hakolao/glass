@@ -1,8 +1,7 @@
 use glass::{
     device_context::DeviceConfig,
-    pipelines::{QuadPipeline, QUAD_INDICES, TEXTURED_QUAD_VERTICES},
+    pipelines::{PipelineKey, QuadPipeline, QUAD_INDICES, TEXTURED_QUAD_VERTICES},
     texture::Texture,
-    utils::{PipelineKey, Pipelines},
     window::WindowConfig,
     Glass, GlassApp, GlassConfig, GlassContext, RenderData,
 };
@@ -51,7 +50,6 @@ fn config() -> GlassConfig {
 /// Example buffer data etc.
 #[derive(Default)]
 struct TreeApp {
-    pipelines: Pipelines,
     data: Option<ExampleData>,
 }
 
@@ -63,17 +61,13 @@ impl TreeApp {
 
 impl GlassApp for TreeApp {
     fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
-        create_tree_pipeline(self, context);
+        create_tree_pipeline(context);
         // Created pipeline
-        let tree_render_pipeline = &self
-            .pipelines
-            .draw_pipeline(&QUAD_TREE_PIPELINE)
-            .unwrap()
-            .pipeline;
+        let tree_render_pipeline = &context.draw_pipeline(&QUAD_TREE_PIPELINE).unwrap().pipeline;
         self.data = Some(create_example_data(context, tree_render_pipeline));
     }
 
-    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
+    fn render(&mut self, context: &GlassContext, render_data: RenderData) {
         let RenderData {
             encoder,
             frame,
@@ -89,11 +83,7 @@ impl GlassApp for TreeApp {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let tree_pipeline = &self
-            .pipelines
-            .draw_pipeline(&QUAD_TREE_PIPELINE)
-            .unwrap()
-            .pipeline;
+        let tree_pipeline = &context.draw_pipeline(&QUAD_TREE_PIPELINE).unwrap().pipeline;
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
@@ -132,19 +122,18 @@ struct ExampleData {
     tree_bind_group: BindGroup,
 }
 
-fn create_tree_pipeline(app: &mut TreeApp, context: &mut GlassContext) {
+fn create_tree_pipeline(context: &mut GlassContext) {
     let pipeline = QuadPipeline::new_render_pipeline(context, wgpu::ColorTargetState {
         format: context
             .primary_render_window()
             .surface_format(context.adapter()),
         blend: Some(wgpu::BlendState {
-            color: wgpu::BlendComponent::REPLACE,
-            alpha: wgpu::BlendComponent::REPLACE,
+            color: wgpu::BlendComponent::OVER,
+            alpha: wgpu::BlendComponent::OVER,
         }),
         write_mask: wgpu::ColorWrites::ALL,
     });
-    app.pipelines
-        .add_draw_pipeline(QUAD_TREE_PIPELINE, pipeline);
+    context.add_draw_pipeline(QUAD_TREE_PIPELINE, pipeline);
 }
 
 fn create_example_data(context: &GlassContext, tree_pipeline: &RenderPipeline) -> ExampleData {
