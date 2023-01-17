@@ -133,7 +133,7 @@ struct ExampleData {
 }
 
 fn create_tree_pipeline(app: &mut TreeApp, context: &mut GlassContext) {
-    let pipeline = QuadPipeline::new(context, wgpu::ColorTargetState {
+    let pipeline = QuadPipeline::new_render_pipeline(context, wgpu::ColorTargetState {
         format: context
             .primary_render_window()
             .surface_format(context.adapter()),

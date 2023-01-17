@@ -8,7 +8,7 @@ use crate::{pipelines::vertex::TexturedVertex, GlassContext};
 pub struct QuadPipeline {}
 
 impl QuadPipeline {
-    pub fn new(
+    pub fn new_render_pipeline(
         context: &GlassContext,
         color_target_state: wgpu::ColorTargetState,
     ) -> wgpu::RenderPipeline {
