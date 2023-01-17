@@ -14,11 +14,11 @@ fn main() {
 }
 
 const CLEAR_COLORS: [Color; 5] = [
-    wgpu::Color::WHITE,
-    wgpu::Color::GREEN,
-    wgpu::Color::RED,
-    wgpu::Color::BLACK,
-    wgpu::Color::BLUE,
+    Color::WHITE,
+    Color::GREEN,
+    Color::RED,
+    Color::BLACK,
+    Color::BLUE,
 ];
 
 /// Example buffer data etc.

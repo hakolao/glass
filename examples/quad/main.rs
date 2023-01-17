@@ -1,17 +1,13 @@
 use glass::{
-    device_context::DeviceConfig,
-    pipelines::{PipelineKey, QuadPipeline, QUAD_INDICES, TEXTURED_QUAD_VERTICES},
-    texture::Texture,
-    window::WindowConfig,
-    Glass, GlassApp, GlassConfig, GlassContext, RenderData,
+    device_context::DeviceConfig, texture::Texture, window::WindowConfig, Glass, GlassApp,
+    GlassConfig, GlassContext, RenderData,
 };
 use wgpu::{
-    util::DeviceExt, AddressMode, Backends, BindGroup, Buffer, FilterMode, Limits, PowerPreference,
-    RenderPipeline, SamplerDescriptor, ShaderStages, TextureFormat, TextureUsages,
+    AddressMode, Backends, BindGroup, FilterMode, PowerPreference, SamplerDescriptor,
+    TextureFormat, TextureUsages,
 };
 use winit::event_loop::EventLoop;
 
-const QUAD_TREE_PIPELINE: PipelineKey = PipelineKey::new("Quad Tree");
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
 #[rustfmt::skip]
@@ -28,15 +24,11 @@ fn main() {
 
 fn config() -> GlassConfig {
     GlassConfig {
+        with_common_pipelines: true,
         device_config: DeviceConfig {
             power_preference: PowerPreference::HighPerformance,
-            features: wgpu::Features::PUSH_CONSTANTS,
-            limits: Limits {
-                // Using push constants in quad pipeline, up the limit
-                max_push_constant_size: 256,
-                ..Limits::default()
-            },
             backends: Backends::VULKAN,
+            ..DeviceConfig::default()
         },
         window_configs: vec![WindowConfig {
             width: WIDTH,
@@ -61,10 +53,7 @@ impl TreeApp {
 
 impl GlassApp for TreeApp {
     fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
-        create_tree_pipeline(context);
-        // Created pipeline
-        let tree_render_pipeline = &context.draw_pipeline(&QUAD_TREE_PIPELINE).unwrap().pipeline;
-        self.data = Some(create_example_data(context, tree_render_pipeline));
+        self.data = Some(create_example_data(context));
     }
 
     fn render(&mut self, context: &GlassContext, render_data: RenderData) {
@@ -83,7 +72,7 @@ impl GlassApp for TreeApp {
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let tree_pipeline = &context.draw_pipeline(&QUAD_TREE_PIPELINE).unwrap().pipeline;
+        let tree_pipeline = &context.common_pipeline().quad;
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
@@ -97,83 +86,32 @@ impl GlassApp for TreeApp {
                 })],
                 depth_stencil_attachment: None,
             });
-            rpass.set_pipeline(tree_pipeline);
-            rpass.set_bind_group(0, &tree_data.tree_bind_group, &[]);
-            rpass.set_vertex_buffer(0, tree_data.vertices.slice(..));
-            rpass.set_index_buffer(tree_data.indices.slice(..), wgpu::IndexFormat::Uint16);
-            rpass.set_push_constants(
-                ShaderStages::VERTEX,
-                0,
-                bytemuck::cast_slice(&[QuadPipeline::push_constants(
-                    [0.0; 4],
-                    camera_projection([width, height]).to_cols_array_2d(),
-                    tree_data.tree.size,
-                )]),
+            tree_pipeline.draw(
+                &mut rpass,
+                &tree_data.tree_bind_group,
+                [0.0; 4],
+                camera_projection([width, height]).to_cols_array_2d(),
+                tree_data.tree.size,
             );
-            rpass.draw_indexed(0..(QUAD_INDICES.len() as u32), 0, 0..1);
         }
     }
 }
 
 struct ExampleData {
     tree: Texture,
-    vertices: Buffer,
-    indices: Buffer,
     tree_bind_group: BindGroup,
 }
 
-fn create_tree_pipeline(context: &mut GlassContext) {
-    let pipeline = QuadPipeline::new_render_pipeline(context, wgpu::ColorTargetState {
-        format: context
-            .primary_render_window()
-            .surface_format(context.adapter()),
-        blend: Some(wgpu::BlendState {
-            color: wgpu::BlendComponent::OVER,
-            alpha: wgpu::BlendComponent::OVER,
-        }),
-        write_mask: wgpu::ColorWrites::ALL,
-    });
-    context.add_draw_pipeline(QUAD_TREE_PIPELINE, pipeline);
-}
-
-fn create_example_data(context: &GlassContext, tree_pipeline: &RenderPipeline) -> ExampleData {
+fn create_example_data(context: &GlassContext) -> ExampleData {
     let tree = create_tree_texture(context);
-    let vertices = context
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(TEXTURED_QUAD_VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-    let indices = context
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(QUAD_INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
     // Create bind group
-    let tree_bind_group_layout = tree_pipeline.get_bind_group_layout(0);
-    let tree_bind_group = context
-        .device()
-        .create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &tree_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&tree.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&tree.sampler),
-                },
-            ],
-            label: Some("tree_bind_group"),
-        });
+    let tree_bind_group = context.common_pipeline().quad.create_bind_group(
+        context.device(),
+        &tree.view,
+        &tree.sampler,
+    );
     ExampleData {
         tree,
-        vertices,
-        indices,
         tree_bind_group,
     }
 }

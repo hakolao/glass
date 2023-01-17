@@ -3,24 +3,20 @@ use std::{borrow::Cow, time::Instant};
 use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
 use glass::{
-    device_context::DeviceConfig,
-    pipelines::{PipelineKey, QuadPipeline, QUAD_INDICES, TEXTURED_QUAD_VERTICES},
-    texture::Texture,
-    window::WindowConfig,
+    device_context::DeviceConfig, pipelines::PipelineKey, texture::Texture, window::WindowConfig,
     Glass, GlassApp, GlassConfig, GlassContext, RenderData,
 };
 use wgpu::{
-    util::DeviceExt, AddressMode, Backends, BindGroup, BindGroupDescriptor, Buffer, CommandEncoder,
-    ComputePassDescriptor, ComputePipelineDescriptor, Extent3d, FilterMode, Limits,
-    PowerPreference, PresentMode, PushConstantRange, SamplerDescriptor, ShaderStages,
-    StorageTextureAccess, TextureFormat, TextureUsages,
+    AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandEncoder, ComputePassDescriptor,
+    ComputePipelineDescriptor, Extent3d, FilterMode, Limits, PowerPreference, PresentMode,
+    PushConstantRange, SamplerDescriptor, ShaderStages, StorageTextureAccess, TextureFormat,
+    TextureUsages,
 };
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
 };
 
-const CANVAS_QUAD_PIPELINE: PipelineKey = PipelineKey::new("Canvas");
 const INIT_PIPELINE: PipelineKey = PipelineKey::new("Game Of Life Init");
 const GAME_OF_LIFE_PIPELINE: PipelineKey = PipelineKey::new("Game Of Life");
 const BRUSH_PIPELINE: PipelineKey = PipelineKey::new("Brush");
@@ -37,13 +33,12 @@ const OPENGL_TO_WGPU: glam::Mat4 = glam::Mat4::from_cols_array(&[
 
 fn config() -> GlassConfig {
     GlassConfig {
+        with_common_pipelines: true,
         device_config: DeviceConfig {
             power_preference: PowerPreference::HighPerformance,
             features: wgpu::Features::PUSH_CONSTANTS
                 | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
             limits: Limits {
-                // Using push constants, up the limit
-                max_push_constant_size: 256,
                 // Using 32 * 32 work group size
                 max_compute_invocations_per_workgroup: 1024,
                 ..Limits::default()
@@ -72,7 +67,6 @@ fn main() {
 impl GlassApp for GameOfLifeApp {
     fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
         // Create pipelines
-        create_canvas_pipeline(context);
         create_game_of_life_pipeline(context);
         // Create data & bindgroups to match pipelines
         self.data = Some(create_canvas_data(context));
@@ -188,11 +182,7 @@ fn render(app: &mut GameOfLifeApp, context: &GlassContext, render_data: RenderDa
         .texture
         .create_view(&wgpu::TextureViewDescriptor::default());
 
-    let canvas_pipeline = &context
-        .draw_pipeline(&CANVAS_QUAD_PIPELINE)
-        .unwrap()
-        .pipeline;
-
+    let canvas_pipeline = &context.common_pipeline().quad;
     {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -206,20 +196,13 @@ fn render(app: &mut GameOfLifeApp, context: &GlassContext, render_data: RenderDa
             })],
             depth_stencil_attachment: None,
         });
-        rpass.set_pipeline(canvas_pipeline);
-        rpass.set_bind_group(0, &canvas_data.canvas_bind_group, &[]);
-        rpass.set_vertex_buffer(0, canvas_data.vertices.slice(..));
-        rpass.set_index_buffer(canvas_data.indices.slice(..), wgpu::IndexFormat::Uint16);
-        rpass.set_push_constants(
-            wgpu::ShaderStages::VERTEX,
-            0,
-            bytemuck::cast_slice(&[QuadPipeline::push_constants(
-                [0.0; 4],
-                camera_projection([width, height]).to_cols_array_2d(),
-                canvas_data.canvas.size,
-            )]),
+        canvas_pipeline.draw(
+            &mut rpass,
+            &canvas_data.canvas_bind_group,
+            [0.0; 4],
+            camera_projection([width, height]).to_cols_array_2d(),
+            canvas_data.canvas.size,
         );
-        rpass.draw_indexed(0..(QUAD_INDICES.len() as u32), 0, 0..1);
     }
 }
 
@@ -266,7 +249,7 @@ fn draw_game_of_life(
     });
     let (end, start) = app.cursor_to_canvas(width, height);
     let pc = GameOfLifePushConstants::new(start, end, 10.0);
-    cpass.set_pipeline(&draw_pipeline.pipeline);
+    cpass.set_pipeline(&draw_pipeline);
     cpass.set_bind_group(0, &app.data().draw_bind_group, &[]);
     cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
     cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
@@ -283,7 +266,7 @@ fn update_game_of_life(
         label: Some("Update"),
     });
     let pc = GameOfLifePushConstants::new(Vec2::ZERO, Vec2::ZERO, 0.0);
-    cpass.set_pipeline(&update_pipeline.pipeline);
+    cpass.set_pipeline(&update_pipeline);
     cpass.set_bind_group(0, &app.data().update_bind_group, &[]);
     cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
     cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
@@ -301,7 +284,7 @@ fn init_game_of_life(app: &mut GameOfLifeApp, context: &mut GlassContext) {
         let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
             label: Some("Init"),
         });
-        cpass.set_pipeline(&init_pipeline.pipeline);
+        cpass.set_pipeline(&init_pipeline);
         cpass.set_bind_group(0, &app.data().init_bind_group, &[]);
         cpass.set_push_constants(
             0,
@@ -314,8 +297,6 @@ fn init_game_of_life(app: &mut GameOfLifeApp, context: &mut GlassContext) {
 
 struct CanvasData {
     canvas: Texture,
-    vertices: Buffer,
-    indices: Buffer,
     canvas_bind_group: BindGroup,
     update_bind_group: BindGroup,
     init_bind_group: BindGroup,
@@ -340,65 +321,18 @@ impl GameOfLifePushConstants {
     }
 }
 
-fn create_canvas_pipeline(context: &mut GlassContext) {
-    let pipeline = QuadPipeline::new_render_pipeline(context, wgpu::ColorTargetState {
-        format: context
-            .primary_render_window()
-            .surface_format(context.adapter()),
-        blend: Some(wgpu::BlendState {
-            color: wgpu::BlendComponent::REPLACE,
-            alpha: wgpu::BlendComponent::REPLACE,
-        }),
-        write_mask: wgpu::ColorWrites::ALL,
-    });
-    context.add_draw_pipeline(CANVAS_QUAD_PIPELINE, pipeline);
-}
-
 fn create_canvas_data(context: &GlassContext) -> CanvasData {
     let canvas = create_canvas_texture(context);
-    let vertices = context
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(TEXTURED_QUAD_VERTICES),
-            usage: wgpu::BufferUsages::VERTEX,
-        });
-    let indices = context
-        .device()
-        .create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Index Buffer"),
-            contents: bytemuck::cast_slice(QUAD_INDICES),
-            usage: wgpu::BufferUsages::INDEX,
-        });
     // Create bind groups to match pipeline layouts
-    let canvas_pipeline = &context
-        .draw_pipeline(&CANVAS_QUAD_PIPELINE)
-        .unwrap()
-        .pipeline;
-    let update_pipeline = &context
-        .compute_pipeline(&GAME_OF_LIFE_PIPELINE)
-        .unwrap()
-        .pipeline;
-    let init_pipeline = &context.compute_pipeline(&INIT_PIPELINE).unwrap().pipeline;
-    let draw_pipeline = &context.compute_pipeline(&BRUSH_PIPELINE).unwrap().pipeline;
-    // This must match the bind group layout of our pipeline
-    let canvas_bind_group_layout = canvas_pipeline.get_bind_group_layout(0);
-    let canvas_bind_group = context
-        .device()
-        .create_bind_group(&wgpu::BindGroupDescriptor {
-            layout: &canvas_bind_group_layout,
-            entries: &[
-                wgpu::BindGroupEntry {
-                    binding: 0,
-                    resource: wgpu::BindingResource::TextureView(&canvas.view),
-                },
-                wgpu::BindGroupEntry {
-                    binding: 1,
-                    resource: wgpu::BindingResource::Sampler(&canvas.sampler),
-                },
-            ],
-            label: Some("canvas_bind_group"),
-        });
+    let update_pipeline = &context.compute_pipeline(&GAME_OF_LIFE_PIPELINE).unwrap();
+    let init_pipeline = &context.compute_pipeline(&INIT_PIPELINE).unwrap();
+    let draw_pipeline = &context.compute_pipeline(&BRUSH_PIPELINE).unwrap();
+    let canvas_bind_group = context.common_pipeline().quad.create_bind_group(
+        context.device(),
+        &canvas.view,
+        &canvas.sampler,
+    );
+    // These must match the bind group layout of our pipeline
     let update_bing_group_layout = update_pipeline.get_bind_group_layout(0);
     let update_bind_group = context.device().create_bind_group(&BindGroupDescriptor {
         label: Some("Update Bind Group"),
@@ -428,8 +362,6 @@ fn create_canvas_data(context: &GlassContext) -> CanvasData {
     });
     CanvasData {
         canvas,
-        vertices,
-        indices,
         canvas_bind_group,
         update_bind_group,
         init_bind_group,

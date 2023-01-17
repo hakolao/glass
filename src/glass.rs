@@ -1,5 +1,8 @@
 use indexmap::IndexMap;
-use wgpu::{Adapter, ComputePipeline, Device, Instance, PowerPreference, Queue, RenderPipeline};
+use wgpu::{
+    Adapter, ComputePipeline, Device, Instance, PowerPreference, Queue, RenderPipeline,
+    TextureFormat,
+};
 use winit::{
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
@@ -8,7 +11,7 @@ use winit::{
 
 use crate::{
     device_context::{DeviceConfig, DeviceContext},
-    pipelines::{CalcPipeline, DrawPipeline, PipelineKey, Pipelines},
+    pipelines::{CommonPipelines, PipelineKey, Pipelines},
     window::{GlassWindow, WindowConfig},
     GlassApp, RenderData,
 };
@@ -149,6 +152,7 @@ impl<A: GlassApp + 'static> Glass<A> {
 /// Configuration of your windows and devices.
 #[derive(Debug, Clone)]
 pub struct GlassConfig {
+    pub with_common_pipelines: bool,
     pub device_config: DeviceConfig,
     pub window_configs: Vec<WindowConfig>,
 }
@@ -156,6 +160,7 @@ pub struct GlassConfig {
 impl GlassConfig {
     pub fn windowless() -> Self {
         Self {
+            with_common_pipelines: false,
             device_config: DeviceConfig::default(),
             window_configs: vec![],
         }
@@ -163,6 +168,7 @@ impl GlassConfig {
 
     pub fn performance(width: u32, height: u32) -> Self {
         Self {
+            with_common_pipelines: false,
             device_config: DeviceConfig {
                 power_preference: PowerPreference::HighPerformance,
                 ..Default::default()
@@ -180,6 +186,7 @@ impl GlassConfig {
 impl Default for GlassConfig {
     fn default() -> Self {
         Self {
+            with_common_pipelines: false,
             device_config: DeviceConfig::default(),
             window_configs: vec![WindowConfig::default()],
         }
@@ -190,13 +197,14 @@ impl Default for GlassConfig {
 /// You can use the context to create windows at runtime. Or access devices, which are often
 /// needed for render or compute functionality.
 pub struct GlassContext {
+    common_pipelines: Option<CommonPipelines>,
     custom_pipelines: Pipelines,
     device_context: DeviceContext,
     windows: IndexMap<WindowId, GlassWindow>,
 }
 
 impl GlassContext {
-    pub fn new(event_loop: &EventLoop<()>, config: GlassConfig) -> Self {
+    pub fn new(event_loop: &EventLoop<()>, mut config: GlassConfig) -> Self {
         // Create windows from initial configs
         let winit_windows = config
             .window_configs
@@ -208,13 +216,33 @@ impl GlassContext {
                 )
             })
             .collect::<Vec<(WindowConfig, Window)>>();
+        // Modify features & limits needed for common pipelines
+        if config.with_common_pipelines {
+            // Add push constants feature for common pipelines
+            config.device_config.features |= wgpu::Features::PUSH_CONSTANTS
+                | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
+            // Add push constant limits
+            config.device_config.limits = wgpu::Limits {
+                max_push_constant_size: 256,
+                ..config.device_config.limits
+            };
+        };
+        let device_context = DeviceContext::new(
+            &config.device_config,
+            // Needed to ensure our queue families are compatible with surface
+            &winit_windows,
+        );
         let mut app = Self {
+            common_pipelines: if config.with_common_pipelines {
+                Some(CommonPipelines::new(
+                    device_context.device(),
+                    TextureFormat::Bgra8UnormSrgb,
+                ))
+            } else {
+                None
+            },
             custom_pipelines: Pipelines::default(),
-            device_context: DeviceContext::new(
-                &config.device_config,
-                // Needed to ensure our queue families are compatible with surface
-                &winit_windows,
-            ),
+            device_context,
             windows: IndexMap::default(),
         };
         for (window_config, window) in winit_windows {
@@ -297,11 +325,11 @@ impl GlassContext {
         window_builder.build(event_loop).unwrap()
     }
 
-    pub fn draw_pipeline(&self, key: &PipelineKey) -> Option<&DrawPipeline> {
+    pub fn draw_pipeline(&self, key: &PipelineKey) -> Option<&RenderPipeline> {
         self.custom_pipelines.draw_pipeline(key)
     }
 
-    pub fn compute_pipeline(&self, key: &PipelineKey) -> Option<&CalcPipeline> {
+    pub fn compute_pipeline(&self, key: &PipelineKey) -> Option<&ComputePipeline> {
         self.custom_pipelines.compute_pipeline(key)
     }
 
@@ -313,5 +341,12 @@ impl GlassContext {
     pub fn add_compute_pipeline(&mut self, pipeline_key: PipelineKey, pipeline: ComputePipeline) {
         self.custom_pipelines
             .add_compute_pipeline(pipeline_key, pipeline)
+    }
+
+    pub fn common_pipeline(&self) -> &CommonPipelines {
+        &self
+            .common_pipelines
+            .as_ref()
+            .expect("No common pipelines, create with config `with_common_pipelines: true`")
     }
 }
