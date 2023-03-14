@@ -100,6 +100,7 @@ struct GameOfLifeApp {
     num_dts: f32,
     time: Instant,
     updated_time: Instant,
+    count: usize,
 }
 
 impl Default for GameOfLifeApp {
@@ -113,6 +114,7 @@ impl Default for GameOfLifeApp {
             num_dts: 0.0,
             time: Instant::now(),
             updated_time: Instant::now(),
+            count: 0,
         }
     }
 }
@@ -261,15 +263,35 @@ fn update_game_of_life(
     encoder: &mut CommandEncoder,
 ) {
     let update_pipeline = context.compute_pipeline(&GAME_OF_LIFE_PIPELINE).unwrap();
-
+    let (canvas, data_in) = if app.count % 2 == 0 {
+        (&app.data().canvas.view, &app.data().data_in.view)
+    } else {
+        (&app.data().data_in.view, &app.data().canvas.view)
+    };
+    let update_bind_group = context.device().create_bind_group(&BindGroupDescriptor {
+        label: Some("Update Bind Group"),
+        layout: &update_pipeline.get_bind_group_layout(0),
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(canvas),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::TextureView(data_in),
+            },
+        ],
+    });
     let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
         label: Some("Update"),
     });
     let pc = GameOfLifePushConstants::new(Vec2::ZERO, Vec2::ZERO, 0.0);
     cpass.set_pipeline(update_pipeline);
-    cpass.set_bind_group(0, &app.data().update_bind_group, &[]);
+    cpass.set_bind_group(0, &update_bind_group, &[]);
     cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
     cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
+
+    app.count += 1;
 }
 
 fn init_game_of_life(app: &mut GameOfLifeApp, context: &mut GlassContext) {
@@ -297,8 +319,8 @@ fn init_game_of_life(app: &mut GameOfLifeApp, context: &mut GlassContext) {
 
 struct CanvasData {
     canvas: Texture,
+    data_in: Texture,
     canvas_bind_group: BindGroup,
-    update_bind_group: BindGroup,
     init_bind_group: BindGroup,
     draw_bind_group: BindGroup,
 }
@@ -322,56 +344,8 @@ impl GameOfLifePushConstants {
 }
 
 fn create_canvas_data(context: &GlassContext) -> CanvasData {
-    let canvas = create_canvas_texture(context);
-    // Create bind groups to match pipeline layouts
-    let update_pipeline = &context.compute_pipeline(&GAME_OF_LIFE_PIPELINE).unwrap();
-    let init_pipeline = &context.compute_pipeline(&INIT_PIPELINE).unwrap();
-    let draw_pipeline = &context.compute_pipeline(&BRUSH_PIPELINE).unwrap();
-    let canvas_bind_group = context.common_pipeline().quad.create_bind_group(
+    let canvas = Texture::empty(
         context.device(),
-        &canvas.view,
-        &canvas.sampler,
-    );
-    // These must match the bind group layout of our pipeline
-    let update_bing_group_layout = update_pipeline.get_bind_group_layout(0);
-    let update_bind_group = context.device().create_bind_group(&BindGroupDescriptor {
-        label: Some("Update Bind Group"),
-        layout: &update_bing_group_layout,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: wgpu::BindingResource::TextureView(&canvas.view),
-        }],
-    });
-    let init_bind_group_layout = init_pipeline.get_bind_group_layout(0);
-    let init_bind_group = context.device().create_bind_group(&BindGroupDescriptor {
-        label: Some("Init Bind Group"),
-        layout: &init_bind_group_layout,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: wgpu::BindingResource::TextureView(&canvas.view),
-        }],
-    });
-    let draw_bing_group_layout = draw_pipeline.get_bind_group_layout(0);
-    let draw_bind_group = context.device().create_bind_group(&BindGroupDescriptor {
-        label: Some("Draw Bind Group"),
-        layout: &draw_bing_group_layout,
-        entries: &[wgpu::BindGroupEntry {
-            binding: 0,
-            resource: wgpu::BindingResource::TextureView(&canvas.view),
-        }],
-    });
-    CanvasData {
-        canvas,
-        canvas_bind_group,
-        update_bind_group,
-        init_bind_group,
-        draw_bind_group,
-    }
-}
-
-fn create_canvas_texture(app: &GlassContext) -> Texture {
-    Texture::empty(
-        app.device(),
         "canvas.png",
         Extent3d {
             width: WIDTH,
@@ -390,15 +364,91 @@ fn create_canvas_texture(app: &GlassContext) -> Texture {
         },
         TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
     )
-    .unwrap()
+    .unwrap();
+    let data_in = Texture::empty(
+        context.device(),
+        "data_in.png",
+        Extent3d {
+            width: WIDTH,
+            height: HEIGHT,
+            depth_or_array_layers: 1,
+        },
+        TextureFormat::Rgba16Float,
+        &SamplerDescriptor {
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            address_mode_w: AddressMode::ClampToEdge,
+            mag_filter: FilterMode::Linear,
+            min_filter: FilterMode::Nearest,
+            mipmap_filter: FilterMode::Nearest,
+            ..Default::default()
+        },
+        TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+    )
+    .unwrap();
+    // Create bind groups to match pipeline layouts (except update, create that dynamically each frame)
+    let init_pipeline = &context.compute_pipeline(&INIT_PIPELINE).unwrap();
+    let draw_pipeline = &context.compute_pipeline(&BRUSH_PIPELINE).unwrap();
+    let canvas_bind_group = context.common_pipeline().quad.create_bind_group(
+        context.device(),
+        &canvas.view,
+        &canvas.sampler,
+    );
+    // These must match the bind group layout of our pipeline
+    let init_bind_group_layout = init_pipeline.get_bind_group_layout(0);
+    let init_bind_group = context.device().create_bind_group(&BindGroupDescriptor {
+        label: Some("Init Bind Group"),
+        layout: &init_bind_group_layout,
+        entries: &[
+            wgpu::BindGroupEntry {
+                binding: 0,
+                resource: wgpu::BindingResource::TextureView(&canvas.view),
+            },
+            wgpu::BindGroupEntry {
+                binding: 1,
+                resource: wgpu::BindingResource::TextureView(&data_in.view),
+            },
+        ],
+    });
+    let draw_bing_group_layout = draw_pipeline.get_bind_group_layout(0);
+    let draw_bind_group = context.device().create_bind_group(&BindGroupDescriptor {
+        label: Some("Draw Bind Group"),
+        layout: &draw_bing_group_layout,
+        entries: &[wgpu::BindGroupEntry {
+            binding: 0,
+            resource: wgpu::BindingResource::TextureView(&data_in.view),
+        }],
+    });
+    CanvasData {
+        canvas,
+        data_in,
+        canvas_bind_group,
+        init_bind_group,
+        draw_bind_group,
+    }
 }
 
 fn create_game_of_life_pipeline(context: &mut GlassContext) {
-    let texture_bind_group_layout =
-        context
-            .device()
-            .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
-                entries: &[wgpu::BindGroupLayoutEntry {
+    let dr_layout = context
+        .device()
+        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[wgpu::BindGroupLayoutEntry {
+                binding: 0,
+                visibility: wgpu::ShaderStages::COMPUTE,
+                ty: wgpu::BindingType::StorageTexture {
+                    access: StorageTextureAccess::ReadWrite,
+                    view_dimension: wgpu::TextureViewDimension::D2,
+                    format: TextureFormat::Rgba16Float,
+                },
+                count: None,
+            }],
+            label: Some("draw_bind_group_layout"),
+        });
+    let bg_layout = context
+        .device()
+        .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
+            entries: &[
+                wgpu::BindGroupLayoutEntry {
                     binding: 0,
                     visibility: wgpu::ShaderStages::COMPUTE,
                     ty: wgpu::BindingType::StorageTexture {
@@ -407,9 +457,20 @@ fn create_game_of_life_pipeline(context: &mut GlassContext) {
                         format: TextureFormat::Rgba16Float,
                     },
                     count: None,
-                }],
-                label: Some("texture_bind_group_layout"),
-            });
+                },
+                wgpu::BindGroupLayoutEntry {
+                    binding: 1,
+                    visibility: wgpu::ShaderStages::COMPUTE,
+                    ty: wgpu::BindingType::StorageTexture {
+                        access: StorageTextureAccess::ReadWrite,
+                        view_dimension: wgpu::TextureViewDimension::D2,
+                        format: TextureFormat::Rgba16Float,
+                    },
+                    count: None,
+                },
+            ],
+            label: Some("gol_bind_group_layout"),
+        });
 
     let game_of_life_shader = context
         .device()
@@ -429,7 +490,7 @@ fn create_game_of_life_pipeline(context: &mut GlassContext) {
             .device()
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Game of Life Init Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout],
+                bind_group_layouts: &[&bg_layout],
                 push_constant_ranges: &[PushConstantRange {
                     stages: ShaderStages::COMPUTE,
                     range: 0..std::mem::size_of::<GameOfLifePushConstants>() as u32,
@@ -449,7 +510,7 @@ fn create_game_of_life_pipeline(context: &mut GlassContext) {
             .device()
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Game of Life Layout"),
-                bind_group_layouts: &[&texture_bind_group_layout],
+                bind_group_layouts: &[&bg_layout],
                 push_constant_ranges: &[PushConstantRange {
                     stages: ShaderStages::COMPUTE,
                     range: 0..std::mem::size_of::<GameOfLifePushConstants>() as u32,
@@ -464,28 +525,28 @@ fn create_game_of_life_pipeline(context: &mut GlassContext) {
             entry_point: "update",
         });
 
-    let brush_layout = context
+    let draw_layout = context
         .device()
         .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Brush Layout"),
-            bind_group_layouts: &[&texture_bind_group_layout],
+            label: Some("Draw Layout"),
+            bind_group_layouts: &[&dr_layout],
             push_constant_ranges: &[PushConstantRange {
                 stages: ShaderStages::COMPUTE,
                 range: 0..std::mem::size_of::<GameOfLifePushConstants>() as u32,
             }],
         });
-    let brush_pipeline = context
+    let draw_pipeline = context
         .device()
         .create_compute_pipeline(&ComputePipelineDescriptor {
-            label: Some("Brush Pipeline"),
-            layout: Some(&brush_layout),
+            label: Some("Draw Pipeline"),
+            layout: Some(&draw_layout),
             module: &brush_shader,
             entry_point: "main",
         });
 
     context.add_compute_pipeline(INIT_PIPELINE, init_pipeline);
     context.add_compute_pipeline(GAME_OF_LIFE_PIPELINE, update_pipeline);
-    context.add_compute_pipeline(BRUSH_PIPELINE, brush_pipeline);
+    context.add_compute_pipeline(BRUSH_PIPELINE, draw_pipeline);
 }
 
 fn camera_projection(screen_size: [f32; 2]) -> glam::Mat4 {

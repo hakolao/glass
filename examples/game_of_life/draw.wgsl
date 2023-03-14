@@ -6,7 +6,7 @@ struct PushConstants {
 var<push_constant> pc: PushConstants;
 
 @group(0) @binding(0)
-var image: texture_storage_2d<rgba16float, read_write>;
+var data_in: texture_storage_2d<rgba16float, read_write>;
 
 // Line v->w, point p
 // https://stackoverflow.com/questions/849211/shortest-distance-between-a-point-and-a-line-segment
@@ -31,7 +31,7 @@ fn draw_particle_circle(pos: vec2<f32>, draw_pos: vec2<f32>, radius: f32) {
         let diff = pos - draw_pos;
         let dist = length(diff);
         if (round(dist) <= radius) {
-            textureStore(image, vec2<i32>(pos), vec4<f32>(1.0, 0.0, 0.0, 1.0));
+            textureStore(data_in, vec2<i32>(pos), vec4<f32>(1.0, 0.0, 0.0, 1.0));
         }
     }
 }
@@ -40,7 +40,7 @@ fn draw_particle_circle(pos: vec2<f32>, draw_pos: vec2<f32>, radius: f32) {
 fn main(@builtin(global_invocation_id) invocation_id: vec3<u32>)
 {
     let pixel = vec2<u32>(invocation_id.xy);
-    let size = vec2<u32>(textureDimensions(image));
+    let size = vec2<u32>(textureDimensions(data_in));
     if (pixel.x >= size.x && pixel.y >= size.y) {
         return ;
     }

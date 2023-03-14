@@ -7,6 +7,8 @@ var<push_constant> pc: PushConstants;
 
 @group(0) @binding(0)
 var image: texture_storage_2d<rgba16float, read_write>;
+@group(0) @binding(1)
+var data_in: texture_storage_2d<rgba16float, read_write>;
 
 // https://stackoverflow.com/questions/4200224/random-noise-functions-for-glsl
 fn randomFloat(xy: vec2<f32>, seed: f32) -> f32 {
@@ -25,11 +27,11 @@ fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_wo
     let alive = randomNumber > 0.9;
     let color = vec4<f32>(f32(alive), 0.0, 0.0, 1.0);
 
-    textureStore(image, location, color);
+    textureStore(data_in, location, color);
 }
 
 fn is_alive(location: vec2<i32>, offset_x: i32, offset_y: i32) -> i32 {
-    let value: vec4<f32> = textureLoad(image, location + vec2<i32>(offset_x, offset_y));
+    let value: vec4<f32> = textureLoad(data_in, location + vec2<i32>(offset_x, offset_y));
     return i32(value.x);
 }
 
