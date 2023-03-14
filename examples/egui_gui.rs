@@ -2,7 +2,7 @@ use egui::FullOutput;
 use egui_demo_lib::DemoWindows;
 use egui_wgpu::renderer::ScreenDescriptor;
 use egui_winit::EventResponse;
-use glass::{Glass, GlassApp, GlassConfig, GlassContext, RenderData};
+use glass::{window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, RenderData};
 use wgpu::{CommandEncoder, TextureView};
 use winit::{
     event::Event,
@@ -56,14 +56,9 @@ fn initialize_gui_app(
     context: &mut GlassContext,
     event_loop: &EventLoopWindowTarget<()>,
 ) {
-    let window = context.primary_render_window();
     let mut egui_winit = egui_winit::State::new(event_loop);
-    let renderer = egui_wgpu::Renderer::new(
-        context.device(),
-        window.surface_format(context.adapter()),
-        None,
-        1,
-    );
+    let renderer =
+        egui_wgpu::Renderer::new(context.device(), GlassWindow::surface_format(), None, 1);
 
     egui_winit.set_max_texture_side(context.device().limits().max_texture_dimension_2d as usize);
     let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;

@@ -1,6 +1,4 @@
-use wgpu::{
-    Adapter, CompositeAlphaMode, PresentMode, Surface, SurfaceConfiguration, TextureFormat,
-};
+use wgpu::{CompositeAlphaMode, PresentMode, Surface, SurfaceConfiguration, TextureFormat};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::device_context::DeviceContext;
@@ -41,7 +39,7 @@ pub struct GlassWindow {
 impl GlassWindow {
     /// Creates a new [`GlassWindow`] that owns the winit [`Window`](winit::window::Window).
     pub fn new(context: &DeviceContext, config: WindowConfig, window: Window) -> GlassWindow {
-        let surface = unsafe { context.instance().create_surface(&window) };
+        let surface = unsafe { context.instance().create_surface(&window).unwrap() };
         GlassWindow {
             window,
             surface,
@@ -60,11 +58,12 @@ impl GlassWindow {
     ) {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: TextureFormat::Bgra8UnormSrgb,
+            format: Self::surface_format(),
             width: size.width,
             height: size.height,
             present_mode: self.present_mode,
             alpha_mode: self.alpha_mode,
+            view_formats: vec![Self::surface_format()],
         };
         self.configure_surface(context, &config)
     }
@@ -92,9 +91,8 @@ impl GlassWindow {
     }
 
     /// Return [`TextureFormat`](wgpu::TextureFormat) belonging to the window surface
-    pub fn surface_format(&self, adapter: &Adapter) -> TextureFormat {
-        let formats = self.surface.get_supported_formats(adapter);
-        formats[0]
+    pub fn surface_format() -> TextureFormat {
+        TextureFormat::Bgra8UnormSrgb
     }
 
     pub(crate) fn exit_on_esc(&self) -> bool {

@@ -31,6 +31,7 @@ impl Texture {
             dimension: TextureDimension::D2,
             format,
             usage,
+            view_formats: &[format],
         });
         let view = texture.create_view(&TextureViewDescriptor::default());
         let sampler = device.create_sampler(sampler_descriptor);
@@ -89,6 +90,7 @@ impl Texture {
             dimension: TextureDimension::D2,
             format,
             usage,
+            view_formats: &[format],
         });
 
         queue.write_texture(
