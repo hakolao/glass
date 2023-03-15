@@ -1,4 +1,7 @@
-use glass::{iced_utils::IcedRenderer, Glass, GlassApp, GlassConfig, GlassContext, RenderData};
+use glass::{
+    iced_utils::IcedRenderer, window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext,
+    RenderData,
+};
 use iced_graphics::{Alignment, Size};
 use iced_native::{
     program::State, renderer::Style, row, widget::button, Command, Element, Program, Theme,
@@ -83,7 +86,7 @@ fn initialize_gui_app(app: &mut GuiApp, context: &mut GlassContext) {
     let mut iced_renderer = IcedRenderer::new(
         context.device(),
         window.window(),
-        window.surface_format(context.adapter()),
+        GlassWindow::surface_format(),
     );
     let state = State::new(
         GuiProgram,

@@ -131,9 +131,9 @@ fn render_egui(
     // creates triangles to paint
     let clipped_primitives = egui_ctx.tessellate(shapes);
 
-    let size = window.window().inner_size();
+    let size = window.surface_size();
     let screen_descriptor = ScreenDescriptor {
-        size_in_pixels: [size.width, size.height],
+        size_in_pixels: size,
         pixels_per_point: window.window().scale_factor() as f32,
     };
 

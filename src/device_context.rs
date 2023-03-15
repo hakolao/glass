@@ -1,6 +1,6 @@
 use wgpu::{
-    Adapter, Backends, Device, DeviceDescriptor, Instance, InstanceDescriptor, Limits,
-    PowerPreference, Queue, RequestAdapterOptions, Surface,
+    Adapter, Backends, Device, DeviceDescriptor, Instance, Limits, PowerPreference, Queue,
+    RequestAdapterOptions, Surface,
 };
 use winit::window::Window;
 
@@ -51,13 +51,10 @@ unsafe impl Sync for DeviceContext {}
 
 impl DeviceContext {
     pub fn new(config: &DeviceConfig, initial_windows: &[(WindowConfig, Window)]) -> DeviceContext {
-        let instance = Instance::new(InstanceDescriptor {
-            backends: config.backends,
-            dx12_shader_compiler: Default::default(),
-        });
+        let instance = Instance::new(config.backends);
         // Ensure render context is compatible with our window...
         let surface_maybe = if let Some((_c, w)) = initial_windows.first() {
-            Some(unsafe { instance.create_surface(&w).unwrap() })
+            Some(unsafe { instance.create_surface(&w) })
         } else {
             None
         };

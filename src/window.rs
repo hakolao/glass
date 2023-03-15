@@ -34,12 +34,14 @@ pub struct GlassWindow {
     alpha_mode: CompositeAlphaMode,
     exit_on_esc: bool,
     has_focus: bool,
+    last_surface_size: [u32; 2],
 }
 
 impl GlassWindow {
     /// Creates a new [`GlassWindow`] that owns the winit [`Window`](winit::window::Window).
     pub fn new(context: &DeviceContext, config: WindowConfig, window: Window) -> GlassWindow {
-        let surface = unsafe { context.instance().create_surface(&window).unwrap() };
+        let size = [window.inner_size().width, window.inner_size().height];
+        let surface = unsafe { context.instance().create_surface(&window) };
         GlassWindow {
             window,
             surface,
@@ -47,6 +49,7 @@ impl GlassWindow {
             alpha_mode: config.alpha_mode,
             exit_on_esc: config.exit_on_esc,
             has_focus: false,
+            last_surface_size: size,
         }
     }
 
@@ -63,9 +66,9 @@ impl GlassWindow {
             height: size.height,
             present_mode: self.present_mode,
             alpha_mode: self.alpha_mode,
-            view_formats: vec![Self::surface_format()],
         };
-        self.configure_surface(context, &config)
+        self.configure_surface(context, &config);
+        self.last_surface_size = [size.width, size.height];
     }
 
     /// Configure surface after window has changed. Use this to reconfigure the surface
@@ -73,6 +76,7 @@ impl GlassWindow {
         self.surface.configure(context.device(), config);
         self.present_mode = config.present_mode;
         self.alpha_mode = config.alpha_mode;
+        self.last_surface_size = [config.width, config.height];
     }
 
     /// Return [`Surface`](wgpu::Surface) belonging to the window
@@ -105,5 +109,9 @@ impl GlassWindow {
 
     pub(crate) fn set_focus(&mut self, has_focus: bool) {
         self.has_focus = has_focus;
+    }
+
+    pub fn surface_size(&self) -> [u32; 2] {
+        self.last_surface_size
     }
 }

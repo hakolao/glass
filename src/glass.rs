@@ -44,7 +44,6 @@ impl<A: GlassApp + 'static> Glass<A> {
 
             // Run input fn
             self.app.input(&mut context, event_loop, &event);
-
             match event {
                 Event::WindowEvent {
                     window_id,
@@ -53,8 +52,22 @@ impl<A: GlassApp + 'static> Glass<A> {
                 } => {
                     if let Some(window) = context.windows.get_mut(&window_id) {
                         match window_event {
-                            WindowEvent::Resized(size) => {
-                                window.configure_surface_with_size(&context.device_context, size);
+                            WindowEvent::Resized(physical_size) => {
+                                // On windows, minimized app can have 0,0 size
+                                if physical_size.width > 0 && physical_size.height > 0 {
+                                    window.configure_surface_with_size(
+                                        &context.device_context,
+                                        physical_size,
+                                    );
+                                }
+                            }
+                            WindowEvent::ScaleFactorChanged {
+                                new_inner_size, ..
+                            } => {
+                                window.configure_surface_with_size(
+                                    &context.device_context,
+                                    *new_inner_size,
+                                );
                             }
                             WindowEvent::KeyboardInput {
                                 input,

@@ -13,11 +13,11 @@ egui_gui = ["egui-wgpu", "egui-winit", "egui"]
 [dependencies]
 indexmap = "1.9.2"
 pollster = "0.2.5"
-wgpu = "0.15"
-winit = "0.28"
 image = "0.24"
 anyhow = "1.0.68"
 bytemuck = { version = "1.12.3", features = ["derive"] }
+wgpu = "0.14"
+winit = "0.27"
 
 # Optional Iced
 iced_wgpu = { version = "0.8.0", optional = true }
@@ -26,13 +26,13 @@ iced_native = { version = "0.8.0", optional = true }
 iced_winit = { version = "0.7.0", optional = true }
 
 # Optional Egui
-egui-wgpu = { version = "0.21", optional = true }
-egui-winit = { version = "0.21", optional = true }
-egui = { version = "0.21", optional = true }
+egui-wgpu = { version = "0.20", optional = true }
+egui-winit = { version = "0.20", optional = true }
+egui = { version = "0.20", optional = true }
 
 [dev-dependencies]
 glam = "0.22.0"
-egui_demo_lib = "0.21"
+egui_demo_lib = "0.20"
 
 [[example]]
 name = "hello_world"
