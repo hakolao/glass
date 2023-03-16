@@ -25,7 +25,7 @@ pub use iced_wgpu;
 #[cfg(all(feature = "iced_gui", not(feature = "egui_gui")))]
 pub use iced_winit;
 // --
-// For convenience export winit and wgpu
+pub use image;
 pub use wgpu;
 pub use winit;
 

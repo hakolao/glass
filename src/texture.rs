@@ -1,5 +1,5 @@
 use anyhow::*;
-use image::{DynamicImage, GenericImageView};
+use image::DynamicImage;
 use wgpu::{
     Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, Sampler,
     SamplerDescriptor, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat,
@@ -74,7 +74,7 @@ impl Texture {
         usage: TextureUsages,
     ) -> Result<Self> {
         let rgba = img.to_rgba8();
-        let dimensions = img.dimensions();
+        let dimensions = rgba.dimensions();
 
         let size = Extent3d {
             width: dimensions.0,
@@ -102,7 +102,7 @@ impl Texture {
             ImageDataLayout {
                 offset: 0,
                 bytes_per_row: std::num::NonZeroU32::new(4 * dimensions.0),
-                rows_per_image: std::num::NonZeroU32::new(dimensions.1),
+                rows_per_image: None,
             },
             size,
         );
