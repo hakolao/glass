@@ -1,4 +1,4 @@
-use iced_native::{program::State, renderer::Style, Program, Theme};
+use iced_native::{renderer::Style, Command, Program, Theme};
 use iced_winit::conversion;
 use wgpu::{CommandEncoder, Device, TextureFormat, TextureView};
 use winit::{
@@ -47,15 +47,17 @@ impl IcedRenderer {
         }
     }
 
-    /// Update your iced program state with winit event. In addition, update the [`IcedRenderer`]
-    /// viewport state.
-    pub fn update_with_event<P>(
+    /// Update your iced program state with winit event. In addition, update [`IcedRenderer`]
+    pub fn update<P>(
         &mut self,
         state: &mut iced_native::program::State<P>,
         context: &GlassContext,
         event: &Event<()>,
-    ) where
-        P: iced_native::Program + 'static,
+        theme: &Theme,
+        style: &Style,
+    ) -> (Vec<iced_native::Event>, Option<Command<P::Message>>)
+    where
+        P: Program<Renderer = iced_graphics::Renderer<iced_wgpu::Backend, iced_native::Theme>>,
         <P::Renderer as iced_native::Renderer>::Theme: iced_native::application::StyleSheet,
     {
         match event {
@@ -110,32 +112,18 @@ impl IcedRenderer {
             }
             _ => {}
         }
-    }
 
-    /// Add draw commands for iced to render command queue
-    pub fn render<
-        P: Program<Renderer = iced_graphics::Renderer<iced_wgpu::Backend, iced_native::Theme>>,
-    >(
-        &mut self,
-        state: &mut State<P>,
-        theme: &Theme,
-        style: &Style,
-        device: &Device,
-        encoder: &mut CommandEncoder,
-        view: &TextureView,
-    ) {
         let IcedRenderer {
             viewport,
             renderer,
             debug,
-            staging_belt,
             clipboard,
             cursor_position,
             ..
         } = self;
         if !state.is_queue_empty() {
             // We update iced state
-            let _ = state.update(
+            state.update(
                 viewport.logical_size(),
                 conversion::cursor_position(*cursor_position, viewport.scale_factor()),
                 renderer,
@@ -143,9 +131,21 @@ impl IcedRenderer {
                 style,
                 clipboard,
                 debug,
-            );
+            )
+        } else {
+            (vec![], None)
         }
+    }
 
+    /// Add draw commands for iced to render command queue
+    pub fn render(&mut self, device: &Device, encoder: &mut CommandEncoder, view: &TextureView) {
+        let IcedRenderer {
+            viewport,
+            renderer,
+            debug,
+            staging_belt,
+            ..
+        } = self;
         // And then iced on top
         renderer.with_primitives(|backend, primitive| {
             backend.present(

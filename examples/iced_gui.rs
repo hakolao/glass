@@ -119,8 +119,16 @@ fn initialize_gui_app(app: &mut GuiApp, context: &mut GlassContext) {
 
 fn handle_input(app: &mut GuiApp, context: &GlassContext, event: &Event<()>) {
     let gui = app.gui();
-    gui.renderer
-        .update_with_event(&mut gui.state, context, event);
+    let (non_captured, _) =
+        gui.renderer
+            .update(&mut gui.state, context, event, &Theme::Dark, &Style {
+                text_color: iced_native::Color::WHITE,
+            });
+    // With the non captured vector, you can handle other input state when the event was not
+    // captured by iced
+    if !non_captured.is_empty() {
+        println!("{:?}", non_captured);
+    }
 }
 
 fn render(app: &mut GuiApp, context: &GlassContext, render_data: RenderData) {
@@ -148,14 +156,5 @@ fn render(app: &mut GuiApp, context: &GlassContext, render_data: RenderData) {
         // Render Your Scene Here if you have one...
     }
     let gui = app.gui();
-    gui.renderer.render(
-        &mut gui.state,
-        &Theme::Dark,
-        &Style {
-            text_color: iced_native::Color::WHITE,
-        },
-        context.device(),
-        encoder,
-        &view,
-    );
+    gui.renderer.render(context.device(), encoder, &view);
 }
