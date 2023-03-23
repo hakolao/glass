@@ -4,7 +4,11 @@ use glass::{
 };
 use iced_graphics::{Alignment, Size};
 use iced_native::{
-    program::State, renderer::Style, row, widget::button, Command, Element, Program, Theme,
+    column,
+    program::State,
+    renderer::Style,
+    widget::{button, text},
+    Command, Element, Program, Theme,
 };
 use iced_wgpu::Renderer;
 use winit::{
@@ -80,7 +84,8 @@ impl Program for GuiProgram {
     }
 
     fn view(&self) -> Element<'_, Self::Message, Self::Renderer> {
-        row![
+        column![
+            text("Omg"),
             button("Hello").on_press(Message::Hello(0)),
             button("Bye").on_press(Message::Bye(1))
         ]

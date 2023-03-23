@@ -83,6 +83,14 @@ impl IcedRenderer {
                             window.scale_factor(),
                         );
                     }
+                    WindowEvent::ScaleFactorChanged {
+                        new_inner_size, ..
+                    } => {
+                        self.viewport = iced_wgpu::Viewport::with_physical_size(
+                            iced_graphics::Size::new(new_inner_size.width, new_inner_size.height),
+                            window.scale_factor(),
+                        );
+                    }
 
                     _ => {}
                 }
