@@ -57,7 +57,8 @@ struct Gui {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    None,
+    Hello(u32),
+    Bye(u32),
 }
 
 struct GuiProgram;
@@ -67,16 +68,26 @@ impl Program for GuiProgram {
     type Renderer = Renderer;
 
     fn update(&mut self, _message: Self::Message) -> Command<Self::Message> {
-        println!("Pressed the button");
+        match _message {
+            Message::Hello(val) => {
+                println!("Pressed hello button {val}");
+            }
+            Message::Bye(val) => {
+                println!("Pressed bye button {val}");
+            }
+        }
         Command::none()
     }
 
     fn view(&self) -> Element<'_, Self::Message, Self::Renderer> {
-        row![button("Hello").on_press(Message::None),]
-            .padding(10)
-            .spacing(20)
-            .align_items(Alignment::Center)
-            .into()
+        row![
+            button("Hello").on_press(Message::Hello(0)),
+            button("Bye").on_press(Message::Bye(1))
+        ]
+        .padding(10)
+        .spacing(20)
+        .align_items(Alignment::Center)
+        .into()
     }
 }
 
