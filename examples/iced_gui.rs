@@ -2,6 +2,7 @@ use glass::{
     iced_utils::IcedRenderer, window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext,
     RenderData,
 };
+use iced_aw::ColorPicker;
 use iced_graphics::{Alignment, Size};
 use iced_native::{
     column,
@@ -63,9 +64,15 @@ struct Gui {
 pub enum Message {
     Hello(u32),
     Bye(u32),
+    ChooseColor,
+    SubmitColor(iced_native::Color),
+    CancelColor,
 }
 
-struct GuiProgram;
+struct GuiProgram {
+    show_color_picker: bool,
+    color: iced_native::Color,
+}
 
 impl Program for GuiProgram {
     type Message = Message;
@@ -79,15 +86,33 @@ impl Program for GuiProgram {
             Message::Bye(val) => {
                 println!("Pressed bye button {val}");
             }
+            Message::ChooseColor => {
+                self.show_color_picker = true;
+            }
+            Message::SubmitColor(color) => {
+                self.color = color;
+                self.show_color_picker = false;
+            }
+            Message::CancelColor => {
+                self.show_color_picker = false;
+            }
         }
         Command::none()
     }
 
     fn view(&self) -> Element<'_, Self::Message, Self::Renderer> {
+        let color_picker = ColorPicker::new(
+            self.show_color_picker,
+            self.color,
+            button("Pick Color").on_press(Message::ChooseColor),
+            Message::CancelColor,
+            Message::SubmitColor,
+        );
         column![
             text("Omg"),
             button("Hello").on_press(Message::Hello(0)),
-            button("Bye").on_press(Message::Bye(1))
+            button("Bye").on_press(Message::Bye(1)),
+            color_picker
         ]
         .padding(10)
         .spacing(20)
@@ -105,7 +130,10 @@ fn initialize_gui_app(app: &mut GuiApp, context: &mut GlassContext) {
         GlassWindow::surface_format(),
     );
     let state = State::new(
-        GuiProgram,
+        GuiProgram {
+            show_color_picker: false,
+            color: iced_native::Color::WHITE,
+        },
         Size::new(physical_size.width as f32, physical_size.height as f32),
         &mut iced_renderer.renderer,
         &mut iced_renderer.debug,
@@ -119,16 +147,11 @@ fn initialize_gui_app(app: &mut GuiApp, context: &mut GlassContext) {
 
 fn handle_input(app: &mut GuiApp, context: &GlassContext, event: &Event<()>) {
     let gui = app.gui();
-    let (non_captured, _) =
+    let (_non_captured, _) =
         gui.renderer
             .update(&mut gui.state, context, event, &Theme::Dark, &Style {
                 text_color: iced_native::Color::WHITE,
             });
-    // With the non captured vector, you can handle other input state when the event was not
-    // captured by iced
-    if !non_captured.is_empty() {
-        println!("{:?}", non_captured);
-    }
 }
 
 fn render(app: &mut GuiApp, context: &GlassContext, render_data: RenderData) {
