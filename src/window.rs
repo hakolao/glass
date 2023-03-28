@@ -1,4 +1,4 @@
-use wgpu::{CompositeAlphaMode, PresentMode, Surface, SurfaceConfiguration, TextureFormat};
+use wgpu::{CompositeAlphaMode, Device, PresentMode, Surface, SurfaceConfiguration, TextureFormat};
 use winit::{dpi::PhysicalSize, window::Window};
 
 use crate::device_context::DeviceContext;
@@ -54,11 +54,7 @@ impl GlassWindow {
     }
 
     /// Configure surface after resize events
-    pub(crate) fn configure_surface_with_size(
-        &mut self,
-        context: &DeviceContext,
-        size: PhysicalSize<u32>,
-    ) {
+    pub(crate) fn configure_surface_with_size(&mut self, device: &Device, size: PhysicalSize<u32>) {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: Self::surface_format(),
@@ -67,13 +63,13 @@ impl GlassWindow {
             present_mode: self.present_mode,
             alpha_mode: self.alpha_mode,
         };
-        self.configure_surface(context, &config);
+        self.configure_surface(device, &config);
         self.last_surface_size = [size.width, size.height];
     }
 
     /// Configure surface after window has changed. Use this to reconfigure the surface
-    pub fn configure_surface(&mut self, context: &DeviceContext, config: &SurfaceConfiguration) {
-        self.surface.configure(context.device(), config);
+    pub(crate) fn configure_surface(&mut self, device: &Device, config: &SurfaceConfiguration) {
+        self.surface.configure(device, config);
         self.present_mode = config.present_mode;
         self.alpha_mode = config.alpha_mode;
         self.last_surface_size = [config.width, config.height];

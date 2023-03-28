@@ -1,7 +1,7 @@
 use indexmap::IndexMap;
 use wgpu::{
     Adapter, ComputePipeline, Device, Instance, PowerPreference, Queue, RenderPipeline,
-    TextureFormat,
+    SurfaceConfiguration, TextureFormat,
 };
 use winit::{
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
@@ -56,7 +56,7 @@ impl<A: GlassApp + 'static> Glass<A> {
                                 // On windows, minimized app can have 0,0 size
                                 if physical_size.width > 0 && physical_size.height > 0 {
                                     window.configure_surface_with_size(
-                                        &context.device_context,
+                                        &context.device_context.device(),
                                         physical_size,
                                     );
                                 }
@@ -65,7 +65,7 @@ impl<A: GlassApp + 'static> Glass<A> {
                                 new_inner_size, ..
                             } => {
                                 window.configure_surface_with_size(
-                                    &context.device_context,
+                                    &context.device_context.device(),
                                     *new_inner_size,
                                 );
                             }
@@ -262,7 +262,10 @@ impl GlassContext {
             let id = app.add_window(window_config, window);
             // Configure window surface with size
             let window = app.windows.get_mut(&id).unwrap();
-            window.configure_surface_with_size(&app.device_context, window.window().inner_size());
+            window.configure_surface_with_size(
+                &app.device_context.device(),
+                window.window().inner_size(),
+            );
         }
         app
     }
@@ -282,6 +285,14 @@ impl GlassContext {
 
     pub fn queue(&self) -> &Queue {
         self.device_context.queue()
+    }
+
+    pub fn configure_surface(&mut self, window_id: &WindowId, config: &SurfaceConfiguration) {
+        if let Some(window) = self.windows.get_mut(window_id) {
+            window.configure_surface(self.device_context.device(), config);
+        } else {
+            panic!("No window with id {:?}", window_id);
+        }
     }
 
     pub fn primary_render_window(&self) -> &GlassWindow {
@@ -315,7 +326,10 @@ impl GlassContext {
             self.device_context.reconfigure_with_surface(surface);
         }
         // Configure surface with size
-        window.configure_surface_with_size(&self.device_context, window.window().inner_size());
+        window.configure_surface_with_size(
+            &self.device_context.device(),
+            window.window().inner_size(),
+        );
         id
     }
 
