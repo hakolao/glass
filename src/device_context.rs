@@ -91,6 +91,8 @@ impl DeviceContext {
         }))
         .expect("Failed to find an appropriate adapter");
 
+        let trace_env = std::env::var("WGPU_TRACE").ok();
+        let path = trace_env.as_ref().map(std::path::Path::new);
         // Create the logical device and command queue
         let (device, queue) = wait_async(adapter.request_device(
             &DeviceDescriptor {
@@ -98,7 +100,7 @@ impl DeviceContext {
                 features: config.features,
                 limits: config.limits.clone(),
             },
-            None,
+            if cfg!(feature = "trace") { path } else { None },
         ))
         .expect("Failed to create device");
         (adapter, device, queue)

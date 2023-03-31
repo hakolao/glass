@@ -9,6 +9,7 @@ edition = "2021"
 default = []
 iced_gui = ["iced_wgpu", "iced_winit", "iced_native", "iced_graphics", "iced_aw"]
 egui_gui = ["egui-wgpu", "egui-winit", "egui"]
+trace = ["wgpu/trace"]
 
 [dependencies]
 indexmap = "1.9.2"
