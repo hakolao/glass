@@ -41,7 +41,7 @@ impl GlassWindow {
     /// Creates a new [`GlassWindow`] that owns the winit [`Window`](winit::window::Window).
     pub fn new(context: &DeviceContext, config: WindowConfig, window: Window) -> GlassWindow {
         let size = [window.inner_size().width, window.inner_size().height];
-        let surface = unsafe { context.instance().create_surface(&window) };
+        let surface = unsafe { context.instance().create_surface(&window).unwrap() };
         GlassWindow {
             window,
             surface,
@@ -62,6 +62,7 @@ impl GlassWindow {
             height: size.height,
             present_mode: self.present_mode,
             alpha_mode: self.alpha_mode,
+            view_formats: vec![],
         };
         self.configure_surface(device, &config);
         self.last_surface_size = [size.width, size.height];

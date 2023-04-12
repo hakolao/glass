@@ -29,6 +29,7 @@ impl Texture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
+            view_formats: &[],
             format,
             usage,
         });
@@ -87,6 +88,7 @@ impl Texture {
             mip_level_count: 1,
             sample_count: 1,
             dimension: TextureDimension::D2,
+            view_formats: &[],
             format,
             usage,
         });
