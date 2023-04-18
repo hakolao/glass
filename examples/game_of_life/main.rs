@@ -3,23 +3,23 @@ use std::{borrow::Cow, time::Instant};
 use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
 use glass::{
-    device_context::DeviceConfig, pipelines::PipelineKey, texture::Texture, window::WindowConfig,
+    device_context::DeviceConfig,
+    pipelines::QuadPipeline,
+    texture::Texture,
+    window::{GlassWindow, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, RenderData,
 };
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandEncoder, ComputePassDescriptor,
-    ComputePipelineDescriptor, Extent3d, FilterMode, Limits, PowerPreference, PresentMode,
-    PushConstantRange, SamplerDescriptor, ShaderStages, StorageTextureAccess, TextureFormat,
-    TextureUsages,
+    ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode, Limits, PowerPreference,
+    PresentMode, PushConstantRange, SamplerDescriptor, ShaderStages, StorageTextureAccess,
+    TextureFormat, TextureUsages,
 };
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
 };
 
-const INIT_PIPELINE: PipelineKey = PipelineKey::new("Game Of Life Init");
-const GAME_OF_LIFE_PIPELINE: PipelineKey = PipelineKey::new("Game Of Life");
-const BRUSH_PIPELINE: PipelineKey = PipelineKey::new("Brush");
 const WIDTH: u32 = 1024;
 const HEIGHT: u32 = 1024;
 const FPS_60: f32 = 16.0 / 1000.0;
@@ -33,7 +33,6 @@ const OPENGL_TO_WGPU: glam::Mat4 = glam::Mat4::from_cols_array(&[
 
 fn config() -> GlassConfig {
     GlassConfig {
-        with_common_pipelines: true,
         device_config: DeviceConfig {
             power_preference: PowerPreference::HighPerformance,
             features: wgpu::Features::PUSH_CONSTANTS
@@ -67,9 +66,19 @@ fn main() {
 impl GlassApp for GameOfLifeApp {
     fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
         // Create pipelines
-        create_game_of_life_pipeline(context);
-        // Create data & bindgroups to match pipelines
-        self.data = Some(create_canvas_data(context));
+        let (init_pipeline, game_of_life_pipeline, draw_pipeline) =
+            create_game_of_life_pipeline(context);
+        let quad_pipeline = QuadPipeline::new(context.device(), GlassWindow::surface_format());
+        self.data = Some(create_canvas_data(
+            context,
+            &quad_pipeline,
+            &init_pipeline,
+            &draw_pipeline,
+        ));
+        self.init_pipeline = Some(init_pipeline);
+        self.game_of_life_pipeline = Some(game_of_life_pipeline);
+        self.draw_pipeline = Some(draw_pipeline);
+        self.quad_pipeline = Some(quad_pipeline);
         init_game_of_life(self, context);
     }
 
@@ -86,12 +95,16 @@ impl GlassApp for GameOfLifeApp {
         run_update(self, context);
     }
 
-    fn render(&mut self, context: &GlassContext, render_data: RenderData) {
-        render(self, context, render_data);
+    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
+        render(self, render_data);
     }
 }
 
 struct GameOfLifeApp {
+    quad_pipeline: Option<QuadPipeline>,
+    init_pipeline: Option<ComputePipeline>,
+    game_of_life_pipeline: Option<ComputePipeline>,
+    draw_pipeline: Option<ComputePipeline>,
     data: Option<CanvasData>,
     cursor_pos: Vec2,
     prev_cursor_pos: Option<Vec2>,
@@ -106,6 +119,10 @@ struct GameOfLifeApp {
 impl Default for GameOfLifeApp {
     fn default() -> Self {
         Self {
+            quad_pipeline: None,
+            init_pipeline: None,
+            game_of_life_pipeline: None,
+            draw_pipeline: None,
             data: None,
             cursor_pos: Default::default(),
             prev_cursor_pos: None,
@@ -120,10 +137,6 @@ impl Default for GameOfLifeApp {
 }
 
 impl GameOfLifeApp {
-    fn data(&self) -> &CanvasData {
-        self.data.as_ref().unwrap()
-    }
-
     fn cursor_to_canvas(&self, width: f32, height: f32) -> (Vec2, Vec2) {
         let half_screen = Vec2::new(width, height) / 2.0;
         let current_canvas_pos = self.cursor_pos - half_screen + WIDTH as f32 / 2.0;
@@ -168,7 +181,14 @@ fn run_update(app: &mut GameOfLifeApp, context: &mut GlassContext) {
     context.queue().submit(Some(encoder.finish()));
 }
 
-fn render(app: &mut GameOfLifeApp, context: &GlassContext, render_data: RenderData) {
+fn render(app: &mut GameOfLifeApp, render_data: RenderData) {
+    let GameOfLifeApp {
+        data,
+        quad_pipeline,
+        ..
+    } = app;
+    let canvas_data = data.as_ref().unwrap();
+    let quad_pipeline = quad_pipeline.as_ref().unwrap();
     let RenderData {
         encoder,
         frame,
@@ -179,12 +199,10 @@ fn render(app: &mut GameOfLifeApp, context: &GlassContext, render_data: RenderDa
         let size = window.window().inner_size();
         (size.width as f32, size.height as f32)
     };
-    let canvas_data = app.data();
     let view = frame
         .texture
         .create_view(&wgpu::TextureViewDescriptor::default());
 
-    let canvas_pipeline = &context.common_pipeline().quad;
     {
         let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
@@ -198,7 +216,7 @@ fn render(app: &mut GameOfLifeApp, context: &GlassContext, render_data: RenderDa
             })],
             depth_stencil_attachment: None,
         });
-        canvas_pipeline.draw(
+        quad_pipeline.draw(
             &mut rpass,
             &canvas_data.canvas_bind_group,
             [0.0; 4],
@@ -244,15 +262,21 @@ fn draw_game_of_life(
         let size = context.primary_render_window().window().inner_size();
         (size.width as f32, size.height as f32)
     };
-    let draw_pipeline = context.compute_pipeline(&BRUSH_PIPELINE).unwrap();
+    let (end, start) = app.cursor_to_canvas(width, height);
+    let GameOfLifeApp {
+        data,
+        draw_pipeline,
+        ..
+    } = app;
+    let data = data.as_ref().unwrap();
+    let draw_pipeline = draw_pipeline.as_ref().unwrap();
 
     let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
         label: Some("Update"),
     });
-    let (end, start) = app.cursor_to_canvas(width, height);
     let pc = GameOfLifePushConstants::new(start, end, 10.0);
     cpass.set_pipeline(draw_pipeline);
-    cpass.set_bind_group(0, &app.data().draw_bind_group, &[]);
+    cpass.set_bind_group(0, &data.draw_bind_group, &[]);
     cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
     cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
 }
@@ -262,15 +286,21 @@ fn update_game_of_life(
     context: &GlassContext,
     encoder: &mut CommandEncoder,
 ) {
-    let update_pipeline = context.compute_pipeline(&GAME_OF_LIFE_PIPELINE).unwrap();
+    let GameOfLifeApp {
+        data,
+        game_of_life_pipeline,
+        ..
+    } = app;
+    let data = data.as_ref().unwrap();
+    let game_of_life_pipeline = game_of_life_pipeline.as_ref().unwrap();
     let (canvas, data_in) = if app.count % 2 == 0 {
-        (&app.data().canvas.view, &app.data().data_in.view)
+        (&data.canvas.views[0], &data.data_in.views[0])
     } else {
-        (&app.data().data_in.view, &app.data().canvas.view)
+        (&data.data_in.views[0], &data.canvas.views[0])
     };
     let update_bind_group = context.device().create_bind_group(&BindGroupDescriptor {
         label: Some("Update Bind Group"),
-        layout: &update_pipeline.get_bind_group_layout(0),
+        layout: &game_of_life_pipeline.get_bind_group_layout(0),
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
@@ -286,7 +316,7 @@ fn update_game_of_life(
         label: Some("Update"),
     });
     let pc = GameOfLifePushConstants::new(Vec2::ZERO, Vec2::ZERO, 0.0);
-    cpass.set_pipeline(update_pipeline);
+    cpass.set_pipeline(game_of_life_pipeline);
     cpass.set_bind_group(0, &update_bind_group, &[]);
     cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
     cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
@@ -295,19 +325,25 @@ fn update_game_of_life(
 }
 
 fn init_game_of_life(app: &mut GameOfLifeApp, context: &mut GlassContext) {
+    let GameOfLifeApp {
+        data,
+        init_pipeline,
+        ..
+    } = app;
+    let data = data.as_ref().unwrap();
+    let init_pipeline = init_pipeline.as_ref().unwrap();
     let mut encoder = context
         .device()
         .create_command_encoder(&wgpu::CommandEncoderDescriptor {
             label: None,
         });
-    let init_pipeline = context.compute_pipeline(&INIT_PIPELINE).unwrap();
 
     {
         let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
             label: Some("Init"),
         });
         cpass.set_pipeline(init_pipeline);
-        cpass.set_bind_group(0, &app.data().init_bind_group, &[]);
+        cpass.set_bind_group(0, &data.init_bind_group, &[]);
         cpass.set_push_constants(
             0,
             bytemuck::cast_slice(&[GameOfLifePushConstants::new(Vec2::ZERO, Vec2::ZERO, 0.0)]),
@@ -343,7 +379,12 @@ impl GameOfLifePushConstants {
     }
 }
 
-fn create_canvas_data(context: &GlassContext) -> CanvasData {
+fn create_canvas_data(
+    context: &GlassContext,
+    quad_pipeline: &QuadPipeline,
+    init_pipeline: &ComputePipeline,
+    draw_pipeline: &ComputePipeline,
+) -> CanvasData {
     let canvas = Texture::empty(
         context.device(),
         "canvas.png",
@@ -352,6 +393,7 @@ fn create_canvas_data(context: &GlassContext) -> CanvasData {
             height: HEIGHT,
             depth_or_array_layers: 1,
         },
+        1,
         TextureFormat::Rgba16Float,
         &SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
@@ -373,6 +415,7 @@ fn create_canvas_data(context: &GlassContext) -> CanvasData {
             height: HEIGHT,
             depth_or_array_layers: 1,
         },
+        1,
         TextureFormat::Rgba16Float,
         &SamplerDescriptor {
             address_mode_u: AddressMode::ClampToEdge,
@@ -387,13 +430,8 @@ fn create_canvas_data(context: &GlassContext) -> CanvasData {
     )
     .unwrap();
     // Create bind groups to match pipeline layouts (except update, create that dynamically each frame)
-    let init_pipeline = &context.compute_pipeline(&INIT_PIPELINE).unwrap();
-    let draw_pipeline = &context.compute_pipeline(&BRUSH_PIPELINE).unwrap();
-    let canvas_bind_group = context.common_pipeline().quad.create_bind_group(
-        context.device(),
-        &canvas.view,
-        &canvas.sampler,
-    );
+    let canvas_bind_group =
+        quad_pipeline.create_bind_group(context.device(), &canvas.views[0], &canvas.sampler);
     // These must match the bind group layout of our pipeline
     let init_bind_group_layout = init_pipeline.get_bind_group_layout(0);
     let init_bind_group = context.device().create_bind_group(&BindGroupDescriptor {
@@ -402,11 +440,11 @@ fn create_canvas_data(context: &GlassContext) -> CanvasData {
         entries: &[
             wgpu::BindGroupEntry {
                 binding: 0,
-                resource: wgpu::BindingResource::TextureView(&canvas.view),
+                resource: wgpu::BindingResource::TextureView(&canvas.views[0]),
             },
             wgpu::BindGroupEntry {
                 binding: 1,
-                resource: wgpu::BindingResource::TextureView(&data_in.view),
+                resource: wgpu::BindingResource::TextureView(&data_in.views[0]),
             },
         ],
     });
@@ -416,7 +454,7 @@ fn create_canvas_data(context: &GlassContext) -> CanvasData {
         layout: &draw_bing_group_layout,
         entries: &[wgpu::BindGroupEntry {
             binding: 0,
-            resource: wgpu::BindingResource::TextureView(&data_in.view),
+            resource: wgpu::BindingResource::TextureView(&data_in.views[0]),
         }],
     });
     CanvasData {
@@ -428,7 +466,9 @@ fn create_canvas_data(context: &GlassContext) -> CanvasData {
     }
 }
 
-fn create_game_of_life_pipeline(context: &mut GlassContext) {
+fn create_game_of_life_pipeline(
+    context: &mut GlassContext,
+) -> (ComputePipeline, ComputePipeline, ComputePipeline) {
     let dr_layout = context
         .device()
         .create_bind_group_layout(&wgpu::BindGroupLayoutDescriptor {
@@ -544,9 +584,7 @@ fn create_game_of_life_pipeline(context: &mut GlassContext) {
             entry_point: "main",
         });
 
-    context.add_compute_pipeline(INIT_PIPELINE, init_pipeline);
-    context.add_compute_pipeline(GAME_OF_LIFE_PIPELINE, update_pipeline);
-    context.add_compute_pipeline(BRUSH_PIPELINE, draw_pipeline);
+    (init_pipeline, update_pipeline, draw_pipeline)
 }
 
 fn camera_projection(screen_size: [f32; 2]) -> glam::Mat4 {

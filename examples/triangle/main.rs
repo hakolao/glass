@@ -1,13 +1,12 @@
 use std::borrow::Cow;
 
-use glass::{pipelines::PipelineKey, Glass, GlassApp, GlassConfig, GlassContext, RenderData};
+use glass::{Glass, GlassApp, GlassConfig, GlassContext, RenderData};
 use wgpu::{
-    MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipelineDescriptor,
-    ShaderModuleDescriptor, TextureFormat,
+    MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
+    RenderPipelineDescriptor, ShaderModuleDescriptor, TextureFormat,
 };
 use winit::event_loop::EventLoop;
 
-const TRIANGLE_PIPELINE: PipelineKey = PipelineKey::new("Triangle");
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
 
@@ -20,11 +19,13 @@ fn main() {
 }
 
 #[derive(Default)]
-struct TriangleApp;
+struct TriangleApp {
+    triangle_pipeline: Option<RenderPipeline>,
+}
 
 impl GlassApp for TriangleApp {
     fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
-        create_triangle_pipeline(context);
+        self.triangle_pipeline = Some(create_triangle_pipeline(context));
     }
 
     fn render(&mut self, context: &GlassContext, render_data: RenderData) {
@@ -48,13 +49,13 @@ impl GlassApp for TriangleApp {
             })],
             depth_stencil_attachment: None,
         });
-        let triangle_pipeline = context.draw_pipeline(&TRIANGLE_PIPELINE).unwrap();
+        let triangle_pipeline = self.triangle_pipeline.as_ref().unwrap();
         rpass.set_pipeline(triangle_pipeline);
         rpass.draw(0..3, 0..1);
     }
 }
 
-fn create_triangle_pipeline(context: &mut GlassContext) {
+fn create_triangle_pipeline(context: &mut GlassContext) -> RenderPipeline {
     let shader = context
         .device()
         .create_shader_module(ShaderModuleDescriptor {
@@ -88,5 +89,5 @@ fn create_triangle_pipeline(context: &mut GlassContext) {
             multisample: MultisampleState::default(),
             multiview: None,
         });
-    context.add_draw_pipeline(TRIANGLE_PIPELINE, pipeline);
+    pipeline
 }

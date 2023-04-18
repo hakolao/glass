@@ -1,6 +1,9 @@
 use glass::{
-    device_context::DeviceConfig, texture::Texture, window::WindowConfig, Glass, GlassApp,
-    GlassConfig, GlassContext, RenderData,
+    device_context::DeviceConfig,
+    pipelines::QuadPipeline,
+    texture::Texture,
+    window::{GlassWindow, WindowConfig},
+    Glass, GlassApp, GlassConfig, GlassContext, RenderData,
 };
 use wgpu::{
     AddressMode, Backends, BindGroup, FilterMode, PowerPreference, SamplerDescriptor,
@@ -24,7 +27,6 @@ fn main() {
 
 fn config() -> GlassConfig {
     GlassConfig {
-        with_common_pipelines: true,
         device_config: DeviceConfig {
             power_preference: PowerPreference::HighPerformance,
             backends: Backends::VULKAN,
@@ -42,21 +44,25 @@ fn config() -> GlassConfig {
 /// Example buffer data etc.
 #[derive(Default)]
 struct TreeApp {
+    quad_pipeline: Option<QuadPipeline>,
     data: Option<ExampleData>,
-}
-
-impl TreeApp {
-    fn data(&self) -> &ExampleData {
-        self.data.as_ref().unwrap()
-    }
 }
 
 impl GlassApp for TreeApp {
     fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
-        self.data = Some(create_example_data(context));
+        let quad_pipeline = QuadPipeline::new(context.device(), GlassWindow::surface_format());
+        self.data = Some(create_example_data(context, &quad_pipeline));
+        self.quad_pipeline = Some(quad_pipeline);
     }
 
-    fn render(&mut self, context: &GlassContext, render_data: RenderData) {
+    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
+        let TreeApp {
+            quad_pipeline,
+            data,
+            ..
+        } = self;
+        let quad_pipeline = quad_pipeline.as_ref().unwrap();
+        let tree_data = data.as_ref().unwrap();
         let RenderData {
             encoder,
             frame,
@@ -67,12 +73,10 @@ impl GlassApp for TreeApp {
             let size = window.window().inner_size();
             (size.width as f32, size.height as f32)
         };
-        let tree_data = self.data();
         let view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
 
-        let tree_pipeline = &context.common_pipeline().quad;
         {
             let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
                 label: None,
@@ -86,7 +90,7 @@ impl GlassApp for TreeApp {
                 })],
                 depth_stencil_attachment: None,
             });
-            tree_pipeline.draw(
+            quad_pipeline.draw(
                 &mut rpass,
                 &tree_data.tree_bind_group,
                 [0.0; 4],
@@ -102,14 +106,11 @@ struct ExampleData {
     tree_bind_group: BindGroup,
 }
 
-fn create_example_data(context: &GlassContext) -> ExampleData {
+fn create_example_data(context: &GlassContext, quad_pipeline: &QuadPipeline) -> ExampleData {
     let tree = create_tree_texture(context);
     // Create bind group
-    let tree_bind_group = context.common_pipeline().quad.create_bind_group(
-        context.device(),
-        &tree.view,
-        &tree.sampler,
-    );
+    let tree_bind_group =
+        quad_pipeline.create_bind_group(context.device(), &tree.views[0], &tree.sampler);
     ExampleData {
         tree,
         tree_bind_group,

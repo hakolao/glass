@@ -1,3 +1,5 @@
+use std::num::NonZeroU32;
+
 use anyhow::*;
 use image::DynamicImage;
 use wgpu::{
@@ -9,7 +11,7 @@ use wgpu::{
 /// A utility struct to ease Gpu texture creation from image data
 pub struct Texture {
     pub texture: wgpu::Texture,
-    pub view: TextureView,
+    pub views: Vec<TextureView>,
     pub sampler: Sampler,
     pub size: [f32; 2],
 }
@@ -19,6 +21,7 @@ impl Texture {
         device: &Device,
         label: &str,
         size: Extent3d,
+        mip_count: u32,
         format: TextureFormat,
         sampler_descriptor: &SamplerDescriptor,
         usage: TextureUsages,
@@ -26,19 +29,27 @@ impl Texture {
         let texture = device.create_texture(&TextureDescriptor {
             label: Some(label),
             size,
-            mip_level_count: 1,
+            mip_level_count: mip_count,
             sample_count: 1,
             dimension: TextureDimension::D2,
             view_formats: &[],
             format,
             usage,
         });
-        let view = texture.create_view(&TextureViewDescriptor::default());
+        let mut views = vec![];
+        for i in 0..mip_count {
+            let view = texture.create_view(&TextureViewDescriptor {
+                base_mip_level: 0,
+                mip_level_count: Some(NonZeroU32::new(i).unwrap()),
+                ..Default::default()
+            });
+            views.push(view);
+        }
         let sampler = device.create_sampler(sampler_descriptor);
 
         Ok(Self {
             texture,
-            view,
+            views,
             sampler,
             size: [size.width as f32, size.height as f32],
         })
@@ -62,6 +73,7 @@ impl Texture {
             format,
             sampler_descriptor,
             usage,
+            1,
         )
     }
 
@@ -73,6 +85,7 @@ impl Texture {
         format: TextureFormat,
         sampler_descriptor: &SamplerDescriptor,
         usage: TextureUsages,
+        mip_count: u32,
     ) -> Result<Self> {
         let rgba = img.to_rgba8();
         let dimensions = rgba.dimensions();
@@ -85,7 +98,7 @@ impl Texture {
         let texture = device.create_texture(&TextureDescriptor {
             label: Some(label),
             size,
-            mip_level_count: 1,
+            mip_level_count: mip_count,
             sample_count: 1,
             dimension: TextureDimension::D2,
             view_formats: &[],
@@ -114,7 +127,7 @@ impl Texture {
 
         Ok(Self {
             texture,
-            view,
+            views: vec![view],
             sampler,
             size: [dimensions.0 as f32, dimensions.1 as f32],
         })
