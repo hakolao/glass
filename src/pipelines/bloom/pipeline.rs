@@ -75,14 +75,6 @@ impl BloomPipeline {
         let mip_count = MAX_MIP_DIMENSION.ilog2().max(2) - 1;
         let mip_height_ratio = MAX_MIP_DIMENSION as f32 / height as f32;
 
-        println!(
-            "{} {} {} {} {}",
-            ((width as f32 * mip_height_ratio).round() as u32).max(1),
-            ((height as f32 * mip_height_ratio).round() as u32).max(1),
-            width,
-            height,
-            mip_height_ratio
-        );
         let bloom_texture = create_bloom_texture(
             device,
             ((width as f32 * mip_height_ratio).round() as u32).max(1),
@@ -361,7 +353,6 @@ impl BloomPipeline {
             ],
         });
         {
-            println!("First Downsample Read from main view 0, write to bloom texture 0");
             let view = &self.bloom_texture.views[0];
             let mut first_downsample_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("bloom_downsampling_first_pass"),
@@ -386,11 +377,6 @@ impl BloomPipeline {
 
         // Other Downsamples
         for mip in 1..self.mip_count as usize {
-            println!(
-                "Downsample Read from {}, write to {}",
-                mip as usize - 1,
-                mip
-            );
             // Write to next bloom texture, 1, 2, 3, 4...
             let view = &self.bloom_texture.views[mip];
             let mut downsampling_pass = encoder.begin_render_pass(&RenderPassDescriptor {
@@ -424,11 +410,6 @@ impl BloomPipeline {
 
         // Upsample
         for mip in (1..self.mip_count as usize).rev() {
-            println!(
-                "Upsample Read from {}, write to {}",
-                self.mip_count as usize - mip - 1,
-                mip - 1
-            );
             // Write to next (larger) bloom texture, inverse order, 7, 6, 5...0
             let view = &self.bloom_texture.views[mip - 1];
             let mut upsampling_pass = encoder.begin_render_pass(&RenderPassDescriptor {
@@ -469,10 +450,6 @@ impl BloomPipeline {
 
         // Final upsample pass
         {
-            println!(
-                "Final Upsample Read from {}, write to main view 0",
-                self.mip_count - 1,
-            );
             let mut upsampling_final_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("bloom_upsampling_final_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
