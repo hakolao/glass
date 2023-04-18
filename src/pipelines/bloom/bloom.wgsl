@@ -130,8 +130,8 @@ fn downsample(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
         // downscaling and upscaling which would result in black boxes.
         // The upper bound is to prevent NaNs.
         sampl = clamp(sampl, vec3<f32>(0.0001), vec3<f32>(3.40282347E+38));
-        sample = soft_treshold(sample);
-        return vec4<f32>(sample, 1.0);
+        sampl = soft_threshold(sampl);
+        return vec4<f32>(sampl, 1.0);
     } else {
         return vec4<f32>(sample_input_13_tap(uv), 1.0);
     }
