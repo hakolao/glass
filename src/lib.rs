@@ -1,5 +1,3 @@
-#![feature(int_log)]
-
 pub mod device_context;
 mod glass;
 mod glass_app;

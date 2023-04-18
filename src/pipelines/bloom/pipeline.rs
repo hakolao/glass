@@ -52,6 +52,7 @@ pub struct BloomPipeline {
     downsampling_bind_groups: Vec<BindGroup>,
     upsampling_bind_groups: Vec<BindGroup>,
     vertices: Buffer,
+    mip_count: u32,
     width: u32,
     height: u32,
     settings: BloomSettings,
@@ -221,6 +222,7 @@ impl BloomPipeline {
             downsampling_bind_groups: vec![],
             upsampling_bind_groups: vec![],
             vertices,
+            mip_count,
             width,
             height,
             settings: bloom_settings,
@@ -240,9 +242,9 @@ impl BloomPipeline {
     }
 
     pub fn queue_bind_groups(&mut self, device: &Device) {
-        let bind_group_count = self.bloom_texture.texture.mip_level_count() as usize - 1;
+        let bind_group_count = self.mip_count as usize - 1;
         let mut downsampling_bind_groups = Vec::with_capacity(bind_group_count);
-        for mip in 1..self.bloom_texture.texture.mip_level_count() as usize {
+        for mip in 1..self.mip_count as usize {
             downsampling_bind_groups.push(device.create_bind_group(&BindGroupDescriptor {
                 label: Some("bloom_downsampling_bind_group"),
                 layout: &self.downsample_pipeline.get_bind_group_layout(0),
@@ -260,7 +262,7 @@ impl BloomPipeline {
         }
 
         let mut upsampling_bind_groups = Vec::with_capacity(bind_group_count);
-        for mip in (0..self.bloom_texture.texture.mip_level_count() as usize).rev() {
+        for mip in (0..self.mip_count as usize).rev() {
             upsampling_bind_groups.push(device.create_bind_group(&BindGroupDescriptor {
                 label: Some("bloom_upsampling_bind_group"),
                 layout: &self.upsample_pipeline.get_bind_group_layout(0),
@@ -336,7 +338,7 @@ impl BloomPipeline {
         push_constants.bloom_pass += 1;
 
         // Other Downsamples
-        for mip in 1..self.bloom_texture.texture.mip_level_count() as usize {
+        for mip in 1..self.mip_count as usize {
             let view = &self.bloom_texture.views[mip];
             let mut downsampling_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("bloom_downsampling_pass"),
@@ -363,7 +365,7 @@ impl BloomPipeline {
         }
 
         // Upsample
-        for mip in (1..self.bloom_texture.texture.mip_level_count() as usize).rev() {
+        for mip in (1..self.mip_count as usize).rev() {
             let view = &self.bloom_texture.views[mip - 1];
             let mut upsampling_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("bloom_upsampling_pass"),
@@ -380,16 +382,12 @@ impl BloomPipeline {
             upsampling_pass.set_pipeline(&self.upsample_pipeline);
             upsampling_pass.set_bind_group(
                 0,
-                &self.upsampling_bind_groups
-                    [(self.bloom_texture.texture.mip_level_count() as usize - mip - 1) as usize],
+                &self.upsampling_bind_groups[(self.mip_count as usize - mip - 1) as usize],
                 &[],
             );
             upsampling_pass.set_vertex_buffer(0, self.vertices.slice(..));
-            let blend = compute_blend_factor(
-                &self.settings,
-                mip as f32,
-                (self.bloom_texture.texture.mip_level_count() - 1) as f32,
-            );
+            let blend =
+                compute_blend_factor(&self.settings, mip as f32, (self.mip_count - 1) as f32);
             upsampling_pass.set_blend_constant(Color {
                 r: blend as f64,
                 g: blend as f64,
@@ -421,17 +419,12 @@ impl BloomPipeline {
             upsampling_final_pass.set_pipeline(&self.final_pipeline);
             upsampling_final_pass.set_bind_group(
                 0,
-                &self.upsampling_bind_groups
-                    [(self.bloom_texture.texture.mip_level_count() - 1) as usize],
+                &self.upsampling_bind_groups[(self.mip_count - 1) as usize],
                 &[],
             );
             upsampling_final_pass.set_vertex_buffer(0, self.vertices.slice(..));
             // upsampling_final_pass.set_viewport();
-            let blend = compute_blend_factor(
-                &self.settings,
-                0.0,
-                (self.bloom_texture.texture.mip_level_count() - 1) as f32,
-            );
+            let blend = compute_blend_factor(&self.settings, 0.0, (self.mip_count - 1) as f32);
             upsampling_final_pass.set_blend_constant(Color {
                 r: blend as f64,
                 g: blend as f64,

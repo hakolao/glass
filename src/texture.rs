@@ -40,7 +40,7 @@ impl Texture {
         for i in 0..mip_count {
             let view = texture.create_view(&TextureViewDescriptor {
                 base_mip_level: i,
-                mip_level_count: Some(NonZeroU32::new(mip_count).unwrap()),
+                mip_level_count: Some(NonZeroU32::new(1).unwrap()),
                 ..Default::default()
             });
             views.push(view);

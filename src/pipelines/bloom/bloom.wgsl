@@ -124,7 +124,7 @@ fn sample_input_3x3_tent(uv: vec2<f32>) -> vec3<f32> {
 @fragment
 fn downsample(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
     if (pc.bloom_pass == u32(0)) {
-        let sample_uv = pc.viewport.xy + output_uv * pc.viewport.zw;
+        let sample_uv = pc.viewport.xy + uv * pc.viewport.zw;
         var sampl = sample_input_13_tap(sample_uv);
         // Lower bound of 0.0001 is to avoid propagating multiplying by 0.0 through the
         // downscaling and upscaling which would result in black boxes.
