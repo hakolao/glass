@@ -9,7 +9,7 @@ use wgpu::{
 use crate::pipelines::{vertex::TexturedVertex, QUAD_INDICES, TEXTURED_QUAD_VERTICES};
 
 pub struct QuadPipeline {
-    pub pipeline: RenderPipeline,
+    pipeline: RenderPipeline,
     vertices: Buffer,
     indices: Buffer,
 }
