@@ -325,11 +325,11 @@ impl BloomPipeline {
         &self,
         device: &Device,
         encoder: &mut CommandEncoder,
-        main_view: &Texture,
+        bloom_target: &Texture,
         viewport_origin: UVec2,
         viewport_size: UVec2,
     ) {
-        let size = main_view.size;
+        let size = bloom_target.size;
         let push_constants = BloomPushConstants::new(
             &self.settings,
             viewport_origin,
@@ -344,7 +344,7 @@ impl BloomPipeline {
                 BindGroupEntry {
                     binding: 0,
                     // Read from input texture
-                    resource: BindingResource::TextureView(&main_view.views[0]),
+                    resource: BindingResource::TextureView(&bloom_target.views[0]),
                 },
                 BindGroupEntry {
                     binding: 1,
@@ -453,7 +453,7 @@ impl BloomPipeline {
             let mut upsampling_final_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("bloom_upsampling_final_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &main_view.views[0],
+                    view: &bloom_target.views[0],
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Load,
@@ -494,7 +494,6 @@ impl BloomPipeline {
     }
 }
 
-/// Quad instance specific values passed to the shader.
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct BloomPushConstants {
