@@ -24,7 +24,7 @@ struct PushConstants {
     threshold_precomputations: vec4<f32>,
     viewport: vec4<f32>,
     aspect: f32,
-    bloom_pass: u32,
+    use_treshold: u32,
 }
 var<push_constant> pc: PushConstants;
 
@@ -57,6 +57,40 @@ fn karis_average(color: vec3<f32>) -> f32 {
     return 1.0 / (1.0 + luma);
 }
 
+fn sample_input_13_tap_first(uv: vec2<f32>) -> vec3<f32> {
+    let a = textureSample(input_texture, s, uv, vec2<i32>(-2, 2)).rgb;
+    let b = textureSample(input_texture, s, uv, vec2<i32>(0, 2)).rgb;
+    let c = textureSample(input_texture, s, uv, vec2<i32>(2, 2)).rgb;
+    let d = textureSample(input_texture, s, uv, vec2<i32>(-2, 0)).rgb;
+    let e = textureSample(input_texture, s, uv).rgb;
+    let f = textureSample(input_texture, s, uv, vec2<i32>(2, 0)).rgb;
+    let g = textureSample(input_texture, s, uv, vec2<i32>(-2, -2)).rgb;
+    let h = textureSample(input_texture, s, uv, vec2<i32>(0, -2)).rgb;
+    let i = textureSample(input_texture, s, uv, vec2<i32>(2, -2)).rgb;
+    let j = textureSample(input_texture, s, uv, vec2<i32>(-1, 1)).rgb;
+    let k = textureSample(input_texture, s, uv, vec2<i32>(1, 1)).rgb;
+    let l = textureSample(input_texture, s, uv, vec2<i32>(-1, -1)).rgb;
+    let m = textureSample(input_texture, s, uv, vec2<i32>(1, -1)).rgb;
+
+    // The first downsample pass reads from the rendered frame which may exhibit
+    // 'fireflies' (individual very bright pixels) that should not cause the bloom effect.
+    //
+    // The first downsample uses a firefly-reduction method proposed by Brian Karis
+    // which takes a weighted-average of the samples to limit their luma range to [0, 1].
+    // This implementation matches the LearnOpenGL article [PBB].
+    var group0 = (a + b + d + e) * (0.125f / 4.0f);
+    var group1 = (b + c + e + f) * (0.125f / 4.0f);
+    var group2 = (d + e + g + h) * (0.125f / 4.0f);
+    var group3 = (e + f + h + i) * (0.125f / 4.0f);
+    var group4 = (j + k + l + m) * (0.5f / 4.0f);
+    group0 *= karis_average(group0);
+    group1 *= karis_average(group1);
+    group2 *= karis_average(group2);
+    group3 *= karis_average(group3);
+    group4 *= karis_average(group4);
+    return group0 + group1 + group2 + group3 + group4;
+}
+
 fn sample_input_13_tap(uv: vec2<f32>) -> vec3<f32> {
     let a = textureSample(input_texture, s, uv, vec2<i32>(-2, 2)).rgb;
     let b = textureSample(input_texture, s, uv, vec2<i32>(0, 2)).rgb;
@@ -72,30 +106,10 @@ fn sample_input_13_tap(uv: vec2<f32>) -> vec3<f32> {
     let l = textureSample(input_texture, s, uv, vec2<i32>(-1, -1)).rgb;
     let m = textureSample(input_texture, s, uv, vec2<i32>(1, -1)).rgb;
 
-    if (pc.bloom_pass == u32(0)) {
-        // The first downsample pass reads from the rendered frame which may exhibit
-        // 'fireflies' (individual very bright pixels) that should not cause the bloom effect.
-        //
-        // The first downsample uses a firefly-reduction method proposed by Brian Karis
-        // which takes a weighted-average of the samples to limit their luma range to [0, 1].
-        // This implementation matches the LearnOpenGL article [PBB].
-        var group0 = (a + b + d + e) * (0.125f / 4.0f);
-        var group1 = (b + c + e + f) * (0.125f / 4.0f);
-        var group2 = (d + e + g + h) * (0.125f / 4.0f);
-        var group3 = (e + f + h + i) * (0.125f / 4.0f);
-        var group4 = (j + k + l + m) * (0.5f / 4.0f);
-        group0 *= karis_average(group0);
-        group1 *= karis_average(group1);
-        group2 *= karis_average(group2);
-        group3 *= karis_average(group3);
-        group4 *= karis_average(group4);
-        return group0 + group1 + group2 + group3 + group4;
-    } else {
-        var sampl = (a + c + g + i) * 0.03125;
-        sampl += (b + d + f + h) * 0.0625;
-        sampl += (e + j + k + l + m) * 0.125;
-        return sampl;
-    }
+    var sampl = (a + c + g + i) * 0.03125;
+    sampl += (b + d + f + h) * 0.0625;
+    sampl += (e + j + k + l + m) * 0.125;
+    return sampl;
 }
 
 fn sample_input_3x3_tent(uv: vec2<f32>) -> vec3<f32> {
@@ -122,19 +136,22 @@ fn sample_input_3x3_tent(uv: vec2<f32>) -> vec3<f32> {
 }
 
 @fragment
-fn downsample(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
-    if (pc.bloom_pass == u32(0)) {
-        let sample_uv = pc.viewport.xy + uv * pc.viewport.zw;
-        var sampl = sample_input_13_tap(sample_uv);
-        // Lower bound of 0.0001 is to avoid propagating multiplying by 0.0 through the
-        // downscaling and upscaling which would result in black boxes.
-        // The upper bound is to prevent NaNs.
-        sampl = clamp(sampl, vec3<f32>(0.0001), vec3<f32>(3.40282347E+38));
+fn downsample_first(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+    let sample_uv = pc.viewport.xy + uv * pc.viewport.zw;
+    var sampl = sample_input_13_tap_first(sample_uv);
+    // Lower bound of 0.0001 is to avoid propagating multiplying by 0.0 through the
+    // downscaling and upscaling which would result in black boxes.
+    // The upper bound is to prevent NaNs.
+    sampl = clamp(sampl, vec3<f32>(0.0001), vec3<f32>(3.40282347E+38));
+    if (pc.use_treshold == u32(1)) {
         sampl = soft_threshold(sampl);
-        return vec4<f32>(sampl, 1.0);
-    } else {
-        return vec4<f32>(sample_input_13_tap(uv), 1.0);
     }
+    return vec4<f32>(sampl, 1.0);
+}
+
+@fragment
+fn downsample(@location(0) uv: vec2<f32>) -> @location(0) vec4<f32> {
+    return vec4<f32>(sample_input_13_tap(uv), 1.0);
 }
 
 @fragment

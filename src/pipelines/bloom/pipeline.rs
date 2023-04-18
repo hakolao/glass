@@ -13,7 +13,7 @@ use wgpu::{
 };
 
 use crate::{
-    pipelines::{TexturedVertex, FULL_SCREEN_TRIANGLE_VERTICES},
+    pipelines::{SimpleVertex, FULL_SCREEN_TRIANGLE_VERTICES},
     texture::Texture,
 };
 
@@ -45,6 +45,7 @@ fn create_bloom_texture(device: &Device, width: u32, height: u32, mip_count: u32
 }
 
 pub struct BloomPipeline {
+    downsample_first_pipeline: RenderPipeline,
     downsample_pipeline: RenderPipeline,
     upsample_pipeline: RenderPipeline,
     final_pipeline: RenderPipeline,
@@ -74,6 +75,14 @@ impl BloomPipeline {
         let mip_count = MAX_MIP_DIMENSION.ilog2().max(2) - 1;
         let mip_height_ratio = MAX_MIP_DIMENSION as f32 / height as f32;
 
+        println!(
+            "{} {} {} {} {}",
+            ((width as f32 * mip_height_ratio).round() as u32).max(1),
+            ((height as f32 * mip_height_ratio).round() as u32).max(1),
+            width,
+            height,
+            mip_height_ratio
+        );
         let bloom_texture = create_bloom_texture(
             device,
             ((width as f32 * mip_height_ratio).round() as u32).max(1),
@@ -114,17 +123,40 @@ impl BloomPipeline {
             label: Some("Bloom Pipeline Layout"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::VERTEX,
+                stages: ShaderStages::FRAGMENT,
                 range: 0..std::mem::size_of::<BloomPushConstants>() as u32,
             }],
         });
+        let downsample_first_pipeline =
+            device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+                label: Some("Bloom Downsample First Pipeline"),
+                layout: Some(&layout),
+                vertex: wgpu::VertexState {
+                    module: &shader,
+                    entry_point: "vs_main",
+                    buffers: &[SimpleVertex::desc()],
+                },
+                fragment: Some(wgpu::FragmentState {
+                    module: &shader,
+                    entry_point: "downsample_first",
+                    targets: &[Some(ColorTargetState {
+                        format: BLOOM_TEXTURE_FORMAT,
+                        blend: None,
+                        write_mask: ColorWrites::ALL,
+                    })],
+                }),
+                primitive: wgpu::PrimitiveState::default(),
+                depth_stencil: None,
+                multisample: wgpu::MultisampleState::default(),
+                multiview: None,
+            });
         let downsample_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Bloom Downsample Pipeline"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[TexturedVertex::desc()],
+                buffers: &[SimpleVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -160,7 +192,7 @@ impl BloomPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[TexturedVertex::desc()],
+                buffers: &[SimpleVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -190,7 +222,7 @@ impl BloomPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[TexturedVertex::desc()],
+                buffers: &[SimpleVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -214,19 +246,75 @@ impl BloomPipeline {
             multiview: None,
         });
 
+        let (downsampling_bind_groups, upsampling_bind_groups) = Self::create_bind_groups(
+            device,
+            &downsample_pipeline,
+            &upsample_pipeline,
+            &bloom_texture,
+            mip_count,
+        );
+
         BloomPipeline {
+            downsample_first_pipeline,
             downsample_pipeline,
             upsample_pipeline,
             final_pipeline,
             bloom_texture,
-            downsampling_bind_groups: vec![],
-            upsampling_bind_groups: vec![],
+            downsampling_bind_groups,
+            upsampling_bind_groups,
             vertices,
             mip_count,
             width,
             height,
             settings: bloom_settings,
         }
+    }
+
+    fn create_bind_groups(
+        device: &Device,
+        downsample_pipeline: &RenderPipeline,
+        upsample_pipeline: &RenderPipeline,
+        bloom_texture: &Texture,
+        mip_count: u32,
+    ) -> (Vec<BindGroup>, Vec<BindGroup>) {
+        let bind_group_count = mip_count as usize - 1;
+        let mut downsampling_bind_groups = Vec::with_capacity(bind_group_count);
+        for mip in 1..mip_count as usize {
+            downsampling_bind_groups.push(device.create_bind_group(&BindGroupDescriptor {
+                label: Some("bloom_downsampling_bind_group"),
+                layout: &downsample_pipeline.get_bind_group_layout(0),
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: BindingResource::TextureView(&bloom_texture.views[mip - 1]),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: BindingResource::Sampler(&bloom_texture.sampler),
+                    },
+                ],
+            }));
+        }
+
+        let mut upsampling_bind_groups = Vec::with_capacity(bind_group_count);
+        for mip in (0..mip_count as usize).rev() {
+            upsampling_bind_groups.push(device.create_bind_group(&BindGroupDescriptor {
+                label: Some("bloom_upsampling_bind_group"),
+                layout: &upsample_pipeline.get_bind_group_layout(0),
+                entries: &[
+                    BindGroupEntry {
+                        binding: 0,
+                        resource: BindingResource::TextureView(&bloom_texture.views[mip]),
+                    },
+                    BindGroupEntry {
+                        binding: 1,
+                        resource: BindingResource::Sampler(&bloom_texture.sampler),
+                    },
+                ],
+            }));
+        }
+
+        (downsampling_bind_groups, upsampling_bind_groups)
     }
 
     pub fn configure(&mut self, device: &Device, settings: BloomSettings, width: u32, height: u32) {
@@ -241,48 +329,6 @@ impl BloomPipeline {
         }
     }
 
-    pub fn queue_bind_groups(&mut self, device: &Device) {
-        let bind_group_count = self.mip_count as usize - 1;
-        let mut downsampling_bind_groups = Vec::with_capacity(bind_group_count);
-        for mip in 1..self.mip_count as usize {
-            downsampling_bind_groups.push(device.create_bind_group(&BindGroupDescriptor {
-                label: Some("bloom_downsampling_bind_group"),
-                layout: &self.downsample_pipeline.get_bind_group_layout(0),
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: BindingResource::TextureView(&self.bloom_texture.views[mip - 1]),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::Sampler(&self.bloom_texture.sampler),
-                    },
-                ],
-            }));
-        }
-
-        let mut upsampling_bind_groups = Vec::with_capacity(bind_group_count);
-        for mip in (0..self.mip_count as usize).rev() {
-            upsampling_bind_groups.push(device.create_bind_group(&BindGroupDescriptor {
-                label: Some("bloom_upsampling_bind_group"),
-                layout: &self.upsample_pipeline.get_bind_group_layout(0),
-                entries: &[
-                    BindGroupEntry {
-                        binding: 0,
-                        resource: BindingResource::TextureView(&self.bloom_texture.views[mip]),
-                    },
-                    BindGroupEntry {
-                        binding: 1,
-                        resource: BindingResource::Sampler(&self.bloom_texture.sampler),
-                    },
-                ],
-            }));
-        }
-
-        self.downsampling_bind_groups = downsampling_bind_groups;
-        self.upsampling_bind_groups = upsampling_bind_groups;
-    }
-
     pub fn bloom(
         &self,
         device: &Device,
@@ -292,7 +338,7 @@ impl BloomPipeline {
         viewport_size: UVec2,
     ) {
         let size = main_view.size;
-        let mut push_constants = BloomPushConstants::new(
+        let push_constants = BloomPushConstants::new(
             &self.settings,
             viewport_origin,
             viewport_size,
@@ -301,10 +347,11 @@ impl BloomPipeline {
         // First downsample pass (main image)
         let downsampling_first_bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("bloom_downsampling_first_bind_group"),
-            layout: &self.downsample_pipeline.get_bind_group_layout(0),
+            layout: &self.downsample_first_pipeline.get_bind_group_layout(0),
             entries: &[
                 BindGroupEntry {
                     binding: 0,
+                    // Read from input texture
                     resource: BindingResource::TextureView(&main_view.views[0]),
                 },
                 BindGroupEntry {
@@ -314,16 +361,19 @@ impl BloomPipeline {
             ],
         });
         {
+            println!("First Downsample Read from main view 0, write to bloom texture 0");
+            let view = &self.bloom_texture.views[0];
             let mut first_downsample_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("bloom_downsampling_first_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &self.bloom_texture.views[0],
+                    // Write to bloom texture
+                    view,
                     resolve_target: None,
                     ops: Operations::default(),
                 })],
                 depth_stencil_attachment: None,
             });
-            first_downsample_pass.set_pipeline(&self.downsample_pipeline);
+            first_downsample_pass.set_pipeline(&self.downsample_first_pipeline);
             first_downsample_pass.set_bind_group(0, &downsampling_first_bind_group, &[]);
             first_downsample_pass.set_vertex_buffer(0, self.vertices.slice(..));
             first_downsample_pass.set_push_constants(
@@ -334,24 +384,32 @@ impl BloomPipeline {
             first_downsample_pass.draw(0..3, 0..1);
         }
 
-        // No longer first pass
-        push_constants.bloom_pass += 1;
-
         // Other Downsamples
         for mip in 1..self.mip_count as usize {
+            println!(
+                "Downsample Read from {}, write to {}",
+                mip as usize - 1,
+                mip
+            );
+            // Write to next bloom texture, 1, 2, 3, 4...
             let view = &self.bloom_texture.views[mip];
             let mut downsampling_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("bloom_downsampling_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view,
                     resolve_target: None,
-                    ops: Operations::default(),
+                    ops: Operations {
+                        load: LoadOp::Load,
+                        store: true,
+                    },
+                    // ops: Operations::default(),
                 })],
                 depth_stencil_attachment: None,
             });
             downsampling_pass.set_pipeline(&self.downsample_pipeline);
             downsampling_pass.set_bind_group(
                 0,
+                // Read from bloom previous bloom texture 0, 1, 2, 3... and so on
                 &self.downsampling_bind_groups[mip as usize - 1],
                 &[],
             );
@@ -366,6 +424,12 @@ impl BloomPipeline {
 
         // Upsample
         for mip in (1..self.mip_count as usize).rev() {
+            println!(
+                "Upsample Read from {}, write to {}",
+                self.mip_count as usize - mip - 1,
+                mip - 1
+            );
+            // Write to next (larger) bloom texture, inverse order, 7, 6, 5...0
             let view = &self.bloom_texture.views[mip - 1];
             let mut upsampling_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("bloom_upsampling_pass"),
@@ -382,7 +446,8 @@ impl BloomPipeline {
             upsampling_pass.set_pipeline(&self.upsample_pipeline);
             upsampling_pass.set_bind_group(
                 0,
-                &self.upsampling_bind_groups[(self.mip_count as usize - mip - 1) as usize],
+                // Read from bloom texture 0, 1, 2, 3... and so on
+                &self.upsampling_bind_groups[self.mip_count as usize - mip - 1],
                 &[],
             );
             upsampling_pass.set_vertex_buffer(0, self.vertices.slice(..));
@@ -404,6 +469,10 @@ impl BloomPipeline {
 
         // Final upsample pass
         {
+            println!(
+                "Final Upsample Read from {}, write to main view 0",
+                self.mip_count - 1,
+            );
             let mut upsampling_final_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("bloom_upsampling_final_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
@@ -423,7 +492,14 @@ impl BloomPipeline {
                 &[],
             );
             upsampling_final_pass.set_vertex_buffer(0, self.vertices.slice(..));
-            // upsampling_final_pass.set_viewport();
+            upsampling_final_pass.set_viewport(
+                viewport_origin.x as f32,
+                viewport_origin.y as f32,
+                viewport_size.x as f32,
+                viewport_size.y as f32,
+                0.0,
+                1.0,
+            );
             let blend = compute_blend_factor(&self.settings, 0.0, (self.mip_count - 1) as f32);
             upsampling_final_pass.set_blend_constant(Color {
                 r: blend as f64,
@@ -448,7 +524,7 @@ pub struct BloomPushConstants {
     pub threshold_precomputations: [f32; 4],
     pub viewport: [f32; 4],
     pub aspect: f32,
-    pub bloom_pass: u32,
+    pub use_treshold: u32,
 }
 
 impl BloomPushConstants {
@@ -485,7 +561,7 @@ impl BloomPushConstants {
                 .as_vec4())
             .into(),
             aspect: viewport_size.x as f32 / viewport_size.y as f32,
-            bloom_pass: 0,
+            use_treshold: (threshold > 0.0) as u32,
         }
     }
 }

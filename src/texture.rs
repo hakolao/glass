@@ -37,9 +37,9 @@ impl Texture {
             usage,
         });
         let mut views = vec![];
-        for i in 0..mip_count {
+        for mip_level in 0..mip_count {
             let view = texture.create_view(&TextureViewDescriptor {
-                base_mip_level: i,
+                base_mip_level: mip_level,
                 mip_level_count: Some(NonZeroU32::new(1).unwrap()),
                 ..Default::default()
             });
