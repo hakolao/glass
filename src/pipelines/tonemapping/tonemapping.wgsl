@@ -19,6 +19,7 @@ var hdr_texture: texture_2d<f32>;
 var hdr_sampler: sampler;
 
 struct PushConstants {
+    off: u32,
     exposure: f32,
     gamma: f32,
     pre_saturation: f32,
@@ -85,6 +86,9 @@ fn tone_mapping(in: vec4<f32>) -> vec4<f32> {
 @fragment
 fn fragment(in: VertexOutput) -> @location(0) vec4<f32> {
     let hdr_color = textureSample(hdr_texture, hdr_sampler, in.uv);
+    if (pc.off == u32(1)) {
+        return hdr_color;
+    }
 
     var output_rgb = tone_mapping(hdr_color).rgb;
 

@@ -1,3 +1,3 @@
 mod pipeline;
 
-pub use pipeline::{BloomPipeline, BloomSettings};
+pub use pipeline::{BloomCompositeMode, BloomPipeline, BloomSettings};

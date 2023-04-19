@@ -142,6 +142,7 @@ impl TonemappingPipeline {
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct ToneMappingPushConstants {
+    pub off: u32,
     pub exposure: f32,
     pub gamma: f32,
     pub pre_saturation: f32,
@@ -151,6 +152,7 @@ pub struct ToneMappingPushConstants {
 impl Into<ToneMappingPushConstants> for ColorGrading {
     fn into(self) -> ToneMappingPushConstants {
         ToneMappingPushConstants {
+            off: self.off as u32,
             exposure: self.exposure,
             gamma: self.gamma,
             pre_saturation: self.pre_saturation,
@@ -161,6 +163,7 @@ impl Into<ToneMappingPushConstants> for ColorGrading {
 
 #[derive(Debug, Copy, Clone)]
 pub struct ColorGrading {
+    pub off: bool,
     pub exposure: f32,
     pub gamma: f32,
     pub pre_saturation: f32,
@@ -170,6 +173,7 @@ pub struct ColorGrading {
 impl Default for ColorGrading {
     fn default() -> Self {
         Self {
+            off: false,
             exposure: 0.0,
             gamma: 1.0,
             pre_saturation: 1.0,
