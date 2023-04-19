@@ -28,7 +28,7 @@ impl GlassApp for TriangleApp {
         self.triangle_pipeline = Some(create_triangle_pipeline(context));
     }
 
-    fn render(&mut self, context: &GlassContext, render_data: RenderData) {
+    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
         let RenderData {
             encoder,
             frame,

@@ -8,11 +8,11 @@ pub mod utils;
 pub mod window;
 
 // For convenience, export egui libs when that feature is enabled
-#[cfg(all(feature = "egui_gui", not(feature = "iced_gui")))]
+#[cfg(feature = "egui_gui")]
 pub use egui;
-#[cfg(all(feature = "egui_gui", not(feature = "iced_gui")))]
+#[cfg(feature = "egui_gui")]
 pub use egui_wgpu;
-#[cfg(all(feature = "egui_gui", not(feature = "iced_gui")))]
+#[cfg(feature = "egui_gui")]
 pub use egui_winit;
 // --
 pub use image;

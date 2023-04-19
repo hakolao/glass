@@ -42,7 +42,7 @@ fn config() -> GlassConfig {
                 max_compute_invocations_per_workgroup: 1024,
                 ..Limits::default()
             },
-            backends: Backends::VULKAN,
+            backends: Backends::all(),
         },
         window_configs: vec![WindowConfig {
             width: WIDTH,

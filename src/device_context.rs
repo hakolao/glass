@@ -20,7 +20,7 @@ impl DeviceConfig {
             power_preference: PowerPreference::HighPerformance,
             features: wgpu::Features::empty(),
             limits: Limits::default(),
-            backends: Backends::VULKAN,
+            backends: Backends::all(),
         }
     }
 }

@@ -5,10 +5,7 @@ use glass::{
     window::{GlassWindow, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, RenderData,
 };
-use wgpu::{
-    AddressMode, Backends, BindGroup, FilterMode, PowerPreference, SamplerDescriptor,
-    TextureFormat, TextureUsages,
-};
+use wgpu::{AddressMode, BindGroup, FilterMode, SamplerDescriptor, TextureFormat, TextureUsages};
 use winit::event_loop::EventLoop;
 
 const WIDTH: u32 = 1920;
@@ -27,11 +24,7 @@ fn main() {
 
 fn config() -> GlassConfig {
     GlassConfig {
-        device_config: DeviceConfig {
-            power_preference: PowerPreference::HighPerformance,
-            backends: Backends::VULKAN,
-            ..DeviceConfig::default()
-        },
+        device_config: DeviceConfig::performance(),
         window_configs: vec![WindowConfig {
             width: WIDTH,
             height: HEIGHT,
