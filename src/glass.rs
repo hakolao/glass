@@ -1,14 +1,16 @@
+use glam::UVec2;
 use indexmap::IndexMap;
 use wgpu::{Adapter, Device, Instance, PowerPreference, Queue, SurfaceConfiguration};
 use winit::{
+    dpi::{PhysicalPosition, PhysicalSize},
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
-    window::{Window, WindowId},
+    window::{Fullscreen, Window, WindowId},
 };
 
 use crate::{
     device_context::{DeviceConfig, DeviceContext},
-    window::{GlassWindow, WindowConfig},
+    window::{get_best_videomode, get_fitting_videomode, GlassWindow, WindowConfig, WindowPos},
     GlassApp, RenderData,
 };
 
@@ -323,10 +325,44 @@ impl GlassContext {
         event_loop: &EventLoopWindowTarget<()>,
         config: &WindowConfig,
     ) -> Window {
-        // ToDo: Add more options and settings to window creation
-        let window_builder = winit::window::WindowBuilder::new()
+        let mut window_builder = winit::window::WindowBuilder::new()
             .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
             .with_title(config.title);
+
+        window_builder = match &config.pos {
+            WindowPos::Maximized => window_builder.with_maximized(true),
+            WindowPos::FullScreen => {
+                if let Some(monitor) = event_loop.primary_monitor() {
+                    window_builder
+                        .with_fullscreen(Some(Fullscreen::Exclusive(get_best_videomode(&monitor))))
+                } else {
+                    window_builder
+                }
+            }
+            WindowPos::SizedFullScreen => {
+                if let Some(monitor) = event_loop.primary_monitor() {
+                    window_builder.with_fullscreen(Some(Fullscreen::Exclusive(
+                        get_fitting_videomode(&monitor, config.width, config.height),
+                    )))
+                } else {
+                    window_builder
+                }
+            }
+            WindowPos::FullScreenBorderless => window_builder
+                .with_fullscreen(Some(Fullscreen::Borderless(event_loop.primary_monitor()))),
+            WindowPos::Pos(pos) => window_builder.with_position(*pos),
+            WindowPos::Centered => {
+                if let Some(monitor) = event_loop.primary_monitor() {
+                    let size = monitor.size();
+                    let center = UVec2::new(size.width, size.height) / 2;
+                    let window_size = PhysicalSize::new(config.width, config.height);
+                    let left_top = center - UVec2::new(window_size.width, window_size.height) / 2;
+                    window_builder.with_position(PhysicalPosition::new(left_top.x, left_top.y))
+                } else {
+                    window_builder
+                }
+            }
+        };
 
         window_builder.build(event_loop).unwrap()
     }
