@@ -1,7 +1,9 @@
+use glam::IVec2;
 use wgpu::{CompositeAlphaMode, Device, PresentMode, Surface, SurfaceConfiguration, TextureFormat};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
-    window::Window,
+    monitor::MonitorHandle,
+    window::{Fullscreen, Window},
 };
 
 use crate::device_context::DeviceContext;
@@ -90,6 +92,43 @@ impl GlassWindow {
         self.last_surface_size = [config.width, config.height];
     }
 
+    pub fn set_position(&self, window_position: WindowPos) {
+        match window_position {
+            WindowPos::Maximized => self.window.set_maximized(true),
+            WindowPos::FullScreen => {
+                if let Some(monitor) = self.window.current_monitor() {
+                    self.window
+                        .set_fullscreen(Some(Fullscreen::Exclusive(get_best_videomode(&monitor))));
+                }
+            }
+            WindowPos::SizedFullScreen => {
+                if let Some(monitor) = self.window.current_monitor() {
+                    let size = self.window.inner_size();
+                    self.window
+                        .set_fullscreen(Some(Fullscreen::Exclusive(get_fitting_videomode(
+                            &monitor,
+                            size.width,
+                            size.height,
+                        ))));
+                }
+            }
+            WindowPos::FullScreenBorderless => self
+                .window
+                .set_fullscreen(Some(Fullscreen::Borderless(self.window.current_monitor()))),
+            WindowPos::Pos(pos) => self.window.set_outer_position(pos),
+            WindowPos::Centered => {
+                if let Some(monitor) = self.window.current_monitor() {
+                    let size = self.window.inner_size();
+                    self.window.set_outer_position(get_centered_window_position(
+                        &monitor,
+                        size.width,
+                        size.height,
+                    ));
+                }
+            }
+        };
+    }
+
     /// Return [`Surface`](wgpu::Surface) belonging to the window
     pub fn surface(&self) -> &Surface {
         &self.surface
@@ -125,6 +164,18 @@ impl GlassWindow {
     pub fn surface_size(&self) -> [u32; 2] {
         self.last_surface_size
     }
+}
+
+pub fn get_centered_window_position(
+    monitor: &MonitorHandle,
+    window_width: u32,
+    window_height: u32,
+) -> PhysicalPosition<i32> {
+    let size = monitor.size();
+    let center = IVec2::new(size.width as i32, size.height as i32) / 2;
+    let window_size = PhysicalSize::new(window_width, window_height);
+    let left_top = center - IVec2::new(window_size.width as i32, window_size.height as i32) / 2;
+    PhysicalPosition::new(left_top.x, left_top.y)
 }
 
 pub fn get_fitting_videomode(
