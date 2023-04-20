@@ -94,7 +94,10 @@ impl GlassWindow {
 
     pub fn set_position(&self, window_position: WindowPos) {
         match window_position {
-            WindowPos::Maximized => self.window.set_maximized(true),
+            WindowPos::Maximized => {
+                self.window.set_fullscreen(None);
+                self.window.set_maximized(true)
+            }
             WindowPos::FullScreen => {
                 if let Some(monitor) = self.window.current_monitor() {
                     self.window
@@ -115,9 +118,13 @@ impl GlassWindow {
             WindowPos::FullScreenBorderless => self
                 .window
                 .set_fullscreen(Some(Fullscreen::Borderless(self.window.current_monitor()))),
-            WindowPos::Pos(pos) => self.window.set_outer_position(pos),
+            WindowPos::Pos(pos) => {
+                self.window.set_fullscreen(None);
+                self.window.set_outer_position(pos)
+            }
             WindowPos::Centered => {
                 if let Some(monitor) = self.window.current_monitor() {
+                    self.window.set_fullscreen(None);
                     let size = self.window.inner_size();
                     self.window.set_outer_position(get_centered_window_position(
                         &monitor,
