@@ -1,4 +1,4 @@
-use glam::UVec2;
+use glam::IVec2;
 use indexmap::IndexMap;
 use wgpu::{Adapter, Device, Instance, PowerPreference, Queue, SurfaceConfiguration};
 use winit::{
@@ -354,9 +354,10 @@ impl GlassContext {
             WindowPos::Centered => {
                 if let Some(monitor) = event_loop.primary_monitor() {
                     let size = monitor.size();
-                    let center = UVec2::new(size.width, size.height) / 2;
+                    let center = IVec2::new(size.width as i32, size.height as i32) / 2;
                     let window_size = PhysicalSize::new(config.width, config.height);
-                    let left_top = center - UVec2::new(window_size.width, window_size.height) / 2;
+                    let left_top = center
+                        - IVec2::new(window_size.width as i32, window_size.height as i32) / 2;
                     window_builder.with_position(PhysicalPosition::new(left_top.x, left_top.y))
                 } else {
                     window_builder
