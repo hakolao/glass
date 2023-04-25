@@ -27,7 +27,20 @@ impl PastePipeline {
     pub fn new(device: &Device) -> PastePipeline {
         let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Paste Vertex Buffer"),
-            contents: bytemuck::cast_slice(TEXTURED_QUAD_VERTICES),
+            contents: bytemuck::cast_slice(
+                &TEXTURED_QUAD_VERTICES
+                    .iter()
+                    .map(|v| TexturedVertex {
+                        position: [
+                            v.position[0] * 2.0,
+                            v.position[1] * 2.0,
+                            v.position[2],
+                            v.position[3],
+                        ],
+                        ..*v
+                    })
+                    .collect::<Vec<TexturedVertex>>(),
+            ),
             usage: wgpu::BufferUsages::VERTEX,
         });
         let indices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
@@ -117,10 +130,6 @@ impl PastePipeline {
         flip_y: bool,
     ) {
         let image_size = Vec2::new(size.x / output.size[0], size.y / output.size[1]);
-        let target_ar = output.size[0] / output.size[1];
-        let target_size = Vec2::new(1.0 * target_ar, 1.0);
-        let half_target = target_size * 0.5;
-        let half_image = image_size * 0.5;
         let push_constants: PastePushConstants = PastePushConstants {
             tint,
             scale: [
@@ -128,8 +137,8 @@ impl PastePipeline {
                 image_size.y * if flip_y { -1.0 } else { 1.0 },
             ],
             offset: [
-                offset.x / output.size[0] - half_target.x - half_image.x,
-                -(offset.y / output.size[1] - half_target.y - half_image.y),
+                (2.0 * offset.x - output.size[0]) / output.size[0],
+                -(2.0 * offset.y - output.size[1]) / output.size[1],
             ],
         };
         let bind_group = device.create_bind_group(&BindGroupDescriptor {

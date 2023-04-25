@@ -21,7 +21,7 @@ var<push_constant> pc: PushConstants;
 fn vs_main(
    quad: VertexInput,
 ) -> VertexOutput {
-    let world_position = vec4<f32>(2.0 * quad.position.xy * pc.scale + pc.offset, 0.0, 1.0);
+    let world_position = vec4<f32>(quad.position.xy * pc.scale + pc.offset, 0.0, 1.0);
     return VertexOutput(world_position, quad.tex_coords);
 }
 

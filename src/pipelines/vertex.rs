@@ -4,9 +4,9 @@ use bytemuck::{Pod, Zeroable};
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct TexturedVertex {
-    position: [f32; 4],
-    color: [f32; 4],
-    tex_coords: [f32; 2],
+    pub position: [f32; 4],
+    pub color: [f32; 4],
+    pub tex_coords: [f32; 2],
 }
 
 impl TexturedVertex {
@@ -39,8 +39,8 @@ impl TexturedVertex {
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct SimpleVertex {
-    position: [f32; 4],
-    tex_coords: [f32; 2],
+    pub position: [f32; 4],
+    pub tex_coords: [f32; 2],
 }
 
 impl SimpleVertex {
