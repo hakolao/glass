@@ -1,10 +1,11 @@
 use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
+use glam::Vec2;
 use wgpu::{
     util::DeviceExt, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, Buffer, ColorTargetState, ColorWrites,
-    CommandEncoder, Device, Operations, PushConstantRange, RenderPassColorAttachment,
+    CommandEncoder, Device, LoadOp, Operations, PushConstantRange, RenderPassColorAttachment,
     RenderPassDescriptor, RenderPipeline, SamplerBindingType, ShaderStages, TextureFormat,
     TextureSampleType, TextureViewDimension,
 };
@@ -14,29 +15,29 @@ use crate::{
     texture::Texture,
 };
 
-const TONEMAPPING_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
+const PASTE_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
 
-pub struct TonemappingPipeline {
-    tonemapping_pipeline: RenderPipeline,
+pub struct PastePipeline {
+    paste_pipeline: RenderPipeline,
     vertices: Buffer,
 }
 
-impl TonemappingPipeline {
-    pub fn new(device: &Device) -> TonemappingPipeline {
+impl PastePipeline {
+    pub fn new(device: &Device) -> PastePipeline {
         let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
-            label: Some("Tonemapping Vertex Buffer"),
+            label: Some("Paste Vertex Buffer"),
             contents: bytemuck::cast_slice(FULL_SCREEN_TRIANGLE_VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
         });
         // Bind group layout
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
-            label: Some("tonemapping_bind_group_layout"),
+            label: Some("paste_bind_group_layout"),
             entries: &[
                 BindGroupLayoutEntry {
                     binding: 0,
                     ty: BindingType::Texture {
                         sample_type: TextureSampleType::Float {
-                            filterable: true,
+                            filterable: false,
                         },
                         view_dimension: TextureViewDimension::D2,
                         multisampled: false,
@@ -46,26 +47,26 @@ impl TonemappingPipeline {
                 },
                 BindGroupLayoutEntry {
                     binding: 1,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                    ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                     visibility: ShaderStages::FRAGMENT,
                     count: None,
                 },
             ],
         });
         let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
-            label: Some("Tonemapping Shader"),
-            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("tonemapping.wgsl"))),
+            label: Some("Paste Shader"),
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("paste.wgsl"))),
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
-            label: Some("Tonemapping Pipeline Layout"),
+            label: Some("Paste Pipeline Layout"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::FRAGMENT,
-                range: 0..std::mem::size_of::<ToneMappingPushConstants>() as u32,
+                stages: ShaderStages::VERTEX,
+                range: 0..std::mem::size_of::<PastePushConstants>() as u32,
             }],
         });
-        let tonemapping_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
-            label: Some("Tonemapping Pipeline"),
+        let paste_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Paste Pipeline"),
             layout: Some(&layout),
             vertex: wgpu::VertexState {
                 module: &shader,
@@ -76,8 +77,11 @@ impl TonemappingPipeline {
                 module: &shader,
                 entry_point: "fragment",
                 targets: &[Some(ColorTargetState {
-                    format: TONEMAPPING_TEXTURE_FORMAT,
-                    blend: None,
+                    format: PASTE_TEXTURE_FORMAT,
+                    blend: Some(wgpu::BlendState {
+                        color: wgpu::BlendComponent::OVER,
+                        alpha: wgpu::BlendComponent::OVER,
+                    }),
                     write_mask: ColorWrites::ALL,
                 })],
             }),
@@ -87,24 +91,33 @@ impl TonemappingPipeline {
             multiview: None,
         });
 
-        TonemappingPipeline {
-            tonemapping_pipeline,
+        PastePipeline {
+            paste_pipeline,
             vertices,
         }
     }
 
-    pub fn tonemap(
+    pub fn paste(
         &self,
         device: &Device,
         encoder: &mut CommandEncoder,
         input: &Texture,
         output: &Texture,
-        color_grading: ColorGrading,
+        size: Vec2,
+        offset: Vec2,
+        flip_x: bool,
+        flip_y: bool,
     ) {
-        let push_constants: ToneMappingPushConstants = color_grading.into();
+        let push_constants: PastePushConstants = PastePushConstants {
+            scale: [
+                size.x / output.size[0] * if flip_x { -1.0 } else { 1.0 },
+                size.y / output.size[1] * if flip_y { -1.0 } else { 1.0 },
+            ],
+            offset: [offset.x / output.size[0], -offset.y / output.size[1]],
+        };
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("tonemapping_bind_group"),
-            layout: &self.tonemapping_pipeline.get_bind_group_layout(0),
+            label: Some("paste_bind_group"),
+            layout: &self.paste_pipeline.get_bind_group_layout(0),
             entries: &[
                 BindGroupEntry {
                     binding: 0,
@@ -118,19 +131,22 @@ impl TonemappingPipeline {
         });
         {
             let mut r_pass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: Some("tonemapping_pass"),
+                label: Some("paste_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &output.views[0],
                     resolve_target: None,
-                    ops: Operations::default(),
+                    ops: Operations {
+                        load: LoadOp::Load,
+                        ..Default::default()
+                    },
                 })],
                 depth_stencil_attachment: None,
             });
-            r_pass.set_pipeline(&self.tonemapping_pipeline);
+            r_pass.set_pipeline(&self.paste_pipeline);
             r_pass.set_bind_group(0, &bind_group, &[]);
             r_pass.set_vertex_buffer(0, self.vertices.slice(..));
             r_pass.set_push_constants(
-                ShaderStages::FRAGMENT,
+                ShaderStages::VERTEX,
                 0,
                 bytemuck::cast_slice(&[push_constants]),
             );
@@ -141,43 +157,7 @@ impl TonemappingPipeline {
 
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
-pub struct ToneMappingPushConstants {
-    pub off: u32,
-    pub exposure: f32,
-    pub gamma: f32,
-    pub pre_saturation: f32,
-    pub post_saturation: f32,
-}
-
-impl Into<ToneMappingPushConstants> for ColorGrading {
-    fn into(self) -> ToneMappingPushConstants {
-        ToneMappingPushConstants {
-            off: self.off as u32,
-            exposure: self.exposure,
-            gamma: self.gamma,
-            pre_saturation: self.pre_saturation,
-            post_saturation: self.post_saturation,
-        }
-    }
-}
-
-#[derive(Debug, Copy, Clone)]
-pub struct ColorGrading {
-    pub off: bool,
-    pub exposure: f32,
-    pub gamma: f32,
-    pub pre_saturation: f32,
-    pub post_saturation: f32,
-}
-
-impl Default for ColorGrading {
-    fn default() -> Self {
-        Self {
-            off: false,
-            exposure: 0.0,
-            gamma: 1.0,
-            pre_saturation: 1.0,
-            post_saturation: 1.0,
-        }
-    }
+pub struct PastePushConstants {
+    scale: [f32; 2],
+    offset: [f32; 2],
 }
