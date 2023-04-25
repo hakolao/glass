@@ -11,7 +11,7 @@ use wgpu::{
 };
 
 use crate::{
-    pipelines::{SimpleVertex, FULL_SCREEN_TRIANGLE_VERTICES},
+    pipelines::{TexturedVertex, QUAD_INDICES, TEXTURED_QUAD_VERTICES},
     texture::Texture,
 };
 
@@ -20,14 +20,20 @@ const PASTE_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
 pub struct PastePipeline {
     paste_pipeline: RenderPipeline,
     vertices: Buffer,
+    indices: Buffer,
 }
 
 impl PastePipeline {
     pub fn new(device: &Device) -> PastePipeline {
         let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Paste Vertex Buffer"),
-            contents: bytemuck::cast_slice(FULL_SCREEN_TRIANGLE_VERTICES),
+            contents: bytemuck::cast_slice(TEXTURED_QUAD_VERTICES),
             usage: wgpu::BufferUsages::VERTEX,
+        });
+        let indices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Paste Index Buffer"),
+            contents: bytemuck::cast_slice(QUAD_INDICES),
+            usage: wgpu::BufferUsages::INDEX,
         });
         // Bind group layout
         let bind_group_layout = device.create_bind_group_layout(&BindGroupLayoutDescriptor {
@@ -61,7 +67,7 @@ impl PastePipeline {
             label: Some("Paste Pipeline Layout"),
             bind_group_layouts: &[&bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::VERTEX,
+                stages: ShaderStages::VERTEX_FRAGMENT,
                 range: 0..std::mem::size_of::<PastePushConstants>() as u32,
             }],
         });
@@ -71,7 +77,7 @@ impl PastePipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[SimpleVertex::desc()],
+                buffers: &[TexturedVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -94,6 +100,7 @@ impl PastePipeline {
         PastePipeline {
             paste_pipeline,
             vertices,
+            indices,
         }
     }
 
@@ -103,17 +110,27 @@ impl PastePipeline {
         encoder: &mut CommandEncoder,
         input: &Texture,
         output: &Texture,
+        tint: [f32; 4],
         size: Vec2,
         offset: Vec2,
         flip_x: bool,
         flip_y: bool,
     ) {
+        let image_size = Vec2::new(size.x / output.size[0], size.y / output.size[1]);
+        let target_ar = output.size[0] / output.size[1];
+        let target_size = Vec2::new(1.0 * target_ar, 1.0);
+        let half_target = target_size * 0.5;
+        let half_image = image_size * 0.5;
         let push_constants: PastePushConstants = PastePushConstants {
+            tint,
             scale: [
-                size.x / output.size[0] * if flip_x { -1.0 } else { 1.0 },
-                size.y / output.size[1] * if flip_y { -1.0 } else { 1.0 },
+                image_size.x * if flip_x { -1.0 } else { 1.0 },
+                image_size.y * if flip_y { -1.0 } else { 1.0 },
             ],
-            offset: [offset.x / output.size[0], -offset.y / output.size[1]],
+            offset: [
+                offset.x / output.size[0] - half_target.x - half_image.x,
+                -(offset.y / output.size[1] - half_target.y - half_image.y),
+            ],
         };
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("paste_bind_group"),
@@ -145,12 +162,13 @@ impl PastePipeline {
             r_pass.set_pipeline(&self.paste_pipeline);
             r_pass.set_bind_group(0, &bind_group, &[]);
             r_pass.set_vertex_buffer(0, self.vertices.slice(..));
+            r_pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint16);
             r_pass.set_push_constants(
-                ShaderStages::VERTEX,
+                ShaderStages::VERTEX_FRAGMENT,
                 0,
                 bytemuck::cast_slice(&[push_constants]),
             );
-            r_pass.draw(0..3, 0..1);
+            r_pass.draw_indexed(0..(QUAD_INDICES.len() as u32), 0, 0..1);
         }
     }
 }
@@ -158,6 +176,7 @@ impl PastePipeline {
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct PastePushConstants {
+    tint: [f32; 4],
     scale: [f32; 2],
     offset: [f32; 2],
 }
