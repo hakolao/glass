@@ -3,7 +3,7 @@ use glass::{
     pipelines::QuadPipeline,
     texture::Texture,
     window::{GlassWindow, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, RenderData,
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{AddressMode, BindGroup, FilterMode, SamplerDescriptor, TextureFormat, TextureUsages};
 use winit::event_loop::EventLoop;
@@ -18,8 +18,8 @@ const OPENGL_TO_WGPU: glam::Mat4 = glam::Mat4::from_cols_array(&[
     0.0, 0.0, 0.5, 1.0,
 ]);
 
-fn main() {
-    Glass::new(TreeApp::default(), config()).run();
+fn main() -> Result<(), GlassError> {
+    Glass::new(TreeApp::default(), config()).run()
 }
 
 fn config() -> GlassConfig {

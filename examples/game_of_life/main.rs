@@ -7,7 +7,7 @@ use glass::{
     pipelines::QuadPipeline,
     texture::Texture,
     window::{GlassWindow, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, RenderData,
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandEncoder, ComputePassDescriptor,
@@ -54,8 +54,8 @@ fn config() -> GlassConfig {
     }
 }
 
-fn main() {
-    Glass::new(GameOfLifeApp::default(), config()).run();
+fn main() -> Result<(), GlassError> {
+    Glass::new(GameOfLifeApp::default(), config()).run()
 }
 
 // Think of this like reading a "table of contents".

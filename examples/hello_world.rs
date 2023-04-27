@@ -1,7 +1,7 @@
-use glass::{Glass, GlassApp, GlassConfig};
+use glass::{Glass, GlassApp, GlassConfig, GlassError};
 
-fn main() {
-    Glass::new(HelloWorld, GlassConfig::default()).run();
+fn main() -> Result<(), GlassError> {
+    Glass::new(HelloWorld, GlassConfig::default()).run()
 }
 
 struct HelloWorld;

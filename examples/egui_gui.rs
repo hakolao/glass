@@ -2,15 +2,17 @@ use egui::FullOutput;
 use egui_demo_lib::DemoWindows;
 use egui_wgpu::renderer::ScreenDescriptor;
 use egui_winit::EventResponse;
-use glass::{window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, RenderData};
+use glass::{
+    window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+};
 use wgpu::{CommandEncoder, TextureView};
 use winit::{
     event::Event,
     event_loop::{EventLoop, EventLoopWindowTarget},
 };
 
-fn main() {
-    Glass::new(GuiApp::default(), GlassConfig::default()).run();
+fn main() -> Result<(), GlassError> {
+    Glass::new(GuiApp::default(), GlassConfig::default()).run()
 }
 
 impl GlassApp for GuiApp {

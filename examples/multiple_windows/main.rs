@@ -1,4 +1,6 @@
-use glass::{window::WindowConfig, Glass, GlassApp, GlassConfig, GlassContext, RenderData};
+use glass::{
+    window::WindowConfig, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+};
 use wgpu::Color;
 use winit::{
     event::{DeviceEvent, ElementState, Event, VirtualKeyCode},
@@ -9,8 +11,8 @@ use winit::{
 const WIDTH: u32 = 256;
 const HEIGHT: u32 = 256;
 
-fn main() {
-    Glass::new(MultiWindowApp::default(), GlassConfig::windowless()).run();
+fn main() -> Result<(), GlassError> {
+    Glass::new(MultiWindowApp::default(), GlassConfig::windowless()).run()
 }
 
 const CLEAR_COLORS: [Color; 5] = [

@@ -35,9 +35,9 @@ impl<A: GlassApp + 'static> Glass<A> {
         }
     }
 
-    pub fn run(mut self) {
+    pub fn run(mut self) -> Result<(), GlassError> {
         let event_loop = EventLoop::new();
-        let mut context = GlassContext::new(&event_loop, self.config.clone()).unwrap();
+        let mut context = GlassContext::new(&event_loop, self.config.clone())?;
         self.app.start(&event_loop, &mut context);
         let mut remove_windows = vec![];
         let mut request_window_close = false;
@@ -206,7 +206,7 @@ impl Default for GlassConfig {
 }
 
 #[derive(Debug)]
-pub enum GlassContextError {
+pub enum GlassError {
     WindowError(OsError),
     SurfaceError(CreateSurfaceError),
     AdapterError,
@@ -222,10 +222,7 @@ pub struct GlassContext {
 }
 
 impl GlassContext {
-    pub fn new(
-        event_loop: &EventLoop<()>,
-        mut config: GlassConfig,
-    ) -> Result<Self, GlassContextError> {
+    pub fn new(event_loop: &EventLoop<()>, mut config: GlassConfig) -> Result<Self, GlassError> {
         // Create windows from initial configs
         let mut winit_windows = vec![];
         for &window_config in config.window_configs.iter() {
@@ -309,7 +306,7 @@ impl GlassContext {
         &mut self,
         event_loop: &EventLoopWindowTarget<()>,
         config: WindowConfig,
-    ) -> Result<WindowId, GlassContextError> {
+    ) -> Result<WindowId, GlassError> {
         let reconfigure_device = self.windows.is_empty();
         let window = Self::create_winit_window(event_loop, &config)?;
         let id = self.add_window(config, window)?;
@@ -327,15 +324,11 @@ impl GlassContext {
         Ok(id)
     }
 
-    fn add_window(
-        &mut self,
-        config: WindowConfig,
-        window: Window,
-    ) -> Result<WindowId, GlassContextError> {
+    fn add_window(&mut self, config: WindowConfig, window: Window) -> Result<WindowId, GlassError> {
         let id = window.id();
         let render_window = match GlassWindow::new(&self.device_context, config, window) {
             Ok(window) => window,
-            Err(e) => return Err(GlassContextError::SurfaceError(e)),
+            Err(e) => return Err(GlassError::SurfaceError(e)),
         };
         self.windows.insert(id, render_window);
         Ok(id)
@@ -344,7 +337,7 @@ impl GlassContext {
     fn create_winit_window(
         event_loop: &EventLoopWindowTarget<()>,
         config: &WindowConfig,
-    ) -> Result<Window, GlassContextError> {
+    ) -> Result<Window, GlassError> {
         let mut window_builder = winit::window::WindowBuilder::new()
             .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
             .with_title(config.title);
@@ -386,7 +379,7 @@ impl GlassContext {
 
         match window_builder.build(event_loop) {
             Ok(w) => Ok(w),
-            Err(e) => Err(GlassContextError::WindowError(e)),
+            Err(e) => Err(GlassError::WindowError(e)),
         }
     }
 }

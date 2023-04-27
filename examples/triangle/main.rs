@@ -1,6 +1,6 @@
 use std::borrow::Cow;
 
-use glass::{Glass, GlassApp, GlassConfig, GlassContext, RenderData};
+use glass::{Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData};
 use wgpu::{
     MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
     RenderPipelineDescriptor, ShaderModuleDescriptor, TextureFormat,
@@ -10,12 +10,12 @@ use winit::event_loop::EventLoop;
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
 
-fn main() {
+fn main() -> Result<(), GlassError> {
     Glass::new(
         TriangleApp::default(),
         GlassConfig::performance(WIDTH, HEIGHT),
     )
-    .run();
+    .run()
 }
 
 #[derive(Default)]
