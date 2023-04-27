@@ -396,7 +396,7 @@ impl BloomPipeline {
             downsampling_pass.set_bind_group(
                 0,
                 // Read from bloom previous bloom texture 0, 1, 2, 3... and so on
-                &self.downsampling_bind_groups[mip as usize - 1],
+                &self.downsampling_bind_groups[mip - 1],
                 &[],
             );
             downsampling_pass.set_vertex_buffer(0, self.vertices.slice(..));

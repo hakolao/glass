@@ -59,7 +59,7 @@ impl<A: GlassApp + 'static> Glass<A> {
                                 // On windows, minimized app can have 0,0 size
                                 if physical_size.width > 0 && physical_size.height > 0 {
                                     window.configure_surface_with_size(
-                                        &context.device_context.device(),
+                                        context.device_context.device(),
                                         physical_size,
                                     );
                                 }
@@ -68,7 +68,7 @@ impl<A: GlassApp + 'static> Glass<A> {
                                 new_inner_size, ..
                             } => {
                                 window.configure_surface_with_size(
-                                    &context.device_context.device(),
+                                    context.device_context.device(),
                                     *new_inner_size,
                                 );
                             }
@@ -257,7 +257,7 @@ impl GlassContext {
             // Configure window surface with size
             let window = app.windows.get_mut(&id).unwrap();
             window.configure_surface_with_size(
-                &app.device_context.device(),
+                app.device_context.device(),
                 window.window().inner_size(),
             );
         }
@@ -321,7 +321,7 @@ impl GlassContext {
         }
         // Configure surface with size
         window.configure_surface_with_size(
-            &self.device_context.device(),
+            self.device_context.device(),
             window.window().inner_size(),
         );
         Ok(id)

@@ -117,6 +117,7 @@ impl PastePipeline {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn paste(
         &self,
         device: &Device,

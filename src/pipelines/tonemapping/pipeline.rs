@@ -149,14 +149,14 @@ pub struct ToneMappingPushConstants {
     pub post_saturation: f32,
 }
 
-impl Into<ToneMappingPushConstants> for ColorGrading {
-    fn into(self) -> ToneMappingPushConstants {
+impl From<ColorGrading> for ToneMappingPushConstants {
+    fn from(val: ColorGrading) -> Self {
         ToneMappingPushConstants {
-            off: self.off as u32,
-            exposure: self.exposure,
-            gamma: self.gamma,
-            pre_saturation: self.pre_saturation,
-            post_saturation: self.post_saturation,
+            off: val.off as u32,
+            exposure: val.exposure,
+            gamma: val.gamma,
+            pre_saturation: val.pre_saturation,
+            post_saturation: val.post_saturation,
         }
     }
 }

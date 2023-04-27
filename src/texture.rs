@@ -77,6 +77,7 @@ impl Texture {
         )
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn from_image(
         device: &Device,
         queue: &Queue,
