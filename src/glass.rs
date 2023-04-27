@@ -1,3 +1,4 @@
+use image::ImageError;
 use indexmap::IndexMap;
 use wgpu::{
     Adapter, CreateSurfaceError, Device, Instance, PowerPreference, Queue, RequestDeviceError,
@@ -211,6 +212,7 @@ pub enum GlassError {
     SurfaceError(CreateSurfaceError),
     AdapterError,
     DeviceError(RequestDeviceError),
+    ImageError(ImageError),
 }
 
 /// The runtime context accessible through [`GlassApp`].

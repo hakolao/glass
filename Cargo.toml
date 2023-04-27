@@ -14,7 +14,6 @@ trace = ["wgpu/trace"]
 indexmap = "1.9.2"
 pollster = "0.2.5"
 image = "0.24"
-anyhow = "1.0.68"
 bytemuck = { version = "1.12.3", features = ["derive"] }
 wgpu = "0.15"
 winit = "0.28"

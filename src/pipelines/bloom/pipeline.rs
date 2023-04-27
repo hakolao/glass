@@ -41,7 +41,6 @@ fn create_bloom_texture(device: &Device, width: u32, height: u32, mip_count: u32
         },
         TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
     )
-    .unwrap()
 }
 
 pub struct BloomPipeline {

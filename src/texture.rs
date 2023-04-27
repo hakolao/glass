@@ -1,12 +1,13 @@
 use std::num::NonZeroU32;
 
-use anyhow::*;
 use image::DynamicImage;
 use wgpu::{
     Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, Sampler,
     SamplerDescriptor, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat,
     TextureUsages, TextureView, TextureViewDescriptor,
 };
+
+use crate::GlassError;
 
 /// A utility struct to ease Gpu texture creation from image data
 pub struct Texture {
@@ -25,7 +26,7 @@ impl Texture {
         format: TextureFormat,
         sampler_descriptor: &SamplerDescriptor,
         usage: TextureUsages,
-    ) -> Result<Self> {
+    ) -> Self {
         let texture = device.create_texture(&TextureDescriptor {
             label: Some(label),
             size,
@@ -47,12 +48,12 @@ impl Texture {
         }
         let sampler = device.create_sampler(sampler_descriptor);
 
-        Ok(Self {
+        Self {
             texture,
             views,
             sampler,
             size: [size.width as f32, size.height as f32],
-        })
+        }
     }
 
     pub fn from_bytes(
@@ -63,9 +64,12 @@ impl Texture {
         format: TextureFormat,
         sampler_descriptor: &SamplerDescriptor,
         usage: TextureUsages,
-    ) -> Result<Self> {
-        let img = image::load_from_memory(bytes)?;
-        Self::from_image(
+    ) -> Result<Self, GlassError> {
+        let img = match image::load_from_memory(bytes) {
+            Ok(im) => im,
+            Err(e) => return Err(GlassError::ImageError(e)),
+        };
+        Ok(Self::from_image(
             device,
             queue,
             &img,
@@ -74,7 +78,7 @@ impl Texture {
             sampler_descriptor,
             usage,
             1,
-        )
+        ))
     }
 
     #[allow(clippy::too_many_arguments)]
@@ -87,7 +91,7 @@ impl Texture {
         sampler_descriptor: &SamplerDescriptor,
         usage: TextureUsages,
         mip_count: u32,
-    ) -> Result<Self> {
+    ) -> Self {
         let rgba = img.to_rgba8();
         let dimensions = rgba.dimensions();
 
@@ -126,11 +130,11 @@ impl Texture {
         let view = texture.create_view(&TextureViewDescriptor::default());
         let sampler = device.create_sampler(sampler_descriptor);
 
-        Ok(Self {
+        Self {
             texture,
             views: vec![view],
             sampler,
             size: [dimensions.0 as f32, dimensions.1 as f32],
-        })
+        }
     }
 }

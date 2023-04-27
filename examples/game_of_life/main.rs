@@ -405,8 +405,7 @@ fn create_canvas_data(
             ..Default::default()
         },
         TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
-    )
-    .unwrap();
+    );
     let data_in = Texture::empty(
         context.device(),
         "data_in.png",
@@ -427,8 +426,7 @@ fn create_canvas_data(
             ..Default::default()
         },
         TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
-    )
-    .unwrap();
+    );
     // Create bind groups to match pipeline layouts (except update, create that dynamically each frame)
     let canvas_bind_group =
         quad_pipeline.create_bind_group(context.device(), &canvas.views[0], &canvas.sampler);
