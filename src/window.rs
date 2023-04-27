@@ -1,5 +1,8 @@
 use glam::IVec2;
-use wgpu::{CompositeAlphaMode, Device, PresentMode, Surface, SurfaceConfiguration, TextureFormat};
+use wgpu::{
+    CompositeAlphaMode, CreateSurfaceError, Device, PresentMode, Surface, SurfaceConfiguration,
+    TextureFormat,
+};
 use winit::{
     dpi::{PhysicalPosition, PhysicalSize},
     monitor::MonitorHandle,
@@ -43,6 +46,18 @@ pub enum WindowPos {
     Pos(PhysicalPosition<u32>),
 }
 
+#[derive(Clone, PartialEq, Eq, Debug)]
+pub enum SurfaceError {
+    /// A timeout was encountered while trying to acquire the next frame.
+    Timeout,
+    /// The underlying surface has changed, and therefore the swap chain must be updated.
+    Outdated,
+    /// The swap chain has been lost and needs to be recreated.
+    Lost,
+    /// There is no more memory left to allocate a new frame.
+    OutOfMemory,
+}
+
 pub struct GlassWindow {
     window: Window,
     surface: Surface,
@@ -55,10 +70,19 @@ pub struct GlassWindow {
 
 impl GlassWindow {
     /// Creates a new [`GlassWindow`] that owns the winit [`Window`](winit::window::Window).
-    pub fn new(context: &DeviceContext, config: WindowConfig, window: Window) -> GlassWindow {
+    pub fn new(
+        context: &DeviceContext,
+        config: WindowConfig,
+        window: Window,
+    ) -> Result<GlassWindow, CreateSurfaceError> {
         let size = [window.inner_size().width, window.inner_size().height];
-        let surface = unsafe { context.instance().create_surface(&window).unwrap() };
-        GlassWindow {
+        let surface = unsafe {
+            match context.instance().create_surface(&window) {
+                Ok(surface) => surface,
+                Err(e) => return Err(e),
+            }
+        };
+        Ok(GlassWindow {
             window,
             surface,
             present_mode: config.present_mode,
@@ -66,7 +90,7 @@ impl GlassWindow {
             exit_on_esc: config.exit_on_esc,
             has_focus: false,
             last_surface_size: size,
-        }
+        })
     }
 
     /// Configure surface after resize events

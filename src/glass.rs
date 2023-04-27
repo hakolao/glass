@@ -1,6 +1,10 @@
 use indexmap::IndexMap;
-use wgpu::{Adapter, Device, Instance, PowerPreference, Queue, SurfaceConfiguration};
+use wgpu::{
+    Adapter, CreateSurfaceError, Device, Instance, PowerPreference, Queue, RequestDeviceError,
+    SurfaceConfiguration,
+};
 use winit::{
+    error::OsError,
     event::{ElementState, Event, VirtualKeyCode, WindowEvent},
     event_loop::{EventLoop, EventLoopWindowTarget},
     window::{Fullscreen, Window, WindowId},
@@ -33,7 +37,7 @@ impl<A: GlassApp + 'static> Glass<A> {
 
     pub fn run(mut self) {
         let event_loop = EventLoop::new();
-        let mut context = GlassContext::new(&event_loop, self.config.clone());
+        let mut context = GlassContext::new(&event_loop, self.config.clone()).unwrap();
         self.app.start(&event_loop, &mut context);
         let mut remove_windows = vec![];
         let mut request_window_close = false;
@@ -201,6 +205,14 @@ impl Default for GlassConfig {
     }
 }
 
+#[derive(Debug)]
+pub enum GlassContextError {
+    WindowError(OsError),
+    SurfaceError(CreateSurfaceError),
+    AdapterError,
+    DeviceError(RequestDeviceError),
+}
+
 /// The runtime context accessible through [`GlassApp`].
 /// You can use the context to create windows at runtime. Or access devices, which are often
 /// needed for render or compute functionality.
@@ -210,18 +222,18 @@ pub struct GlassContext {
 }
 
 impl GlassContext {
-    pub fn new(event_loop: &EventLoop<()>, mut config: GlassConfig) -> Self {
+    pub fn new(
+        event_loop: &EventLoop<()>,
+        mut config: GlassConfig,
+    ) -> Result<Self, GlassContextError> {
         // Create windows from initial configs
-        let winit_windows = config
-            .window_configs
-            .iter()
-            .map(|&window_config| {
-                (
-                    window_config,
-                    Self::create_winit_window(event_loop, &window_config),
-                )
-            })
-            .collect::<Vec<(WindowConfig, Window)>>();
+        let mut winit_windows = vec![];
+        for &window_config in config.window_configs.iter() {
+            winit_windows.push((
+                window_config,
+                Self::create_winit_window(event_loop, &window_config)?,
+            ))
+        }
         // Modify features & limits needed for common pipelines
         // Add push constants feature for common pipelines
         config.device_config.features |= wgpu::Features::PUSH_CONSTANTS
@@ -235,13 +247,13 @@ impl GlassContext {
             &config.device_config,
             // Needed to ensure our queue families are compatible with surface
             &winit_windows,
-        );
+        )?;
         let mut app = Self {
             device_context,
             windows: IndexMap::default(),
         };
         for (window_config, window) in winit_windows {
-            let id = app.add_window(window_config, window);
+            let id = app.add_window(window_config, window)?;
             // Configure window surface with size
             let window = app.windows.get_mut(&id).unwrap();
             window.configure_surface_with_size(
@@ -249,7 +261,7 @@ impl GlassContext {
                 window.window().inner_size(),
             );
         }
-        app
+        Ok(app)
     }
 
     #[allow(unused)]
@@ -297,35 +309,42 @@ impl GlassContext {
         &mut self,
         event_loop: &EventLoopWindowTarget<()>,
         config: WindowConfig,
-    ) -> WindowId {
+    ) -> Result<WindowId, GlassContextError> {
         let reconfigure_device = self.windows.is_empty();
-        let window = Self::create_winit_window(event_loop, &config);
-        let id = self.add_window(config, window);
+        let window = Self::create_winit_window(event_loop, &config)?;
+        let id = self.add_window(config, window)?;
         // Reconfigure devices with surface so queue families are correct
         let window = self.windows.get_mut(&id).unwrap();
         if reconfigure_device {
             let surface = window.surface();
-            self.device_context.reconfigure_with_surface(surface);
+            self.device_context.reconfigure_with_surface(surface)?;
         }
         // Configure surface with size
         window.configure_surface_with_size(
             &self.device_context.device(),
             window.window().inner_size(),
         );
-        id
+        Ok(id)
     }
 
-    fn add_window(&mut self, config: WindowConfig, window: Window) -> WindowId {
+    fn add_window(
+        &mut self,
+        config: WindowConfig,
+        window: Window,
+    ) -> Result<WindowId, GlassContextError> {
         let id = window.id();
-        let render_window = GlassWindow::new(&self.device_context, config, window);
+        let render_window = match GlassWindow::new(&self.device_context, config, window) {
+            Ok(window) => window,
+            Err(e) => return Err(GlassContextError::SurfaceError(e)),
+        };
         self.windows.insert(id, render_window);
-        id
+        Ok(id)
     }
 
     fn create_winit_window(
         event_loop: &EventLoopWindowTarget<()>,
         config: &WindowConfig,
-    ) -> Window {
+    ) -> Result<Window, GlassContextError> {
         let mut window_builder = winit::window::WindowBuilder::new()
             .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
             .with_title(config.title);
@@ -365,6 +384,9 @@ impl GlassContext {
             }
         };
 
-        window_builder.build(event_loop).unwrap()
+        match window_builder.build(event_loop) {
+            Ok(w) => Ok(w),
+            Err(e) => Err(GlassContextError::WindowError(e)),
+        }
     }
 }

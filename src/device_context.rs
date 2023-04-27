@@ -4,7 +4,7 @@ use wgpu::{
 };
 use winit::window::Window;
 
-use crate::{utils::wait_async, window::WindowConfig};
+use crate::{utils::wait_async, window::WindowConfig, GlassContextError};
 
 #[derive(Debug, Clone)]
 pub struct DeviceConfig {
@@ -50,63 +50,89 @@ unsafe impl Send for DeviceContext {}
 unsafe impl Sync for DeviceContext {}
 
 impl DeviceContext {
-    pub fn new(config: &DeviceConfig, initial_windows: &[(WindowConfig, Window)]) -> DeviceContext {
+    pub fn new(
+        config: &DeviceConfig,
+        initial_windows: &[(WindowConfig, Window)],
+    ) -> Result<DeviceContext, GlassContextError> {
         let instance = Instance::new(InstanceDescriptor {
             backends: config.backends,
             ..Default::default()
         });
         // Ensure render context is compatible with our window...
         let surface_maybe = if let Some((_c, w)) = initial_windows.first() {
-            Some(unsafe { instance.create_surface(&w).unwrap() })
+            Some(unsafe {
+                match instance.create_surface(&w) {
+                    Ok(s) => s,
+                    Err(e) => return Err(GlassContextError::SurfaceError(e)),
+                }
+            })
         } else {
             None
         };
-        let (adapter, device, queue) =
-            Self::create_adapter_device_and_queue(config, &instance, surface_maybe.as_ref());
-        Self {
+        let (adapter, device, queue) = match Self::create_adapter_device_and_queue(
+            config,
+            &instance,
+            surface_maybe.as_ref(),
+        ) {
+            Ok(adq) => adq,
+            Err(e) => return Err(e),
+        };
+        Ok(Self {
             config: config.clone(),
             instance,
             adapter,
             device,
             queue,
-        }
+        })
     }
 
     /// If adapter, device and queue has been created without a window (surface), recreate them
     /// once you have a surface to ensure compatibility of queue families.
-    pub fn reconfigure_with_surface(&mut self, surface: &Surface) {
-        let (adapter, device, queue) =
-            Self::create_adapter_device_and_queue(&self.config, &self.instance, Some(surface));
+    pub fn reconfigure_with_surface(&mut self, surface: &Surface) -> Result<(), GlassContextError> {
+        let (adapter, device, queue) = match Self::create_adapter_device_and_queue(
+            &self.config,
+            &self.instance,
+            Some(surface),
+        ) {
+            Ok(adq) => adq,
+            Err(e) => return Err(e),
+        };
         self.adapter = adapter;
         self.device = device;
         self.queue = queue;
+        Ok(())
     }
 
     fn create_adapter_device_and_queue(
         config: &DeviceConfig,
         instance: &Instance,
         surface: Option<&Surface>,
-    ) -> (Adapter, Device, Queue) {
-        let adapter = wait_async(instance.request_adapter(&RequestAdapterOptions {
+    ) -> Result<(Adapter, Device, Queue), GlassContextError> {
+        let adapter = match wait_async(instance.request_adapter(&RequestAdapterOptions {
             power_preference: config.power_preference,
             force_fallback_adapter: false,
             compatible_surface: surface,
-        }))
-        .expect("Failed to find an appropriate adapter");
+        })) {
+            Some(a) => a,
+            None => return Err(GlassContextError::AdapterError),
+        };
 
         let trace_env = std::env::var("WGPU_TRACE").ok();
         let path = trace_env.as_ref().map(std::path::Path::new);
         // Create the logical device and command queue
-        let (device, queue) = wait_async(adapter.request_device(
+        let (device, queue) = match wait_async(adapter.request_device(
             &DeviceDescriptor {
                 label: None,
                 features: config.features,
                 limits: config.limits.clone(),
             },
             if cfg!(feature = "trace") { path } else { None },
-        ))
-        .expect("Failed to create device");
-        (adapter, device, queue)
+        )) {
+            Ok(dq) => dq,
+            Err(e) => return Err(GlassContextError::DeviceError(e)),
+        };
+
+        Ok((adapter, device, queue))
     }
 
     pub fn instance(&self) -> &Instance {

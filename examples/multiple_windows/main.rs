@@ -30,13 +30,16 @@ struct MultiWindowApp {
 impl GlassApp for MultiWindowApp {
     fn start(&mut self, event_loop: &EventLoop<()>, context: &mut GlassContext) {
         println!("Press space to create windows, esc to close all but last");
-        self.window_ids
-            .push(context.create_window(event_loop, WindowConfig {
-                width: WIDTH,
-                height: HEIGHT,
-                exit_on_esc: true,
-                ..WindowConfig::default()
-            }));
+        self.window_ids.push(
+            context
+                .create_window(event_loop, WindowConfig {
+                    width: WIDTH,
+                    height: HEIGHT,
+                    exit_on_esc: true,
+                    ..WindowConfig::default()
+                })
+                .unwrap(),
+        );
     }
 
     fn input(
@@ -53,13 +56,16 @@ impl GlassApp for MultiWindowApp {
             if let Some(key) = input.virtual_keycode {
                 if key == VirtualKeyCode::Space && input.state == ElementState::Pressed {
                     // Create window
-                    self.window_ids
-                        .push(context.create_window(event_loop, WindowConfig {
-                            width: WIDTH,
-                            height: HEIGHT,
-                            exit_on_esc: true,
-                            ..WindowConfig::default()
-                        }));
+                    self.window_ids.push(
+                        context
+                            .create_window(event_loop, WindowConfig {
+                                width: WIDTH,
+                                height: HEIGHT,
+                                exit_on_esc: true,
+                                ..WindowConfig::default()
+                            })
+                            .unwrap(),
+                    );
                     println!("Window ids: {:#?}", self.window_ids);
                 }
             }
