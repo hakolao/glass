@@ -1,3 +1,5 @@
+use std::fmt::Formatter;
+
 use image::ImageError;
 use indexmap::IndexMap;
 use wgpu::{
@@ -213,6 +215,19 @@ pub enum GlassError {
     AdapterError,
     DeviceError(RequestDeviceError),
     ImageError(ImageError),
+}
+
+impl std::fmt::Display for GlassError {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        let s = match self {
+            GlassError::WindowError(e) => format!("WindowError: {}", e.to_string()),
+            GlassError::SurfaceError(e) => format!("SurfaceError: {}", e.to_string()),
+            GlassError::AdapterError => "AdapterError".to_owned(),
+            GlassError::DeviceError(e) => format!("DeviceError: {}", e.to_string()),
+            GlassError::ImageError(e) => format!("ImageError: {}", e.to_string()),
+        };
+        write!(f, "{}", s)
+    }
 }
 
 /// The runtime context accessible through [`GlassApp`].
