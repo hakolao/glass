@@ -1,28 +1,28 @@
 [package]
-name = "glass"
-version = "0.1.0"
 edition = "2021"
+name    = "glass"
+version = "0.1.0"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
-default = []
+default  = []
 egui_gui = ["egui-wgpu", "egui-winit", "egui"]
-trace = ["wgpu/trace"]
+trace    = ["wgpu/trace"]
 
 [dependencies]
-indexmap = "1.9.2"
-pollster = "0.2.5"
-image = "0.24"
-bytemuck = { version = "1.12.3", features = ["derive"] }
-wgpu = "0.15"
-winit = "0.28"
-glam = "0.23.0"
+bytemuck = { version = "1.13.1", features = ["derive"] }
+glam     = "0.24.0"
+image    = "0.24"
+indexmap = "1.9.3"
+pollster = "0.3.0"
+wgpu     = "0.16"
+winit    = "0.28"
 
 # Optional Egui
-egui-wgpu = { version = "0.21", optional = true }
+egui       = { version = "0.21", optional = true }
+egui-wgpu  = { version = "0.21", optional = true }
 egui-winit = { version = "0.21", optional = true }
-egui = { version = "0.21", optional = true }
 
 [dev-dependencies]
 egui_demo_lib = "0.21"
