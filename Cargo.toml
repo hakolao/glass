@@ -11,21 +11,22 @@ egui_gui = ["egui-wgpu", "egui-winit", "egui"]
 trace = ["wgpu/trace"]
 
 [dependencies]
-indexmap = "1.9.2"
-pollster = "0.2.5"
+indexmap = "1.9.3"
+pollster = "0.3.0"
 image = "0.24"
-bytemuck = { version = "1.12.3", features = ["derive"] }
-wgpu = "0.15"
+bytemuck = { version = "1.13.1", features = ["derive"] }
+wgpu = "0.16"
 winit = "0.28"
-glam = "0.23.0"
+glam = "0.24.0"
 
 # Optional Egui
-egui-wgpu = { version = "0.21", optional = true }
-egui-winit = { version = "0.21", optional = true }
-egui = { version = "0.21", optional = true }
+# TODO: Remove git dependency this once egui update is published on crates.io
+egui       = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional = true }
+egui-wgpu  = { git = "https://github.com/emilk/egui", rev = "3d6a15f", package = "egui-wgpu", optional = true }
+egui-winit = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional = true }
 
 [dev-dependencies]
-egui_demo_lib = "0.21"
+egui_demo_lib = {git = "https://github.com/emilk/egui", rev = "3d6a15f"}
 
 [[example]]
 name = "hello_world"

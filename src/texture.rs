@@ -1,5 +1,3 @@
-use std::num::NonZeroU32;
-
 use image::DynamicImage;
 use wgpu::{
     Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, Sampler,
@@ -41,7 +39,7 @@ impl Texture {
         for mip_level in 0..mip_count {
             let view = texture.create_view(&TextureViewDescriptor {
                 base_mip_level: mip_level,
-                mip_level_count: Some(NonZeroU32::new(1).unwrap()),
+                mip_level_count: Some(1),
                 ..Default::default()
             });
             views.push(view);
@@ -121,8 +119,8 @@ impl Texture {
             &rgba,
             ImageDataLayout {
                 offset: 0,
-                bytes_per_row: std::num::NonZeroU32::new(4 * dimensions.0),
                 rows_per_image: None,
+                bytes_per_row: Some(4 * dimensions.0),
             },
             size,
         );

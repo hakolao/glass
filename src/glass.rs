@@ -220,11 +220,11 @@ pub enum GlassError {
 impl std::fmt::Display for GlassError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            GlassError::WindowError(e) => format!("WindowError: {}", e.to_string()),
-            GlassError::SurfaceError(e) => format!("SurfaceError: {}", e.to_string()),
+            GlassError::WindowError(e) => format!("WindowError: {}", e),
+            GlassError::SurfaceError(e) => format!("SurfaceError: {}", e),
             GlassError::AdapterError => "AdapterError".to_owned(),
-            GlassError::DeviceError(e) => format!("DeviceError: {}", e.to_string()),
-            GlassError::ImageError(e) => format!("ImageError: {}", e.to_string()),
+            GlassError::DeviceError(e) => format!("DeviceError: {}", e),
+            GlassError::ImageError(e) => format!("ImageError: {}", e),
         };
         write!(f, "{}", s)
     }
