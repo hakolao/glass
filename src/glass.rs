@@ -106,14 +106,14 @@ impl<A: GlassApp + 'static> Glass<A> {
                 Event::MainEventsCleared => {
                     self.app.update(&mut context);
                     // Close window(s)
-                    if request_window_close {
+                    if request_window_close || context.exit {
                         for window in remove_windows.iter() {
                             context.windows.remove(window);
                         }
                         remove_windows.clear();
                         request_window_close = false;
                         // Exit
-                        if context.windows.is_empty() {
+                        if context.windows.is_empty() || context.exit {
                             control_flow.set_exit();
                             // Run end
                             self.app.end(&mut context);
@@ -236,6 +236,7 @@ impl std::fmt::Display for GlassError {
 pub struct GlassContext {
     device_context: DeviceContext,
     windows: IndexMap<WindowId, GlassWindow>,
+    exit: bool,
 }
 
 impl GlassContext {
@@ -265,6 +266,7 @@ impl GlassContext {
         let mut app = Self {
             device_context,
             windows: IndexMap::default(),
+            exit: false,
         };
         for (window_config, window) in winit_windows {
             let id = app.add_window(window_config, window)?;
@@ -398,5 +400,9 @@ impl GlassContext {
             Ok(w) => Ok(w),
             Err(e) => Err(GlassError::WindowError(e)),
         }
+    }
+
+    pub fn exit(&mut self) {
+        self.exit = true;
     }
 }
