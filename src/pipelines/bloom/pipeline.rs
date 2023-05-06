@@ -314,7 +314,8 @@ impl BloomPipeline {
             || width != self.width
             || height != self.height;
         if recreate_pipeline {
-            *self = BloomPipeline::new(device, settings, width, height);
+            // Limit dimensions to prevent texture max width error...
+            *self = BloomPipeline::new(device, settings, width.max(256), height.max(256));
         } else {
             self.settings = settings;
         }
