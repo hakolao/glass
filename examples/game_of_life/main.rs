@@ -68,7 +68,14 @@ impl GlassApp for GameOfLifeApp {
         // Create pipelines
         let (init_pipeline, game_of_life_pipeline, draw_pipeline) =
             create_game_of_life_pipeline(context);
-        let quad_pipeline = QuadPipeline::new(context.device(), GlassWindow::surface_format());
+        let quad_pipeline = QuadPipeline::new(context.device(), wgpu::ColorTargetState {
+            format: GlassWindow::surface_format(),
+            blend: Some(wgpu::BlendState {
+                color: wgpu::BlendComponent::OVER,
+                alpha: wgpu::BlendComponent::OVER,
+            }),
+            write_mask: wgpu::ColorWrites::ALL,
+        });
         self.data = Some(create_canvas_data(
             context,
             &quad_pipeline,

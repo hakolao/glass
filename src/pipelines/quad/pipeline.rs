@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
     util::DeviceExt, BindGroup, Buffer, Device, PushConstantRange, RenderPass, RenderPipeline,
-    Sampler, ShaderStages, TextureFormat, TextureView,
+    Sampler, ShaderStages, TextureView,
 };
 
 use crate::pipelines::{vertex::TexturedVertex, QUAD_INDICES, TEXTURED_QUAD_VERTICES};
@@ -15,7 +15,7 @@ pub struct QuadPipeline {
 }
 
 impl QuadPipeline {
-    pub fn new(device: &Device, target_surface_format: TextureFormat) -> QuadPipeline {
+    pub fn new(device: &Device, color_target_state: wgpu::ColorTargetState) -> QuadPipeline {
         let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
             contents: bytemuck::cast_slice(TEXTURED_QUAD_VERTICES),
@@ -26,14 +26,7 @@ impl QuadPipeline {
             contents: bytemuck::cast_slice(QUAD_INDICES),
             usage: wgpu::BufferUsages::INDEX,
         });
-        let pipeline = Self::new_render_pipeline(device, wgpu::ColorTargetState {
-            format: target_surface_format,
-            blend: Some(wgpu::BlendState {
-                color: wgpu::BlendComponent::OVER,
-                alpha: wgpu::BlendComponent::OVER,
-            }),
-            write_mask: wgpu::ColorWrites::ALL,
-        });
+        let pipeline = Self::new_render_pipeline(device, color_target_state);
         Self {
             pipeline,
             vertices,

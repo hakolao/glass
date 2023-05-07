@@ -43,7 +43,14 @@ struct TreeApp {
 
 impl GlassApp for TreeApp {
     fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
-        let quad_pipeline = QuadPipeline::new(context.device(), GlassWindow::surface_format());
+        let quad_pipeline = QuadPipeline::new(context.device(), wgpu::ColorTargetState {
+            format: GlassWindow::surface_format(),
+            blend: Some(wgpu::BlendState {
+                color: wgpu::BlendComponent::OVER,
+                alpha: wgpu::BlendComponent::OVER,
+            }),
+            write_mask: wgpu::ColorWrites::ALL,
+        });
         self.data = Some(create_example_data(context, &quad_pipeline));
         self.quad_pipeline = Some(quad_pipeline);
     }
