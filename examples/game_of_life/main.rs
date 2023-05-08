@@ -249,11 +249,7 @@ fn handle_inputs(app: &mut GameOfLifeApp, event: &Event<()>) {
                 state,
                 ..
             } => {
-                if state == &ElementState::Pressed {
-                    app.draw = true;
-                } else {
-                    app.draw = false;
-                }
+                app.draw = state == &ElementState::Pressed;
             }
             _ => (),
         }
