@@ -361,6 +361,16 @@ impl GlassContext {
             .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
             .with_title(config.title);
 
+        // Min size
+        if let Some(inner_size) = config.min_size {
+            window_builder = window_builder.with_min_inner_size(inner_size);
+        }
+
+        // Max size
+        if let Some(inner_size) = config.max_size {
+            window_builder = window_builder.with_max_inner_size(inner_size);
+        }
+
         window_builder = match &config.pos {
             WindowPos::Maximized => window_builder.with_maximized(true),
             WindowPos::FullScreen => {
