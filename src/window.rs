@@ -4,7 +4,7 @@ use wgpu::{
     TextureFormat,
 };
 use winit::{
-    dpi::{PhysicalPosition, PhysicalSize},
+    dpi::{LogicalSize, PhysicalPosition, PhysicalSize},
     monitor::MonitorHandle,
     window::{Fullscreen, Window},
 };
@@ -19,6 +19,8 @@ pub struct WindowConfig {
     pub pos: WindowPos,
     pub present_mode: PresentMode,
     pub alpha_mode: CompositeAlphaMode,
+    pub max_size: Option<LogicalSize<u32>>,
+    pub min_size: Option<LogicalSize<u32>>,
     pub exit_on_esc: bool,
 }
 
@@ -32,6 +34,8 @@ impl Default for WindowConfig {
             present_mode: PresentMode::AutoVsync,
             alpha_mode: CompositeAlphaMode::Auto,
             exit_on_esc: false,
+            max_size: None,
+            min_size: None,
         }
     }
 }
