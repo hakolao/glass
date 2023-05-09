@@ -4,8 +4,8 @@ use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
 use wgpu::{
     util::DeviceExt, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, ColorTargetState, ColorWrites,
-    CommandEncoder, Device, LoadOp, Operations, PushConstantRange, RenderPassColorAttachment,
+    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, Color, ColorTargetState,
+    ColorWrites, CommandEncoder, Device, Operations, PushConstantRange, RenderPassColorAttachment,
     RenderPassDescriptor, RenderPipeline, SamplerBindingType, ShaderStages, TextureFormat,
     TextureSampleType, TextureViewDimension,
 };
@@ -120,6 +120,7 @@ impl PastePipeline {
         &self,
         device: &Device,
         encoder: &mut CommandEncoder,
+        ops: Operations<Color>,
         input: &Texture,
         output: &Texture,
         tint: [f32; 4],
@@ -160,10 +161,7 @@ impl PastePipeline {
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &output.views[0],
                     resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Load,
-                        ..Default::default()
-                    },
+                    ops,
                 })],
                 depth_stencil_attachment: None,
             });
