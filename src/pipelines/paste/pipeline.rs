@@ -15,8 +15,6 @@ use crate::{
     texture::Texture,
 };
 
-const PASTE_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
-
 pub struct PastePipeline {
     paste_pipeline: RenderPipeline,
     vertices: Buffer,
@@ -24,7 +22,7 @@ pub struct PastePipeline {
 }
 
 impl PastePipeline {
-    pub fn new(device: &Device) -> PastePipeline {
+    pub fn new(device: &Device, target_texture_format: TextureFormat) -> PastePipeline {
         let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Paste Vertex Buffer"),
             contents: bytemuck::cast_slice(
@@ -96,7 +94,7 @@ impl PastePipeline {
                 module: &shader,
                 entry_point: "fragment",
                 targets: &[Some(ColorTargetState {
-                    format: PASTE_TEXTURE_FORMAT,
+                    format: target_texture_format,
                     blend: Some(wgpu::BlendState {
                         color: wgpu::BlendComponent::OVER,
                         alpha: wgpu::BlendComponent::OVER,
