@@ -5,7 +5,9 @@ use glass::{
     window::{GlassWindow, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
-use wgpu::{AddressMode, BindGroup, FilterMode, SamplerDescriptor, TextureFormat, TextureUsages};
+use wgpu::{
+    AddressMode, BindGroup, FilterMode, Limits, SamplerDescriptor, TextureFormat, TextureUsages,
+};
 use winit::event_loop::EventLoop;
 
 const WIDTH: u32 = 1920;
@@ -24,7 +26,14 @@ fn main() -> Result<(), GlassError> {
 
 fn config() -> GlassConfig {
     GlassConfig {
-        device_config: DeviceConfig::performance(),
+        device_config: DeviceConfig {
+            limits: Limits {
+                // Needed for push constants
+                max_push_constant_size: 128,
+                ..Default::default()
+            },
+            ..DeviceConfig::performance()
+        },
         window_configs: vec![WindowConfig {
             width: WIDTH,
             height: HEIGHT,

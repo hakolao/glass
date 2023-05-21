@@ -38,8 +38,7 @@ fn config() -> GlassConfig {
             features: wgpu::Features::PUSH_CONSTANTS
                 | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
             limits: Limits {
-                // Using 32 * 32 work group size
-                max_compute_invocations_per_workgroup: 1024,
+                max_push_constant_size: 128,
                 ..Limits::default()
             },
             backends: Backends::all(),
@@ -281,7 +280,7 @@ fn draw_game_of_life(
     cpass.set_pipeline(draw_pipeline);
     cpass.set_bind_group(0, &data.draw_bind_group, &[]);
     cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
-    cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
+    cpass.dispatch_workgroups(WIDTH / 8, HEIGHT / 8, 1);
 }
 
 fn update_game_of_life(
@@ -322,7 +321,7 @@ fn update_game_of_life(
     cpass.set_pipeline(game_of_life_pipeline);
     cpass.set_bind_group(0, &update_bind_group, &[]);
     cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
-    cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
+    cpass.dispatch_workgroups(WIDTH / 8, HEIGHT / 8, 1);
 
     app.count += 1;
 }
@@ -351,7 +350,7 @@ fn init_game_of_life(app: &mut GameOfLifeApp, context: &mut GlassContext) {
             0,
             bytemuck::cast_slice(&[GameOfLifePushConstants::new(Vec2::ZERO, Vec2::ZERO, 0.0)]),
         );
-        cpass.dispatch_workgroups(WIDTH / 32, HEIGHT / 32, 1);
+        cpass.dispatch_workgroups(WIDTH / 8, HEIGHT / 8, 1);
     }
     context.queue().submit(Some(encoder.finish()));
 }

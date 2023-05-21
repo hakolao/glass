@@ -36,7 +36,7 @@ fn draw_particle_circle(pos: vec2<f32>, draw_pos: vec2<f32>, radius: f32) {
     }
 }
 
-@compute @workgroup_size(32, 32, 1)
+@compute @workgroup_size(8, 8, 1)
 fn main(@builtin(global_invocation_id) invocation_id: vec3<u32>)
 {
     let pixel = vec2<u32>(invocation_id.xy);

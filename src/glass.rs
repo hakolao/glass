@@ -253,9 +253,7 @@ impl GlassContext {
         // Add push constants feature for common pipelines
         config.device_config.features |= wgpu::Features::PUSH_CONSTANTS
             | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
-        // Add push constant limits
         config.device_config.limits = wgpu::Limits {
-            max_push_constant_size: 256,
             ..config.device_config.limits
         };
         let device_context = DeviceContext::new(

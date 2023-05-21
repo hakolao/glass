@@ -19,7 +19,7 @@ fn randomFloat(xy: vec2<f32>, seed: f32) -> f32 {
     return abs(fract(tan(distance(xy * PHI, xy) * (seed + 0.765831)) * xy.x));
 }
 
-@compute @workgroup_size(32, 32, 1)
+@compute @workgroup_size(8, 8, 1)
 fn init(@builtin(global_invocation_id) invocation_id: vec3<u32>, @builtin(num_workgroups) num_workgroups: vec3<u32>) {
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
 
@@ -46,7 +46,7 @@ fn count_alive(location: vec2<i32>) -> i32 {
            is_alive(location,  1,  1);
 }
 
-@compute @workgroup_size(32, 32, 1)
+@compute @workgroup_size(8, 8, 1)
 fn update(@builtin(global_invocation_id) invocation_id: vec3<u32>) {
     let location = vec2<i32>(i32(invocation_id.x), i32(invocation_id.y));
 
