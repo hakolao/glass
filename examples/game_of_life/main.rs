@@ -143,11 +143,12 @@ impl Default for GameOfLifeApp {
 }
 
 impl GameOfLifeApp {
-    fn cursor_to_canvas(&self, width: f32, height: f32) -> (Vec2, Vec2) {
-        let half_screen = Vec2::new(width, height) / 2.0;
-        let current_canvas_pos = self.cursor_pos - half_screen + WIDTH as f32 / 2.0;
-        let prev_canvas_pos =
-            self.prev_cursor_pos.unwrap_or(current_canvas_pos) - half_screen + HEIGHT as f32 / 2.0;
+    fn cursor_to_canvas(&self, width: f32, height: f32, scale_factor: f32) -> (Vec2, Vec2) {
+        let half_screen = Vec2::new(width, height) / scale_factor / 2.0;
+        let current_canvas_pos = self.cursor_pos / scale_factor - half_screen + WIDTH as f32 / 2.0;
+        let prev_canvas_pos = self.prev_cursor_pos.unwrap_or(current_canvas_pos) / scale_factor
+            - half_screen
+            + HEIGHT as f32 / 2.0;
         (current_canvas_pos, prev_canvas_pos)
     }
 }
@@ -202,8 +203,12 @@ fn render(app: &mut GameOfLifeApp, render_data: RenderData) {
         ..
     } = render_data;
     let (width, height) = {
+        let scale_factor = window.window().scale_factor() as f32;
         let size = window.window().inner_size();
-        (size.width as f32, size.height as f32)
+        (
+            size.width as f32 / scale_factor,
+            size.height as f32 / scale_factor,
+        )
     };
     let view = frame
         .texture
@@ -260,11 +265,12 @@ fn draw_game_of_life(
     context: &mut GlassContext,
     encoder: &mut CommandEncoder,
 ) {
+    let scale_factor = context.primary_render_window().window().scale_factor() as f32;
     let (width, height) = {
         let size = context.primary_render_window().window().inner_size();
         (size.width as f32, size.height as f32)
     };
-    let (end, start) = app.cursor_to_canvas(width, height);
+    let (end, start) = app.cursor_to_canvas(width, height, scale_factor);
     let GameOfLifeApp {
         data,
         draw_pipeline,

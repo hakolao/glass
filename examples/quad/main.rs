@@ -79,8 +79,12 @@ impl GlassApp for TreeApp {
             ..
         } = render_data;
         let (width, height) = {
+            let scale_factor = window.window().scale_factor() as f32;
             let size = window.window().inner_size();
-            (size.width as f32, size.height as f32)
+            (
+                size.width as f32 / scale_factor,
+                size.height as f32 / scale_factor,
+            )
         };
         let view = frame
             .texture
