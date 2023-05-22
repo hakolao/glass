@@ -233,6 +233,7 @@ fn render(app: &mut GameOfLifeApp, render_data: RenderData) {
             [0.0; 4],
             camera_projection([width, height]).to_cols_array_2d(),
             canvas_data.canvas.size,
+            1.0,
         );
     }
 }
@@ -408,8 +409,8 @@ fn create_canvas_data(
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
             mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Nearest,
-            mipmap_filter: FilterMode::Nearest,
+            min_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Linear,
             ..Default::default()
         },
         TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
@@ -428,7 +429,7 @@ fn create_canvas_data(
             address_mode_u: AddressMode::ClampToEdge,
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
-            mag_filter: FilterMode::Linear,
+            mag_filter: FilterMode::Nearest,
             min_filter: FilterMode::Nearest,
             mipmap_filter: FilterMode::Nearest,
             ..Default::default()

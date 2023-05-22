@@ -109,6 +109,7 @@ impl GlassApp for TreeApp {
                 [0.0; 4],
                 camera_projection([width, height]).to_cols_array_2d(),
                 tree_data.tree.size,
+                1.0,
             );
         }
     }
@@ -143,8 +144,8 @@ fn create_tree_texture(app: &GlassContext) -> Texture {
             address_mode_v: AddressMode::ClampToEdge,
             address_mode_w: AddressMode::ClampToEdge,
             mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Nearest,
-            mipmap_filter: FilterMode::Nearest,
+            min_filter: FilterMode::Linear,
+            mipmap_filter: FilterMode::Linear,
             ..Default::default()
         },
         TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,

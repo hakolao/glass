@@ -2,6 +2,7 @@ struct PushConstants {
     view_pos: vec4<f32>,
     view_proj: mat4x4<f32>,
     dims: vec2<f32>,
+    aa_strength: f32,
 }
 var<push_constant> pc: PushConstants;
 
@@ -30,11 +31,21 @@ fn vs_main(
 }
 
 @group(0) @binding(0)
-var t_diffuse: texture_2d<f32>;
+var input_texture: texture_2d<f32>;
 @group(0)@binding(1)
-var s_diffuse: sampler;
+var s: sampler;
+
+// https://www.shadertoy.com/view/MllBWf
+fn get_coords_aa(uv: vec2<f32>) -> vec2<f32> {
+    let fl = floor(uv + 0.5);
+    var fr = fract(uv + 0.5);
+    let aa = fwidth(uv) * pc.aa_strength * 0.5;
+    fr = smoothstep(0.5 - aa, 0.5 + aa, fr);
+    return fl + fr - 0.5;
+}
 
 @fragment
 fn fs_main(in: VertexOutput) -> @location(0) vec4<f32> {
-    return in.color * textureSample(t_diffuse, s_diffuse, in.tex_coords);
+    let size = vec2<f32>(textureDimensions(input_texture));
+    return in.color * textureSample(input_texture, s, get_coords_aa(in.tex_coords * size) / size);
 }

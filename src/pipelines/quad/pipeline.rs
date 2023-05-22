@@ -70,7 +70,7 @@ impl QuadPipeline {
             label: Some("Quad Pipeline Layout"),
             bind_group_layouts: &[&texture_bind_group_layout],
             push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::VERTEX,
+                stages: ShaderStages::VERTEX_FRAGMENT,
                 range: 0..std::mem::size_of::<QuadPushConstants>() as u32,
             }],
         });
@@ -112,11 +112,13 @@ impl QuadPipeline {
         view_position: [f32; 4],
         view_proj: [[f32; 4]; 4],
         quad_size: [f32; 2],
+        aa_strength: f32,
     ) -> QuadPushConstants {
         QuadPushConstants {
             view_position,
             view_proj,
             dims: quad_size,
+            aa_strength,
         }
     }
 
@@ -139,7 +141,7 @@ impl QuadPipeline {
                     resource: wgpu::BindingResource::Sampler(sampler),
                 },
             ],
-            label: Some("tree_bind_group"),
+            label: Some("bind_group"),
         });
         bind_group
     }
@@ -151,15 +153,21 @@ impl QuadPipeline {
         view_pos: [f32; 4],
         view_proj: [[f32; 4]; 4],
         quad_size: [f32; 2],
+        aa_strength: f32,
     ) {
         rpass.set_pipeline(&self.pipeline);
         rpass.set_bind_group(0, bind_group, &[]);
         rpass.set_vertex_buffer(0, self.vertices.slice(..));
         rpass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint16);
         rpass.set_push_constants(
-            ShaderStages::VERTEX,
+            ShaderStages::VERTEX_FRAGMENT,
             0,
-            bytemuck::cast_slice(&[QuadPipeline::push_constants(view_pos, view_proj, quad_size)]),
+            bytemuck::cast_slice(&[QuadPipeline::push_constants(
+                view_pos,
+                view_proj,
+                quad_size,
+                aa_strength,
+            )]),
         );
         rpass.draw_indexed(0..(QUAD_INDICES.len() as u32), 0, 0..1);
     }
@@ -172,4 +180,5 @@ pub struct QuadPushConstants {
     pub view_position: [f32; 4],
     pub view_proj: [[f32; 4]; 4],
     pub dims: [f32; 2],
+    pub aa_strength: f32,
 }
