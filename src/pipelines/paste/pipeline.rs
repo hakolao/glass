@@ -54,7 +54,7 @@ impl PastePipeline {
                     binding: 0,
                     ty: BindingType::Texture {
                         sample_type: TextureSampleType::Float {
-                            filterable: false,
+                            filterable: true,
                         },
                         view_dimension: TextureViewDimension::D2,
                         multisampled: false,
@@ -64,7 +64,7 @@ impl PastePipeline {
                 },
                 BindGroupLayoutEntry {
                     binding: 1,
-                    ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
+                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
                     visibility: ShaderStages::FRAGMENT,
                     count: None,
                 },
