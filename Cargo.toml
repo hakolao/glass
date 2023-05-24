@@ -9,6 +9,7 @@ edition = "2021"
 default = []
 egui_gui = ["egui-wgpu", "egui-winit", "egui"]
 egui_extra = ["egui_gui", "egui_extras"]
+egui_demo = ["egui_demo_lib", "egui_demo_lib/syntax_highlighting"]
 trace = ["wgpu/trace"]
 
 [dependencies]
@@ -26,6 +27,7 @@ egui       = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional 
 egui-wgpu  = { git = "https://github.com/emilk/egui", rev = "3d6a15f", package = "egui-wgpu", optional = true }
 egui-winit = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional = true }
 egui_extras = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional = true }
+egui_demo_lib = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional = true }
 
 [dev-dependencies]
 egui_demo_lib = {git = "https://github.com/emilk/egui", rev = "3d6a15f"}
