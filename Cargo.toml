@@ -9,7 +9,7 @@ edition = "2021"
 default = []
 egui_gui = ["egui-wgpu", "egui-winit", "egui"]
 egui_extra = ["egui_gui", "egui_extras"]
-egui_demo = ["egui_demo_lib", "egui_demo_lib/syntax_highlighting"]
+egui_demo = ["egui_gui", "egui_demo_lib", "egui_demo_lib/syntax_highlighting"]
 trace = ["wgpu/trace"]
 
 [dependencies]
@@ -23,14 +23,14 @@ glam = "0.24.0"
 
 # Optional Egui
 # TODO: Remove git dependency this once egui update is published on crates.io
-egui       = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional = true }
-egui-wgpu  = { git = "https://github.com/emilk/egui", rev = "3d6a15f", package = "egui-wgpu", optional = true }
-egui-winit = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional = true }
-egui_extras = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional = true }
-egui_demo_lib = { git = "https://github.com/emilk/egui", rev = "3d6a15f", optional = true }
+egui       = { version = "0.22", optional = true }
+egui-wgpu  = { version = "0.22", optional = true }
+egui-winit = { version = "0.22", optional = true }
+egui_extras = { version = "0.22", optional = true }
+egui_demo_lib = { version = "0.22", optional = true }
 
 [dev-dependencies]
-egui_demo_lib = {git = "https://github.com/emilk/egui", rev = "3d6a15f"}
+egui_demo_lib = { version = "0.22" }
 
 [[example]]
 name = "hello_world"
