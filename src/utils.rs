@@ -3,9 +3,11 @@ use std::{
     collections::{HashSet, VecDeque},
     fmt::Formatter,
     future::Future,
+    path::{Path, PathBuf},
 };
 
 use naga::Module;
+use path_clean::PathClean;
 
 pub fn wait_async<F: Future>(fut: F) -> F::Output {
     pollster::block_on(fut)
@@ -101,8 +103,10 @@ impl ShaderSource {
         let mut included_files = HashSet::new();
         let mut file_stack = VecDeque::new();
         let mut included_parts = Vec::new();
+
+        let path = PathBuf::from(source_filepath);
         let source = wgsl_source_with_includes(
-            source_filepath,
+            &path,
             &mut included_files,
             &mut file_stack,
             &mut included_parts,
@@ -123,12 +127,13 @@ struct IncludedPart {
 }
 
 fn wgsl_source_with_includes(
-    file_path: &str,
+    file_path: &Path,
     included_files: &mut HashSet<String>,
     file_stack: &mut VecDeque<String>,
     included_parts: &mut Vec<IncludedPart>,
 ) -> Result<String, IncludesShaderError> {
     let mut result = String::new();
+    let file_path_str = file_path.to_string_lossy().into_owned();
 
     let ext = std::path::Path::new(file_path)
         .extension()
@@ -142,16 +147,15 @@ fn wgsl_source_with_includes(
         }
     }
 
-    included_files.insert(file_path.to_string());
-    file_stack.push_back(file_path.to_string());
-
+    included_files.insert(file_path_str.clone());
+    file_stack.push_back(file_path_str.clone());
     let source = match std::fs::read_to_string(file_path) {
         Ok(str) => str,
         Err(e) => {
             return Err(IncludesShaderError::FileReadError(format!(
                 "{}: {}",
-                file_path, e
-            )))
+                file_path_str, e
+            )));
         }
     };
 
@@ -160,15 +164,18 @@ fn wgsl_source_with_includes(
     for (line_index, line) in source.lines().enumerate() {
         if line.starts_with("#include") {
             let included_file_name = line.trim_start_matches("#include ").trim();
-            if included_files.contains(included_file_name) {
+            let included_file_path = file_path.parent().unwrap().join(included_file_name).clean();
+
+            let included_file_path_str = included_file_path.to_string_lossy().into_owned();
+            if included_files.contains(&included_file_path_str) {
                 return Err(IncludesShaderError::AlreadyIncluded(format!(
                     "trying to include {} in {}",
-                    included_file_name, file_path
+                    included_file_name, file_path_str
                 )));
             }
-            if !file_stack.contains(&included_file_name.to_string()) {
+            if !file_stack.contains(&included_file_path_str) {
                 let included_part = wgsl_source_with_includes(
-                    included_file_name,
+                    &included_file_path,
                     included_files,
                     file_stack,
                     included_parts,

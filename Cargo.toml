@@ -22,6 +22,7 @@ wgpu = { version = "0.16", default_features = true, features = ["naga"] }
 naga = "0.12.0"
 winit = "0.28"
 glam = "0.24.0"
+path-clean = "1.0.1"
 
 # Optional Egui
 # TODO: Remove git dependency this once egui update is published on crates.io
