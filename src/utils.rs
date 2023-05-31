@@ -282,9 +282,6 @@ const TEST2: u32 = u32(2);
         let includes_file1 = "includes_1.wgsl";
         let includes_file2 = "includes_2.wgsl";
 
-        let test_dir = "test_dir";
-        let _ = std::fs::create_dir(test_dir);
-
         let _ = std::fs::write(
             includes_file1,
             r#"
