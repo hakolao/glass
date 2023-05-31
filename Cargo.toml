@@ -10,6 +10,7 @@ default = []
 egui_gui = ["egui-wgpu", "egui-winit", "egui"]
 egui_extra = ["egui_gui", "egui_extras"]
 egui_demo = ["egui_gui", "egui_demo_lib", "egui_demo_lib/syntax_highlighting"]
+egui_persistence = ["egui_gui", "egui_demo", "egui/persistence", "egui_demo_lib/serde"]
 trace = ["wgpu/trace"]
 
 [dependencies]
@@ -17,7 +18,8 @@ indexmap = "1.9.3"
 pollster = "0.3.0"
 image = "0.24"
 bytemuck = { version = "1.13.1", features = ["derive"] }
-wgpu = "0.16"
+wgpu = { version = "0.16", default_features = true, features = ["naga"] }
+naga = "0.12.0"
 winit = "0.28"
 glam = "0.24.0"
 
