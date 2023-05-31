@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{HashMap, HashSet},
+    collections::{HashSet, VecDeque},
     fmt::Formatter,
     future::Future,
 };
@@ -11,7 +11,7 @@ pub fn wait_async<F: Future>(fut: F) -> F::Output {
     pollster::block_on(fut)
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub enum IncludesShaderError {
     FileReadError(String),
     InvalidExtension(String),
@@ -32,136 +32,105 @@ impl std::fmt::Display for IncludesShaderError {
                 format!("IncludesShaderError::AlreadyIncluded: {}", e)
             }
             IncludesShaderError::WgslParseError(e) => {
-                format!("IncludesShaderError::WgslParseError: {}", e)
+                format!("IncludesShaderError::WgslParseError: \n{}", e)
             }
         };
         write!(f, "{}", s)
     }
 }
 
-impl From<IncludesShaderModule> for Module {
-    fn from(value: IncludesShaderModule) -> Self {
+impl From<ShaderModule> for Module {
+    fn from(value: ShaderModule) -> Self {
         value.module
     }
 }
 
 #[derive(Debug, Default)]
-pub struct IncludesShaderModule {
+pub struct ShaderModule {
     module: Module,
 }
 
-// struc
-
-#[derive(Debug, Default)]
-struct ShaderSourceWithIncludeData {
-    source: String,
-    include_sources: HashMap<String, String>,
-    include_data: ShaderFileIncludeData,
-}
-
-impl ShaderSourceWithIncludeData {
-    fn new(source_filepath: &str) -> Result<ShaderSourceWithIncludeData, IncludesShaderError> {
-        let includes_map = wgsl_includes_map(source_filepath, HashMap::new())?;
-
-        let mut include_sources = HashMap::default();
-        let source = match std::fs::read_to_string(source_filepath) {
-            Ok(str) => str,
-            Err(e) => {
-                return Err(IncludesShaderError::FileReadError(format!(
-                    "{}: {}",
-                    source_filepath, e
-                )))
-            }
-        };
-
-        let mut include_data = ShaderFileIncludeData {
-            parent_path: source_filepath.to_string(),
-            replacements: HashMap::default(),
-        };
-
-        for (include_file, (include_path, include_parent_path, replace_line)) in includes_map.iter()
-        {
-            let parent_key = include_parent_path
-                .split("/")
-                .last()
-                .unwrap_or(&include_parent_path);
-            let include_src = match std::fs::read_to_string(include_path.clone()) {
-                Ok(str) => str,
-                Err(e) => {
-                    return Err(IncludesShaderError::FileReadError(format!(
-                        "{}: {}",
-                        include_path, e
-                    )))
+impl ShaderModule {
+    pub fn new(source_filepath: &str) -> Result<ShaderModule, IncludesShaderError> {
+        let source = ShaderSource::new(source_filepath)?;
+        let mut wgsl_parser = naga::front::wgsl::Frontend::new();
+        match wgsl_parser.parse(&source.source) {
+            Ok(module) => Ok(ShaderModule {
+                module,
+            }),
+            Err(parse_error) => {
+                let mut belonging_part = None;
+                if let Some(location_in_source) = parse_error.location(&source.source) {
+                    for part in source.parts.iter() {
+                        if location_in_source.line_number - 1 == part.end_line as u32
+                            || location_in_source.line_number - 1 == part.start_line as u32
+                        {
+                            belonging_part = Some(part);
+                        }
+                    }
                 }
-            };
-            include_sources.insert(parent_key.to_string(), include_src);
-            include_data
-                .replacements
-                .entry(parent_key.to_string())
-                .or_insert(HashSet::default())
-                .insert(ShaderReplacementData::new(
-                    include_parent_path.clone(),
-                    include_file.clone(),
-                    include_path.clone(),
-                    *replace_line,
-                ));
+                let error_str = if let Some(belonging_part) = belonging_part {
+                    parse_error.emit_to_string_with_path(
+                        &belonging_part.content,
+                        &belonging_part.file_path,
+                    )
+                } else {
+                    parse_error.emit_to_string_with_path(&source.source, source_filepath)
+                };
+
+                Err(IncludesShaderError::WgslParseError(error_str))
+            }
         }
-
-        let source_data = ShaderSourceWithIncludeData {
-            source,
-            include_sources,
-            include_data,
-        };
-
-        Ok(source_data)
     }
-}
-
-#[derive(Debug, Default)]
-struct ShaderFileIncludeData {
-    pub parent_path: String,
-    pub replacements: HashMap<String, HashSet<ShaderReplacementData>>,
 }
 
 #[derive(Debug, Default, Hash, Eq, PartialEq)]
-struct ShaderReplacementData {
-    parent_path: String,
-    include_key: String,
-    include_path: String,
-    replace_line: usize,
+struct SourcePart {
+    start: usize,
+    end: usize,
 }
 
-impl ShaderReplacementData {
-    fn new(
-        parent_path: String,
-        include_key: String,
-        include_path: String,
-        replace_line: usize,
-    ) -> ShaderReplacementData {
-        ShaderReplacementData {
-            parent_path,
-            include_key,
-            include_path,
-            replace_line,
-        }
+#[derive(Debug, Default)]
+struct ShaderSource {
+    source: String,
+    parts: Vec<IncludedPart>,
+}
+
+impl ShaderSource {
+    fn new(source_filepath: &str) -> Result<ShaderSource, IncludesShaderError> {
+        let mut included_files = HashSet::new();
+        let mut file_stack = VecDeque::new();
+        let mut included_parts = Vec::new();
+        let source = wgsl_source_with_includes(
+            source_filepath,
+            &mut included_files,
+            &mut file_stack,
+            &mut included_parts,
+        )?;
+        Ok(ShaderSource {
+            source,
+            parts: included_parts,
+        })
     }
 }
 
-fn wgsl_includes_map(
-    source_filepath: &str,
-    mut includes_map: HashMap<String, (String, String, usize)>,
-) -> Result<HashMap<String, (String, String, usize)>, IncludesShaderError> {
-    let source = match std::fs::read_to_string(source_filepath) {
-        Ok(str) => str,
-        Err(e) => {
-            return Err(IncludesShaderError::FileReadError(format!(
-                "{}: {}",
-                source_filepath, e
-            )))
-        }
-    };
+#[derive(Debug, Default)]
+struct IncludedPart {
+    content: String,
+    file_path: String,
+    start_line: usize,
+    end_line: usize,
+}
 
-    let ext = std::path::Path::new(source_filepath)
+fn wgsl_source_with_includes(
+    file_path: &str,
+    included_files: &mut HashSet<String>,
+    file_stack: &mut VecDeque<String>,
+    included_parts: &mut Vec<IncludedPart>,
+) -> Result<String, IncludesShaderError> {
+    let mut result = String::new();
+
+    let ext = std::path::Path::new(file_path)
         .extension()
         .map(std::ffi::OsStr::to_string_lossy)
         .map(Cow::into_owned);
@@ -173,250 +142,76 @@ fn wgsl_includes_map(
         }
     }
 
-    for (line_num, line) in source.lines().enumerate() {
-        let include_file = line.strip_prefix("#include ");
-        if let Some(include_file) = include_file {
-            let include_key = include_file.split("/").last().unwrap_or(include_file);
-            if includes_map.keys().find(|&k| k == include_key).is_some() {
+    included_files.insert(file_path.to_string());
+    file_stack.push_back(file_path.to_string());
+
+    let source = match std::fs::read_to_string(file_path) {
+        Ok(str) => str,
+        Err(e) => {
+            return Err(IncludesShaderError::FileReadError(format!(
+                "{}: {}",
+                file_path, e
+            )))
+        }
+    };
+
+    let mut current_part_start_line = 1;
+
+    for (line_index, line) in source.lines().enumerate() {
+        if line.starts_with("#include") {
+            let included_file_name = line.trim_start_matches("#include ").trim();
+            if included_files.contains(included_file_name) {
                 return Err(IncludesShaderError::AlreadyIncluded(format!(
-                    "file: {} - trying to include: {}",
-                    source_filepath, include_file
+                    "trying to include {} in {}",
+                    included_file_name, file_path
                 )));
             }
-            includes_map.insert(
-                include_key.to_string(),
-                (
-                    include_file.to_string(),
-                    source_filepath.to_string(),
-                    line_num,
-                ),
-            );
-            includes_map = wgsl_includes_map(include_file, includes_map)?;
+            if !file_stack.contains(&included_file_name.to_string()) {
+                let included_part = wgsl_source_with_includes(
+                    included_file_name,
+                    included_files,
+                    file_stack,
+                    included_parts,
+                )?;
+                let end_line = current_part_start_line + included_part.lines().count() - 1;
+                included_parts.push(IncludedPart {
+                    content: included_part.clone(),
+                    file_path: included_file_name.to_string(),
+                    start_line: current_part_start_line,
+                    end_line,
+                });
+                result.push_str(&included_part);
+            }
+        } else {
+            result.push_str(&line);
+            result.push('\n');
         }
+        // Track the start line of the next part
+        current_part_start_line = line_index + 2;
     }
+    // Remove file from stack after processing
+    file_stack.pop_back();
 
-    Ok(includes_map)
+    Ok(result)
 }
 
 #[cfg(test)]
 mod tests {
-    use std::collections::{HashMap, HashSet};
-
-    use crate::utils::{
-        wgsl_includes_map, IncludesShaderError, ShaderReplacementData, ShaderSourceWithIncludeData,
-    };
+    use crate::utils::{IncludesShaderError, ShaderModule, ShaderSource};
 
     #[test]
-    fn test_all_sequential() {
-        test_includes_set();
-        test_circular_reference();
-        test_shader_file_with_includes();
-        test_shader_file_with_includes_deep();
+    fn test_sequentially() {
+        test_shader_source();
+        test_file_not_found();
+        test_file_already_included();
+        test_invalid_extension();
+        test_shader_parse_error1();
+        test_shader_parse_error2();
+        test_shader_parse_error3();
+        test_shader_parse_error4();
     }
 
-    fn test_includes_set() {
-        let includes_file1 = "includes_1.wgsl";
-        let includes_file2 = "includes_2.wgsl";
-        let includes_file3 = "includes_3.wgsl";
-        let includes_file4 = "includes_4.wgsl";
-        let includes_file5 = "includes_5.wgsl";
-        let _ = std::fs::write(
-            includes_file1,
-            r#"
-#include includes_2.wgsl"#,
-        );
-        let _ = std::fs::write(
-            includes_file2,
-            r#"
-#include includes_3.wgsl
-"#,
-        );
-
-        let _ = std::fs::write(
-            includes_file3,
-            r#"
-#include includes_4.wgsl
-#include includes_5.wgsl
-"#,
-        );
-
-        let _ = std::fs::write(
-            includes_file4,
-            r#"
-const TEST: u32 = u32(1);
-"#,
-        );
-
-        let _ = std::fs::write(
-            includes_file5,
-            r#"
-const TEST2: u32 = u32(2);
-"#,
-        );
-
-        let result = wgsl_includes_map(includes_file1, HashMap::default());
-
-        let _ = std::fs::remove_file(includes_file1);
-        let _ = std::fs::remove_file(includes_file2);
-        let _ = std::fs::remove_file(includes_file3);
-        let _ = std::fs::remove_file(includes_file4);
-        let _ = std::fs::remove_file(includes_file5);
-
-        assert!(result.is_ok());
-        let mut as_vec = result.unwrap().keys().cloned().collect::<Vec<String>>();
-        as_vec.sort();
-        let should_be = vec![
-            includes_file2,
-            includes_file3,
-            includes_file4,
-            includes_file5,
-        ];
-        assert_eq!(as_vec, should_be);
-    }
-
-    fn test_circular_reference() {
-        let includes_file1 = "includes_1.wgsl";
-        let includes_file2 = "includes_2.wgsl";
-        let includes_file3 = "includes_3.wgsl";
-        let _ = std::fs::write(
-            includes_file1,
-            r#"
-#include includes_2.wgsl"#,
-        );
-        let _ = std::fs::write(
-            includes_file2,
-            r#"
-#include includes_3.wgsl
-#include includes_2.wgsl
-"#,
-        );
-
-        let _ = std::fs::write(
-            includes_file3,
-            r#"
-const TEST: i32 = 1;
-"#,
-        );
-
-        let result = wgsl_includes_map(includes_file1, HashMap::default());
-
-        let _ = std::fs::remove_file(includes_file1);
-        let _ = std::fs::remove_file(includes_file2);
-        let _ = std::fs::remove_file(includes_file3);
-
-        assert!(matches!(
-            result,
-            Err(IncludesShaderError::AlreadyIncluded(_))
-        ));
-
-        let _ = std::fs::write(
-            includes_file1,
-            r#"
-#include includes_2.wgsl"#,
-        );
-        let _ = std::fs::write(
-            includes_file2,
-            r#"
-#include includes_3.wgsl
-"#,
-        );
-
-        let _ = std::fs::write(
-            includes_file3,
-            r#"
-const TEST: i32 = 1;
-#include includes_1.wgsl
-"#,
-        );
-
-        let result = wgsl_includes_map(includes_file1, HashMap::default());
-
-        let _ = std::fs::remove_file(includes_file1);
-        let _ = std::fs::remove_file(includes_file2);
-        let _ = std::fs::remove_file(includes_file3);
-
-        assert!(result.is_err());
-        assert!(matches!(
-            result,
-            Err(IncludesShaderError::AlreadyIncluded(_))
-        ));
-    }
-
-    fn test_shader_file_with_includes() {
-        let includes_file1 = "includes_1.wgsl";
-        let includes_file2 = "includes_2.wgsl";
-        let includes_file3 = "includes_3.wgsl";
-        let includes_file4 = "includes_4.wgsl";
-        let includes_file5 = "includes_5.wgsl";
-        let _ = std::fs::write(
-            includes_file1,
-            r#"
-#include includes_2.wgsl"#,
-        );
-        let _ = std::fs::write(
-            includes_file2,
-            r#"
-#include includes_3.wgsl
-"#,
-        );
-
-        let _ = std::fs::write(
-            includes_file3,
-            r#"
-#include includes_4.wgsl
-#include includes_5.wgsl
-"#,
-        );
-
-        let _ = std::fs::write(
-            includes_file4,
-            r#"
-const TEST: u32 = u32(1);
-"#,
-        );
-
-        let _ = std::fs::write(
-            includes_file5,
-            r#"
-const TEST2: u32 = u32(2);
-"#,
-        );
-
-        let result = ShaderSourceWithIncludeData::new(includes_file1);
-
-        let _ = std::fs::remove_file(includes_file1);
-        let _ = std::fs::remove_file(includes_file2);
-        let _ = std::fs::remove_file(includes_file3);
-        let _ = std::fs::remove_file(includes_file4);
-        let _ = std::fs::remove_file(includes_file5);
-
-        assert!(result.is_ok());
-        let result = result.unwrap();
-        assert_eq!(result.include_data.parent_path, includes_file1);
-        let mut should_be = HashSet::default();
-        should_be.insert(ShaderReplacementData::new(
-            includes_file3.to_string(),
-            includes_file5.to_string(),
-            includes_file5.to_string(),
-            2,
-        ));
-        should_be.insert(ShaderReplacementData::new(
-            includes_file3.to_string(),
-            includes_file4.to_string(),
-            includes_file4.to_string(),
-            1,
-        ));
-        assert_eq!(
-            result
-                .include_data
-                .replacements
-                .get(includes_file3)
-                .unwrap(),
-            &should_be
-        );
-    }
-
-    fn test_shader_file_with_includes_deep() {
+    fn test_shader_source() {
         let includes_file1 = "includes_1.wgsl";
         let includes_file2 = "includes_2.wgsl";
         let includes_file3 = "test_dir/includes_3.wgsl";
@@ -460,7 +255,7 @@ const TEST2: u32 = u32(2);
 "#,
         );
 
-        let result = ShaderSourceWithIncludeData::new(includes_file1);
+        let result = ShaderSource::new(includes_file1);
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);
@@ -468,27 +263,281 @@ const TEST2: u32 = u32(2);
         let _ = std::fs::remove_file(includes_file4);
         let _ = std::fs::remove_file(includes_file5);
         let _ = std::fs::remove_dir(test_dir);
-        println!("{:#?}", result);
 
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.include_data.parent_path, includes_file1);
-        let mut should_be = HashSet::default();
-        should_be.insert(ShaderReplacementData::new(
-            includes_file4.to_string(),
-            includes_file5.to_string(),
-            includes_file5.to_string(),
-            2,
-        ));
-        assert_eq!(
-            result
-                .include_data
-                .replacements
-                .get(includes_file4)
-                .unwrap(),
-            &should_be
+        let should_be = r#"
+
+
+
+const TEST: u32 = u32(1);
+
+const TEST2: u32 = u32(2);
+"#
+        .to_string();
+        assert_eq!(result.source, should_be);
+    }
+
+    fn test_file_not_found() {
+        let includes_file1 = "includes_1.wgsl";
+        let includes_file2 = "includes_2.wgsl";
+
+        let test_dir = "test_dir";
+        let _ = std::fs::create_dir(test_dir);
+
+        let _ = std::fs::write(
+            includes_file1,
+            r#"
+#include includes_9.wgsl"#,
+        );
+        let _ = std::fs::write(
+            includes_file2,
+            r#"
+#include includes_3.wgsl
+"#,
         );
 
-        println!("{:#?}", result);
+        let result = ShaderSource::new(includes_file1);
+
+        let _ = std::fs::remove_file(includes_file1);
+        let _ = std::fs::remove_file(includes_file2);
+
+        assert!(result.is_err());
+        assert!(matches!(result, Err(IncludesShaderError::FileReadError(_))));
+    }
+
+    fn test_file_already_included() {
+        let includes_file1 = "includes_1.wgsl";
+        let includes_file2 = "includes_2.wgsl";
+        let includes_file3 = "includes_3.wgsl";
+
+        let _ = std::fs::write(
+            includes_file1,
+            r#"
+#include includes_2.wgsl"#,
+        );
+        let _ = std::fs::write(
+            includes_file2,
+            r#"
+#include includes_1.wgsl
+"#,
+        );
+        let _ = std::fs::write(
+            includes_file3,
+            r#"
+#include includes_2.wgsl
+"#,
+        );
+
+        let result = ShaderSource::new(includes_file1);
+
+        let _ = std::fs::remove_file(includes_file1);
+        let _ = std::fs::remove_file(includes_file2);
+        let _ = std::fs::remove_file(includes_file3);
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(IncludesShaderError::AlreadyIncluded(_))
+        ));
+    }
+
+    fn test_invalid_extension() {
+        let includes_file1 = "includes_1.wgsl";
+
+        let _ = std::fs::write(
+            includes_file1,
+            r#"
+#include includes_2.aaa"#,
+        );
+
+        let result = ShaderSource::new(includes_file1);
+
+        let _ = std::fs::remove_file(includes_file1);
+
+        assert!(result.is_err());
+        assert!(matches!(
+            result,
+            Err(IncludesShaderError::InvalidExtension(_))
+        ));
+    }
+
+    fn test_shader_parse_error1() {
+        let includes_file1 = "includes_1.wgsl";
+        let includes_file2 = "includes_2.wgsl";
+        let includes_file3 = "includes_3.wgsl";
+
+        let _ = std::fs::write(
+            includes_file1,
+            r#"
+#include includes_2.wgsl"#,
+        );
+        let _ = std::fs::write(
+            includes_file2,
+            r#"
+#include includes_3.wgsl
+"#,
+        );
+        let _ = std::fs::write(
+            includes_file3,
+            r#"
+const TEST1: u32 = u32(1);
+const TEST2: u32 = i32(1);
+"#,
+        );
+
+        let result = ShaderModule::new(includes_file1);
+
+        let _ = std::fs::remove_file(includes_file1);
+        let _ = std::fs::remove_file(includes_file2);
+        let _ = std::fs::remove_file(includes_file3);
+
+        assert!(result.is_err());
+        let should_be = r#"error: the type of `TEST2` is expected to be `u32`, but got `i32`
+  ┌─ includes_3.wgsl:3:9
+  │
+3 │ const TEST2: u32 = i32(1);
+  │         ^^^^^ definition of `TEST2`
+
+"#
+        .to_string();
+        assert_eq!(
+            result.unwrap_err(),
+            IncludesShaderError::WgslParseError(should_be)
+        );
+    }
+
+    fn test_shader_parse_error2() {
+        let includes_file1 = "includes_1.wgsl";
+        let includes_file2 = "includes_2.wgsl";
+        let includes_file3 = "includes_3.wgsl";
+
+        let _ = std::fs::write(
+            includes_file1,
+            r#"
+#include includes_2.wgsl"#,
+        );
+        let _ = std::fs::write(
+            includes_file2,
+            r#"
+const TEST1: u32 = i32(1);
+#include includes_3.wgsl
+"#,
+        );
+        let _ = std::fs::write(
+            includes_file3,
+            r#"
+const TEST2: u32 = u32(1);
+const TEST3: u32 = i32(1);
+"#,
+        );
+
+        let result = ShaderModule::new(includes_file1);
+
+        let _ = std::fs::remove_file(includes_file1);
+        let _ = std::fs::remove_file(includes_file2);
+        let _ = std::fs::remove_file(includes_file3);
+
+        assert!(result.is_err());
+        let should_be = r#"error: the type of `TEST1` is expected to be `u32`, but got `i32`
+  ┌─ includes_2.wgsl:2:8
+  │
+2 │ const TEST1: u32 = i32(1);
+  │        ^^^^^ definition of `TEST1`
+
+"#
+        .to_string();
+        assert_eq!(
+            result.unwrap_err(),
+            IncludesShaderError::WgslParseError(should_be)
+        );
+    }
+
+    fn test_shader_parse_error3() {
+        let includes_file1 = "includes_1.wgsl";
+        let includes_file2 = "includes_2.wgsl";
+        let includes_file3 = "includes_3.wgsl";
+
+        let _ = std::fs::write(
+            includes_file1,
+            r#"
+const TEST1: u32 = i32(1);
+#include includes_2.wgsl
+"#,
+        );
+        let _ = std::fs::write(
+            includes_file2,
+            r#"
+const TEST2: u32 = i32(1);
+#include includes_3.wgsl
+"#,
+        );
+        let _ = std::fs::write(
+            includes_file3,
+            r#"
+const TEST3: u32 = u32(1);
+const TEST4: u32 = i32(1);
+"#,
+        );
+
+        let result = ShaderModule::new(includes_file1);
+
+        let _ = std::fs::remove_file(includes_file1);
+        let _ = std::fs::remove_file(includes_file2);
+        let _ = std::fs::remove_file(includes_file3);
+
+        assert!(result.is_err());
+        let should_be = r#"error: the type of `TEST1` is expected to be `u32`, but got `i32`
+  ┌─ includes_1.wgsl:2:7
+  │
+2 │ const TEST1: u32 = i32(1);
+  │       ^^^^^ definition of `TEST1`
+
+"#
+        .to_string();
+        assert_eq!(
+            result.unwrap_err(),
+            IncludesShaderError::WgslParseError(should_be)
+        );
+    }
+
+    fn test_shader_parse_error4() {
+        let includes_file1 = "includes_1.wgsl";
+        let includes_file2 = "includes_2.wgsl";
+
+        let _ = std::fs::write(
+            includes_file1,
+            r#"
+const REDEF: u32 = i32(1);
+#include includes_2.wgsl
+"#,
+        );
+        let _ = std::fs::write(
+            includes_file2,
+            r#"
+const REDEF: u32 = i32(1);
+"#,
+        );
+
+        let result = ShaderModule::new(includes_file1);
+
+        let _ = std::fs::remove_file(includes_file1);
+        let _ = std::fs::remove_file(includes_file2);
+
+        assert!(result.is_err());
+        let should_be = r#"error: redefinition of `REDEF`
+  ┌─ includes_2.wgsl:2:7
+  │
+2 │ const REDEF: u32 = i32(1);
+  │       ^^^^^ previous definition of `REDEF`
+3 │ 
+  │   redefinition of `REDEF`
+
+"#
+        .to_string();
+        assert_eq!(
+            result.unwrap_err(),
+            IncludesShaderError::WgslParseError(should_be)
+        );
     }
 }
