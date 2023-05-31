@@ -50,17 +50,31 @@ pub struct IncludesShaderModule {
     module: Module,
 }
 
+// struc
+
 #[derive(Debug, Default)]
-struct ShaderFileWithIncludes {
-    pub parent_path: String,
-    pub replacements: HashMap<String, HashSet<(String, String, usize)>>,
+struct ShaderSourceWithIncludeData {
+    source: String,
+    include_sources: HashMap<String, String>,
+    include_data: ShaderFileIncludeData,
 }
 
-impl ShaderFileWithIncludes {
-    fn new(source_filepath: &str) -> Result<ShaderFileWithIncludes, IncludesShaderError> {
+impl ShaderSourceWithIncludeData {
+    fn new(source_filepath: &str) -> Result<ShaderSourceWithIncludeData, IncludesShaderError> {
         let includes_map = wgsl_includes_map(source_filepath, HashMap::new())?;
 
-        let mut result = ShaderFileWithIncludes {
+        let mut include_sources = HashMap::default();
+        let source = match std::fs::read_to_string(source_filepath) {
+            Ok(str) => str,
+            Err(e) => {
+                return Err(IncludesShaderError::FileReadError(format!(
+                    "{}: {}",
+                    source_filepath, e
+                )))
+            }
+        };
+
+        let mut include_data = ShaderFileIncludeData {
             parent_path: source_filepath.to_string(),
             replacements: HashMap::default(),
         };
@@ -71,18 +85,65 @@ impl ShaderFileWithIncludes {
                 .split("/")
                 .last()
                 .unwrap_or(&include_parent_path);
-            result
+            let include_src = match std::fs::read_to_string(include_path.clone()) {
+                Ok(str) => str,
+                Err(e) => {
+                    return Err(IncludesShaderError::FileReadError(format!(
+                        "{}: {}",
+                        include_path, e
+                    )))
+                }
+            };
+            include_sources.insert(parent_key.to_string(), include_src);
+            include_data
                 .replacements
                 .entry(parent_key.to_string())
                 .or_insert(HashSet::default())
-                .insert((
+                .insert(ShaderReplacementData::new(
                     include_parent_path.clone(),
+                    include_file.clone(),
                     include_path.clone(),
                     *replace_line,
                 ));
         }
 
-        Ok(result)
+        let source_data = ShaderSourceWithIncludeData {
+            source,
+            include_sources,
+            include_data,
+        };
+
+        Ok(source_data)
+    }
+}
+
+#[derive(Debug, Default)]
+struct ShaderFileIncludeData {
+    pub parent_path: String,
+    pub replacements: HashMap<String, HashSet<ShaderReplacementData>>,
+}
+
+#[derive(Debug, Default, Hash, Eq, PartialEq)]
+struct ShaderReplacementData {
+    parent_path: String,
+    include_key: String,
+    include_path: String,
+    replace_line: usize,
+}
+
+impl ShaderReplacementData {
+    fn new(
+        parent_path: String,
+        include_key: String,
+        include_path: String,
+        replace_line: usize,
+    ) -> ShaderReplacementData {
+        ShaderReplacementData {
+            parent_path,
+            include_key,
+            include_path,
+            replace_line,
+        }
     }
 }
 
@@ -141,7 +202,9 @@ fn wgsl_includes_map(
 mod tests {
     use std::collections::{HashMap, HashSet};
 
-    use crate::utils::{wgsl_includes_map, IncludesShaderError, ShaderFileWithIncludes};
+    use crate::utils::{
+        wgsl_includes_map, IncludesShaderError, ShaderReplacementData, ShaderSourceWithIncludeData,
+    };
 
     #[test]
     fn test_all_sequential() {
@@ -319,7 +382,7 @@ const TEST2: u32 = u32(2);
 "#,
         );
 
-        let result = ShaderFileWithIncludes::new(includes_file1);
+        let result = ShaderSourceWithIncludeData::new(includes_file1);
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);
@@ -329,11 +392,28 @@ const TEST2: u32 = u32(2);
 
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.parent_path, includes_file1);
+        assert_eq!(result.include_data.parent_path, includes_file1);
         let mut should_be = HashSet::default();
-        should_be.insert((includes_file3.to_string(), includes_file5.to_string(), 2));
-        should_be.insert((includes_file3.to_string(), includes_file4.to_string(), 1));
-        assert_eq!(result.replacements.get(includes_file3).unwrap(), &should_be);
+        should_be.insert(ShaderReplacementData::new(
+            includes_file3.to_string(),
+            includes_file5.to_string(),
+            includes_file5.to_string(),
+            2,
+        ));
+        should_be.insert(ShaderReplacementData::new(
+            includes_file3.to_string(),
+            includes_file4.to_string(),
+            includes_file4.to_string(),
+            1,
+        ));
+        assert_eq!(
+            result
+                .include_data
+                .replacements
+                .get(includes_file3)
+                .unwrap(),
+            &should_be
+        );
     }
 
     fn test_shader_file_with_includes_deep() {
@@ -380,7 +460,7 @@ const TEST2: u32 = u32(2);
 "#,
         );
 
-        let result = ShaderFileWithIncludes::new(includes_file1);
+        let result = ShaderSourceWithIncludeData::new(includes_file1);
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);
@@ -392,10 +472,22 @@ const TEST2: u32 = u32(2);
 
         assert!(result.is_ok());
         let result = result.unwrap();
-        assert_eq!(result.parent_path, includes_file1);
+        assert_eq!(result.include_data.parent_path, includes_file1);
         let mut should_be = HashSet::default();
-        should_be.insert((includes_file4.to_string(), includes_file5.to_string(), 2));
-        assert_eq!(result.replacements.get(includes_file4).unwrap(), &should_be);
+        should_be.insert(ShaderReplacementData::new(
+            includes_file4.to_string(),
+            includes_file5.to_string(),
+            includes_file5.to_string(),
+            2,
+        ));
+        assert_eq!(
+            result
+                .include_data
+                .replacements
+                .get(includes_file4)
+                .unwrap(),
+            &should_be
+        );
 
         println!("{:#?}", result);
     }
