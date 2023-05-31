@@ -55,6 +55,10 @@ pub struct ShaderModule {
 impl ShaderModule {
     pub fn new(source_filepath: &str) -> Result<ShaderModule, IncludesShaderError> {
         let source = ShaderSource::new(source_filepath)?;
+        Self::new_from_source(source)
+    }
+
+    pub fn new_from_source(source: ShaderSource) -> Result<ShaderModule, IncludesShaderError> {
         let mut wgsl_parser = naga::front::wgsl::Frontend::new();
         match wgsl_parser.parse(&source.source) {
             Ok(module) => Ok(ShaderModule {
@@ -77,7 +81,7 @@ impl ShaderModule {
                         &belonging_part.file_path,
                     )
                 } else {
-                    parse_error.emit_to_string_with_path(&source.source, source_filepath)
+                    parse_error.emit_to_string_with_path(&source.source, &source.path)
                 };
 
                 Err(IncludesShaderError::WgslParseError(error_str))
@@ -86,16 +90,11 @@ impl ShaderModule {
     }
 }
 
-#[derive(Debug, Default, Hash, Eq, PartialEq)]
-struct SourcePart {
-    start: usize,
-    end: usize,
-}
-
 #[derive(Debug, Default)]
-struct ShaderSource {
-    source: String,
-    parts: Vec<IncludedPart>,
+pub struct ShaderSource {
+    pub path: String,
+    pub source: String,
+    pub parts: Vec<IncludedPart>,
 }
 
 impl ShaderSource {
@@ -107,11 +106,13 @@ impl ShaderSource {
         let path = PathBuf::from(source_filepath);
         let source = wgsl_source_with_includes(
             &path,
+            &path,
             &mut included_files,
             &mut file_stack,
             &mut included_parts,
         )?;
         Ok(ShaderSource {
+            path: source_filepath.to_string(),
             source,
             parts: included_parts,
         })
@@ -119,7 +120,7 @@ impl ShaderSource {
 }
 
 #[derive(Debug, Default)]
-struct IncludedPart {
+pub struct IncludedPart {
     content: String,
     file_path: String,
     start_line: usize,
@@ -127,6 +128,7 @@ struct IncludedPart {
 }
 
 fn wgsl_source_with_includes(
+    root_path: &Path,
     file_path: &Path,
     included_files: &mut HashSet<String>,
     file_stack: &mut VecDeque<String>,
@@ -164,7 +166,7 @@ fn wgsl_source_with_includes(
     for (line_index, line) in source.lines().enumerate() {
         if line.starts_with("#include") {
             let included_file_name = line.trim_start_matches("#include ").trim();
-            let included_file_path = file_path.parent().unwrap().join(included_file_name).clean();
+            let included_file_path = root_path.parent().unwrap().join(included_file_name).clean();
 
             let included_file_path_str = included_file_path.to_string_lossy().into_owned();
             if included_files.contains(&included_file_path_str) {
@@ -175,6 +177,7 @@ fn wgsl_source_with_includes(
             }
             if !file_stack.contains(&included_file_path_str) {
                 let included_part = wgsl_source_with_includes(
+                    root_path,
                     &included_file_path,
                     included_files,
                     file_stack,
