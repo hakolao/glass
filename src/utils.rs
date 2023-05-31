@@ -190,7 +190,7 @@ fn wgsl_source_with_includes(
                 result.push_str(&included_part);
             }
         } else {
-            result.push_str(&line);
+            result.push_str(line);
             result.push('\n');
         }
         // Track the start line of the next part
