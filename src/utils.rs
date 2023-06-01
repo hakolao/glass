@@ -121,10 +121,10 @@ impl ShaderSource {
 
 #[derive(Debug, Default)]
 pub struct IncludedPart {
-    content: String,
-    file_path: String,
-    start_line: usize,
-    end_line: usize,
+    pub content: String,
+    pub file_path: String,
+    pub start_line: usize,
+    pub end_line: usize,
 }
 
 fn wgsl_source_with_includes(
