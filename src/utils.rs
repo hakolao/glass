@@ -73,29 +73,41 @@ impl ShaderModule {
                 module,
             }),
             Err(parse_error) => {
-                let mut belonging_parts = vec![];
-                if let Some(location_in_source) = parse_error.location(&source.source) {
-                    for part in source.parts.iter() {
-                        if location_in_source.line_number >= part.start_line as u32
-                            && location_in_source.line_number <= part.end_line as u32
-                        {
-                            belonging_parts.push(part);
-                        }
-                    }
-                }
-                let error_str = if !belonging_parts.is_empty() {
-                    let mut error = "".to_string();
-                    // Take the shallowest matching belonging part
-                    belonging_parts.sort_by(|a, b| a.depth.cmp(&b.depth));
-                    for part in belonging_parts {
-                        error.push_str(
-                            &parse_error.emit_to_string_with_path(&part.content, &part.file_path),
-                        );
-                    }
-                    error
-                } else {
-                    parse_error.emit_to_string_with_path(&source.source, &source.path)
-                };
+                // ToDo: Fix
+                // let mut belonging_parts = vec![];
+                // if let Some(location_in_source) = parse_error.location(&source.source) {
+                //     for part in source.parts.iter() {
+                //         if location_in_source.line_number >= part.start_line as u32
+                //             && location_in_source.line_number <= part.end_line as u32
+                //         {
+                //             belonging_parts.push(part);
+                //         }
+                //     }
+                // }
+                // let error_str = if !belonging_parts.is_empty() {
+                //     let mut error = "".to_string();
+                //     // Take the shallowest matching belonging part
+                //     belonging_parts.sort_by(|a, b| a.depth.cmp(&b.depth));
+                //     for part in belonging_parts {
+                //         error.push_str(
+                //             &parse_error.emit_to_string_with_path(&part.content, &part.file_path),
+                //         );
+                //     }
+                //     error
+                // } else {
+                //     parse_error.emit_to_string_with_path(&source.source, &source.path)
+                // };
+                let mut error_str = "".to_string();
+                error_str
+                    .push_str(&parse_error.emit_to_string_with_path(&source.source, &source.path));
+                error_str.push_str(&format!(
+                    "Included files: {:#?}",
+                    source
+                        .parts
+                        .iter()
+                        .map(|p| p.file_path.to_string())
+                        .collect::<Vec<String>>()
+                ));
 
                 Err(ShaderError::WgslParseError(error_str))
             }
