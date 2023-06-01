@@ -272,6 +272,7 @@ fn wgsl_source_with_includes(
     Ok(result)
 }
 
+#[allow(clippy::too_many_arguments)]
 fn wgsl_source_with_static_includes(
     root_path: &Path,
     file_path: &Path,
