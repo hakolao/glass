@@ -14,27 +14,27 @@ pub fn wait_async<F: Future>(fut: F) -> F::Output {
 }
 
 #[derive(Debug, PartialEq)]
-pub enum IncludesShaderError {
+pub enum ShaderError {
     FileReadError(String),
     InvalidExtension(String),
     AlreadyIncluded(String),
     WgslParseError(String),
 }
 
-impl std::fmt::Display for IncludesShaderError {
+impl std::fmt::Display for ShaderError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
-            IncludesShaderError::FileReadError(e) => {
-                format!("IncludesShaderError::FileReadError: {}", e)
+            ShaderError::FileReadError(e) => {
+                format!("ShaderError::FileReadError: {}", e)
             }
-            IncludesShaderError::InvalidExtension(e) => {
-                format!("IncludesShaderError::InvalidExtension: {}", e)
+            ShaderError::InvalidExtension(e) => {
+                format!("ShaderError::InvalidExtension: {}", e)
             }
-            IncludesShaderError::AlreadyIncluded(e) => {
-                format!("IncludesShaderError::AlreadyIncluded: {}", e)
+            ShaderError::AlreadyIncluded(e) => {
+                format!("ShaderError::AlreadyIncluded: {}", e)
             }
-            IncludesShaderError::WgslParseError(e) => {
-                format!("IncludesShaderError::WgslParseError: \n{}", e)
+            ShaderError::WgslParseError(e) => {
+                format!("ShaderError::WgslParseError: \n{}", e)
             }
         };
         write!(f, "{}", s)
@@ -53,12 +53,12 @@ pub struct ShaderModule {
 }
 
 impl ShaderModule {
-    pub fn new(source_filepath: &str) -> Result<ShaderModule, IncludesShaderError> {
+    pub fn new(source_filepath: &str) -> Result<ShaderModule, ShaderError> {
         let source = ShaderSource::new(source_filepath)?;
         Self::new_from_source(source)
     }
 
-    pub fn new_from_source(source: ShaderSource) -> Result<ShaderModule, IncludesShaderError> {
+    pub fn new_from_source(source: ShaderSource) -> Result<ShaderModule, ShaderError> {
         let mut wgsl_parser = naga::front::wgsl::Frontend::new();
         match wgsl_parser.parse(&source.source) {
             Ok(module) => Ok(ShaderModule {
@@ -84,7 +84,7 @@ impl ShaderModule {
                     parse_error.emit_to_string_with_path(&source.source, &source.path)
                 };
 
-                Err(IncludesShaderError::WgslParseError(error_str))
+                Err(ShaderError::WgslParseError(error_str))
             }
         }
     }
@@ -98,7 +98,7 @@ pub struct ShaderSource {
 }
 
 impl ShaderSource {
-    fn new(source_filepath: &str) -> Result<ShaderSource, IncludesShaderError> {
+    fn new(source_filepath: &str) -> Result<ShaderSource, ShaderError> {
         let mut included_files = HashSet::new();
         let mut file_stack = VecDeque::new();
         let mut included_parts = Vec::new();
@@ -133,7 +133,7 @@ fn wgsl_source_with_includes(
     included_files: &mut HashSet<String>,
     file_stack: &mut VecDeque<String>,
     included_parts: &mut Vec<IncludedPart>,
-) -> Result<String, IncludesShaderError> {
+) -> Result<String, ShaderError> {
     let mut result = String::new();
     let file_path_str = file_path.to_string_lossy().into_owned();
 
@@ -145,7 +145,7 @@ fn wgsl_source_with_includes(
     if let Some(ext) = ext {
         match ext.as_str() {
             "wgsl" => {}
-            e => return Err(IncludesShaderError::InvalidExtension(e.to_string())),
+            e => return Err(ShaderError::InvalidExtension(e.to_string())),
         }
     }
 
@@ -154,7 +154,7 @@ fn wgsl_source_with_includes(
     let source = match std::fs::read_to_string(file_path) {
         Ok(str) => str,
         Err(e) => {
-            return Err(IncludesShaderError::FileReadError(format!(
+            return Err(ShaderError::FileReadError(format!(
                 "{}: {}",
                 file_path_str, e
             )));
@@ -170,7 +170,7 @@ fn wgsl_source_with_includes(
 
             let included_file_path_str = included_file_path.to_string_lossy().into_owned();
             if included_files.contains(&included_file_path_str) {
-                return Err(IncludesShaderError::AlreadyIncluded(format!(
+                return Err(ShaderError::AlreadyIncluded(format!(
                     "trying to include {} in {}",
                     included_file_name, file_path_str
                 )));
@@ -207,7 +207,7 @@ fn wgsl_source_with_includes(
 
 #[cfg(test)]
 mod tests {
-    use crate::utils::{IncludesShaderError, ShaderModule, ShaderSource};
+    use crate::utils::{ShaderError, ShaderModule, ShaderSource};
 
     #[test]
     fn test_sequentially() {
@@ -310,7 +310,7 @@ const TEST2: u32 = u32(2);
         let _ = std::fs::remove_file(includes_file2);
 
         assert!(result.is_err());
-        assert!(matches!(result, Err(IncludesShaderError::FileReadError(_))));
+        assert!(matches!(result, Err(ShaderError::FileReadError(_))));
     }
 
     fn test_file_already_included() {
@@ -343,10 +343,7 @@ const TEST2: u32 = u32(2);
         let _ = std::fs::remove_file(includes_file3);
 
         assert!(result.is_err());
-        assert!(matches!(
-            result,
-            Err(IncludesShaderError::AlreadyIncluded(_))
-        ));
+        assert!(matches!(result, Err(ShaderError::AlreadyIncluded(_))));
     }
 
     fn test_invalid_extension() {
@@ -363,10 +360,7 @@ const TEST2: u32 = u32(2);
         let _ = std::fs::remove_file(includes_file1);
 
         assert!(result.is_err());
-        assert!(matches!(
-            result,
-            Err(IncludesShaderError::InvalidExtension(_))
-        ));
+        assert!(matches!(result, Err(ShaderError::InvalidExtension(_))));
     }
 
     fn test_shader_parse_error1() {
@@ -408,10 +402,7 @@ const TEST2: u32 = i32(1);
 
 "#
         .to_string();
-        assert_eq!(
-            result.unwrap_err(),
-            IncludesShaderError::WgslParseError(should_be)
-        );
+        assert_eq!(result.unwrap_err(), ShaderError::WgslParseError(should_be));
     }
 
     fn test_shader_parse_error2() {
@@ -454,10 +445,7 @@ const TEST3: u32 = i32(1);
 
 "#
         .to_string();
-        assert_eq!(
-            result.unwrap_err(),
-            IncludesShaderError::WgslParseError(should_be)
-        );
+        assert_eq!(result.unwrap_err(), ShaderError::WgslParseError(should_be));
     }
 
     fn test_shader_parse_error3() {
@@ -502,10 +490,7 @@ const TEST4: u32 = i32(1);
 
 "#
         .to_string();
-        assert_eq!(
-            result.unwrap_err(),
-            IncludesShaderError::WgslParseError(should_be)
-        );
+        assert_eq!(result.unwrap_err(), ShaderError::WgslParseError(should_be));
     }
 
     fn test_shader_parse_error4() {
@@ -542,9 +527,6 @@ const REDEF: u32 = i32(1);
 
 "#
         .to_string();
-        assert_eq!(
-            result.unwrap_err(),
-            IncludesShaderError::WgslParseError(should_be)
-        );
+        assert_eq!(result.unwrap_err(), ShaderError::WgslParseError(should_be));
     }
 }
