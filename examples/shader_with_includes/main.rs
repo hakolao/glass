@@ -1,4 +1,4 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, collections::HashMap};
 
 use glass::{
     utils::ShaderModule, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
@@ -58,8 +58,23 @@ impl GlassApp for TriangleApp {
 }
 
 fn create_triangle_pipeline(context: &mut GlassContext) -> RenderPipeline {
-    let shader_module =
+    // Dynamic includes
+    let _shader_module =
         ShaderModule::new("examples/shader_with_includes/triangle_with_include.wgsl").unwrap();
+
+    // Static includes
+    let mut static_includes = HashMap::default();
+    // In order for relative paths to work, use full path (from project root) for the root key
+    let root_key = "examples/shader_with_includes/triangle_with_include.wgsl";
+    // Include all files that you wish to refer to in your root shader. Tedious, but this ensures
+    // You can keep using includes while containing static shaders.
+    static_includes.insert(root_key, include_str!("triangle_with_include.wgsl"));
+    static_includes.insert("consts.wgsl", include_str!("consts.wgsl"));
+    static_includes.insert(
+        "../triangle/triangle.wgsl",
+        include_str!("../triangle/triangle.wgsl"),
+    );
+    let shader_module = ShaderModule::new_with_static_sources(root_key, &static_includes).unwrap();
     let shader = context
         .device()
         .create_shader_module(ShaderModuleDescriptor {

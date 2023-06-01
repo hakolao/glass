@@ -1,6 +1,6 @@
 use std::{
     borrow::Cow,
-    collections::{HashSet, VecDeque},
+    collections::{HashMap, HashSet, VecDeque},
     fmt::Formatter,
     future::Future,
     path::{Path, PathBuf},
@@ -58,6 +58,14 @@ impl ShaderModule {
         Self::new_from_source(source)
     }
 
+    pub fn new_with_static_sources(
+        root_source_path: &str,
+        include_srcs: &HashMap<&'static str, &'static str>,
+    ) -> Result<ShaderModule, ShaderError> {
+        let source = ShaderSource::new_with_static_sources(root_source_path, include_srcs)?;
+        Self::new_from_source(source)
+    }
+
     pub fn new_from_source(source: ShaderSource) -> Result<ShaderModule, ShaderError> {
         let mut wgsl_parser = naga::front::wgsl::Frontend::new();
         match wgsl_parser.parse(&source.source) {
@@ -98,7 +106,7 @@ pub struct ShaderSource {
 }
 
 impl ShaderSource {
-    fn new(source_filepath: &str) -> Result<ShaderSource, ShaderError> {
+    pub fn new(source_filepath: &str) -> Result<ShaderSource, ShaderError> {
         let mut included_files = HashSet::new();
         let mut file_stack = VecDeque::new();
         let mut included_parts = Vec::new();
@@ -113,6 +121,30 @@ impl ShaderSource {
         )?;
         Ok(ShaderSource {
             path: source_filepath.to_string(),
+            source,
+            parts: included_parts,
+        })
+    }
+
+    pub fn new_with_static_sources(
+        root_source_path: &str,
+        include_srcs: &HashMap<&'static str, &'static str>,
+    ) -> Result<ShaderSource, ShaderError> {
+        let mut included_files = HashSet::new();
+        let mut file_stack = VecDeque::new();
+        let mut included_parts = Vec::new();
+
+        let path = PathBuf::from(root_source_path);
+        let source = wgsl_source_with_static_includes(
+            &path,
+            &path,
+            include_srcs,
+            &mut included_files,
+            &mut file_stack,
+            &mut included_parts,
+        )?;
+        Ok(ShaderSource {
+            path: root_source_path.to_string(),
             source,
             parts: included_parts,
         })
@@ -137,7 +169,7 @@ fn wgsl_source_with_includes(
     let mut result = String::new();
     let file_path_str = file_path.to_string_lossy().into_owned();
 
-    let ext = std::path::Path::new(file_path)
+    let ext = Path::new(file_path)
         .extension()
         .map(std::ffi::OsStr::to_string_lossy)
         .map(Cow::into_owned);
@@ -157,6 +189,85 @@ fn wgsl_source_with_includes(
             return Err(ShaderError::FileReadError(format!(
                 "{}: {}",
                 file_path_str, e
+            )));
+        }
+    };
+
+    let mut current_part_start_line = 1;
+
+    for (line_index, line) in source.lines().enumerate() {
+        if line.starts_with("#include") {
+            let included_file_name = line.trim_start_matches("#include ").trim();
+            let included_file_path = root_path.parent().unwrap().join(included_file_name).clean();
+
+            let included_file_path_str = included_file_path.to_string_lossy().into_owned();
+            if included_files.contains(&included_file_path_str) {
+                return Err(ShaderError::AlreadyIncluded(format!(
+                    "trying to include {} in {}",
+                    included_file_name, file_path_str
+                )));
+            }
+            if !file_stack.contains(&included_file_path_str) {
+                let included_part = wgsl_source_with_includes(
+                    root_path,
+                    &included_file_path,
+                    included_files,
+                    file_stack,
+                    included_parts,
+                )?;
+                let end_line = current_part_start_line + included_part.lines().count() - 1;
+                included_parts.push(IncludedPart {
+                    content: included_part.clone(),
+                    file_path: included_file_name.to_string(),
+                    start_line: current_part_start_line,
+                    end_line,
+                });
+                result.push_str(&included_part);
+            }
+        } else {
+            result.push_str(line);
+            result.push('\n');
+        }
+        // Track the start line of the next part
+        current_part_start_line = line_index + 2;
+    }
+    // Remove file from stack after processing
+    file_stack.pop_back();
+
+    Ok(result)
+}
+
+fn wgsl_source_with_static_includes(
+    root_path: &Path,
+    file_path: &Path,
+    include_srcs: &HashMap<&'static str, &'static str>,
+    included_files: &mut HashSet<String>,
+    file_stack: &mut VecDeque<String>,
+    included_parts: &mut Vec<IncludedPart>,
+) -> Result<String, ShaderError> {
+    let mut result = String::new();
+    let file_path_str = file_path.to_string_lossy();
+
+    let ext = Path::new(file_path)
+        .extension()
+        .map(std::ffi::OsStr::to_string_lossy)
+        .map(Cow::into_owned);
+
+    if let Some(ext) = ext {
+        match ext.as_str() {
+            "wgsl" => {}
+            e => return Err(ShaderError::InvalidExtension(e.to_string())),
+        }
+    }
+
+    included_files.insert(file_path_str.to_string());
+    file_stack.push_back(file_path_str.to_string());
+    let source = match include_srcs.get(file_path_str.as_ref()) {
+        Some(str) => str,
+        None => {
+            return Err(ShaderError::FileReadError(format!(
+                "{}: Not found in statically included sources",
+                file_path_str
             )));
         }
     };
