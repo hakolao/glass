@@ -158,7 +158,7 @@ impl ShaderSource {
         let path = PathBuf::from(root_source_path);
         let source = wgsl_source_with_static_includes(
             &path,
-            &path,
+            &path.to_string_lossy().into_owned(),
             include_srcs,
             &mut included_files,
             &mut file_stack,
@@ -275,7 +275,7 @@ fn wgsl_source_with_includes(
 #[allow(clippy::too_many_arguments)]
 fn wgsl_source_with_static_includes(
     root_path: &Path,
-    file_path: &Path,
+    file_path: &String,
     include_srcs: &HashMap<&'static str, &'static str>,
     included_files: &mut HashSet<String>,
     file_stack: &mut VecDeque<String>,
@@ -284,7 +284,6 @@ fn wgsl_source_with_static_includes(
     depth: usize,
 ) -> Result<String, ShaderError> {
     let mut result = String::new();
-    let file_path_str = file_path.to_string_lossy();
 
     let ext = Path::new(file_path)
         .extension()
@@ -298,14 +297,15 @@ fn wgsl_source_with_static_includes(
         }
     }
 
-    included_files.insert(file_path_str.to_string());
-    file_stack.push_back(file_path_str.to_string());
-    let source = match include_srcs.get(file_path_str.as_ref()) {
+    included_files.insert(file_path.clone());
+    file_stack.push_back(file_path.clone());
+
+    let source = match include_srcs.get(file_path.as_str()) {
         Some(str) => str,
         None => {
             return Err(ShaderError::FileReadError(format!(
                 "{}: Not found in statically included sources",
-                file_path_str
+                file_path
             )));
         }
     };
@@ -315,20 +315,19 @@ fn wgsl_source_with_static_includes(
 
     for line in source.lines() {
         if line.starts_with("#include") {
-            let included_file_name = line.trim_start_matches("#include ").trim();
-            let included_file_path = root_path.parent().unwrap().join(included_file_name).clean();
+            let included_file_name = line.trim_start_matches("#include ").trim().to_string();
 
-            let included_file_path_str = included_file_path.to_string_lossy().into_owned();
-            if included_files.contains(&included_file_path_str) {
+            if included_files.contains(&included_file_name) {
                 return Err(ShaderError::AlreadyIncluded(format!(
                     "trying to include {} in {}",
-                    included_file_name, file_path_str
+                    included_file_name, file_path
                 )));
             }
-            if !file_stack.contains(&included_file_path_str) {
-                let included_part = wgsl_source_with_includes(
+            if !file_stack.contains(&included_file_name) {
+                let included_part = wgsl_source_with_static_includes(
                     root_path,
-                    &included_file_path,
+                    &included_file_name,
+                    include_srcs,
                     included_files,
                     file_stack,
                     included_parts,
@@ -338,7 +337,7 @@ fn wgsl_source_with_static_includes(
                 let part_count = included_part.lines().count();
                 included_parts.push(IncludedPart {
                     content: included_part.clone(),
-                    file_path: included_file_name.to_string(),
+                    file_path: included_file_name,
                     start_line: current_part_start_line + line_count,
                     end_line: current_part_start_line + line_count + part_count,
                     depth: depth + 1,
