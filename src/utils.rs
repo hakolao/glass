@@ -157,7 +157,6 @@ impl ShaderSource {
 
         let path = PathBuf::from(root_source_path);
         let source = wgsl_source_with_static_includes(
-            &path,
             &path.to_string_lossy().into_owned(),
             include_srcs,
             &mut included_files,
@@ -274,7 +273,6 @@ fn wgsl_source_with_includes(
 
 #[allow(clippy::too_many_arguments)]
 fn wgsl_source_with_static_includes(
-    root_path: &Path,
     file_path: &String,
     include_srcs: &HashMap<&'static str, &'static str>,
     included_files: &mut HashSet<String>,
@@ -325,7 +323,6 @@ fn wgsl_source_with_static_includes(
             }
             if !file_stack.contains(&included_file_name) {
                 let included_part = wgsl_source_with_static_includes(
-                    root_path,
                     &included_file_name,
                     include_srcs,
                     included_files,
