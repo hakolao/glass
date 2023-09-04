@@ -106,7 +106,7 @@ impl GlassApp for TreeApp {
             quad_pipeline.draw(
                 &mut rpass,
                 &tree_data.tree_bind_group,
-                [250.0, 0.0, 0.0, 1.0],
+                [250.0, 250.0, 0.0, 0.0],
                 camera_projection([width, height]).to_cols_array_2d(),
                 tree_data.tree.size,
                 1.0,
