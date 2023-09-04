@@ -153,7 +153,7 @@ impl GameOfLifeApp {
     }
 }
 
-fn run_update(app: &mut GameOfLifeApp, context: &mut GlassContext) {
+fn run_update(app: &mut GameOfLifeApp, context: &GlassContext) {
     let now = Instant::now();
     app.dt_sum += (now - app.time).as_secs_f32();
     app.num_dts += 1.0;
@@ -263,7 +263,7 @@ fn handle_inputs(app: &mut GameOfLifeApp, event: &Event<()>) {
 
 fn draw_game_of_life(
     app: &mut GameOfLifeApp,
-    context: &mut GlassContext,
+    context: &GlassContext,
     encoder: &mut CommandEncoder,
 ) {
     let scale_factor = context.primary_render_window().window().scale_factor() as f32;
@@ -333,7 +333,7 @@ fn update_game_of_life(
     app.count += 1;
 }
 
-fn init_game_of_life(app: &mut GameOfLifeApp, context: &mut GlassContext) {
+fn init_game_of_life(app: &mut GameOfLifeApp, context: &GlassContext) {
     let GameOfLifeApp {
         data,
         init_pipeline,
@@ -474,7 +474,7 @@ fn create_canvas_data(
 }
 
 fn create_game_of_life_pipeline(
-    context: &mut GlassContext,
+    context: &GlassContext,
 ) -> (ComputePipeline, ComputePipeline, ComputePipeline) {
     let dr_layout = context
         .device()

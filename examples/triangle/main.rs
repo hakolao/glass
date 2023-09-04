@@ -55,7 +55,7 @@ impl GlassApp for TriangleApp {
     }
 }
 
-fn create_triangle_pipeline(context: &mut GlassContext) -> RenderPipeline {
+fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {
     let shader = context
         .device()
         .create_shader_module(ShaderModuleDescriptor {

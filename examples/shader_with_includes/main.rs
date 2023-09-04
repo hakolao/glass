@@ -57,7 +57,7 @@ impl GlassApp for TriangleApp {
     }
 }
 
-fn create_triangle_pipeline(context: &mut GlassContext) -> RenderPipeline {
+fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {
     // Dynamic includes
     let _shader_module =
         ShaderModule::new("examples/shader_with_includes/triangle_with_include.wgsl").unwrap();

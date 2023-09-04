@@ -24,7 +24,11 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
-    let world_position = vec4<f32>(pc.dims, 1.0, 1.0) * model.position;
+    let world_position = vec4<f32>(pc.dims, 0.0, 1.0) *
+        // Scale vertices
+        model.position +
+        // Offset by pos
+        pc.view_pos;
     out.clip_position = pc.view_proj * world_position;
     out.color = model.color;
     return out;
