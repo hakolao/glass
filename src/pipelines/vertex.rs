@@ -38,16 +38,16 @@ impl TexturedVertex {
 
 #[repr(C)]
 #[derive(Copy, Clone, Debug, Pod, Zeroable)]
-pub struct SimpleVertex {
+pub struct Vertex2D {
     pub position: [f32; 4],
     pub tex_coords: [f32; 2],
 }
 
-impl SimpleVertex {
+impl Vertex2D {
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<SimpleVertex>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<Vertex2D>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
@@ -118,16 +118,16 @@ pub const TEXTURED_QUAD_VERTICES: &[TexturedVertex] = &[
 
 pub const QUAD_INDICES: &[u16] = &[0, 2, 1, 0, 3, 2];
 
-pub const FULL_SCREEN_TRIANGLE_VERTICES: &[SimpleVertex] = &[
-    SimpleVertex {
+pub const FULL_SCREEN_TRIANGLE_VERTICES: &[Vertex2D] = &[
+    Vertex2D {
         position: [-1.0, 1.0, 0.0, 1.0],
         tex_coords: [0.0, 1.0],
     },
-    SimpleVertex {
+    Vertex2D {
         position: [-1.0, -3.0, 0.0, 1.0],
         tex_coords: [0.0, 0.0],
     },
-    SimpleVertex {
+    Vertex2D {
         position: [3.0, 1.0, 0.0, 1.0],
         tex_coords: [1.0, 0.0],
     },

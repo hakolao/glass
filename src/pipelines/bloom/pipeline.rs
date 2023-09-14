@@ -13,7 +13,7 @@ use wgpu::{
 };
 
 use crate::{
-    pipelines::{SimpleVertex, FULL_SCREEN_TRIANGLE_VERTICES},
+    pipelines::{Vertex2D, FULL_SCREEN_TRIANGLE_VERTICES},
     texture::Texture,
 };
 
@@ -125,7 +125,7 @@ impl BloomPipeline {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
-                    buffers: &[SimpleVertex::desc()],
+                    buffers: &[Vertex2D::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
@@ -147,7 +147,7 @@ impl BloomPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[SimpleVertex::desc()],
+                buffers: &[Vertex2D::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -183,7 +183,7 @@ impl BloomPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[SimpleVertex::desc()],
+                buffers: &[Vertex2D::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
@@ -213,7 +213,7 @@ impl BloomPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[SimpleVertex::desc()],
+                buffers: &[Vertex2D::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,

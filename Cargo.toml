@@ -25,7 +25,6 @@ glam = "0.24.0"
 path-clean = "1.0.1"
 
 # Optional Egui
-# TODO: Remove git dependency this once egui update is published on crates.io
 egui       = { version = "0.22", optional = true }
 egui-wgpu  = { version = "0.22", optional = true }
 egui-winit = { version = "0.22", optional = true }
@@ -34,6 +33,13 @@ egui_demo_lib = { version = "0.22", optional = true }
 
 [dev-dependencies]
 egui_demo_lib = { version = "0.22" }
+winit_input_helper = "0.14.1"
+
+[profile.dev]
+opt-level = 3
+
+[profile.dev.package."*"]
+opt-level = 3
 
 [[example]]
 name = "hello_world"
@@ -83,3 +89,12 @@ required-features = ["egui_gui", "egui_demo"]
 [package.metadata.example.egui_gui]
 name = "Egui Gui"
 description = "Example that runs an egui demo app"
+
+[[example]]
+name = "fluid_sim"
+path = "examples/fluid_sim/main.rs"
+required-features = ["egui_gui"]
+
+[package.metadata.example.fluid_sim]
+name = "Fluid Sim"
+description = "Example that runs a fluid simulation using glass"
