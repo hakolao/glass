@@ -56,8 +56,7 @@ pub trait GlassApp {
             });
         }
     }
-    /// Run each frame for each window after rendering per window
-    fn post_processing(&mut self, _context: &GlassContext, _render_data: RenderData) {}
+
     /// Run each frame for each window after post processing
     fn after_render(&mut self, _context: &GlassContext) {}
     /// Run each frame last

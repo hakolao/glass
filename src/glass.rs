@@ -130,13 +130,8 @@ impl<A: GlassApp + 'static> Glass<A> {
                                         label: Some("Render Commands"),
                                     });
 
-                                // Run render & post processing functions
+                                // Run render
                                 self.app.render(&context, RenderData {
-                                    encoder: &mut encoder,
-                                    window,
-                                    frame: &frame,
-                                });
-                                self.app.post_processing(&context, RenderData {
                                     encoder: &mut encoder,
                                     window,
                                     frame: &frame,

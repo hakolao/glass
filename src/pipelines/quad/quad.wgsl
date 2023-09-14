@@ -24,7 +24,7 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     out.tex_coords = model.tex_coords;
-    let world_position = vec4<f32>(pc.dims, 0.0, 0.0) *
+    let world_position = vec4<f32>(pc.dims, 0.0, 1.0) *
         // Scale vertices
         model.position +
         // Offset by pos

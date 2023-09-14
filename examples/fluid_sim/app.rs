@@ -295,7 +295,7 @@ impl GlassApp for FluidSimApp {
                 &mut rpass,
                 &render_target_bind_group,
                 // Center
-                [0.0, 0.0, 0.0, 1.0],
+                [0.0, 0.0, 0.0, 0.0],
                 camera.centered_projection().to_cols_array_2d(),
                 window_size_f32,
                 1.0,
