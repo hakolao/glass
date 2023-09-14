@@ -16,7 +16,7 @@ use winit_input_helper::WinitInputHelper;
 
 use crate::{
     camera::Camera, circle_pipeline::CirclePipeline, color::Color, fluid_sim::FluidScene,
-    rectangle_pipeline::RectanglePipeline, timer::Timer,
+    post_processing::PostProcessing, rectangle_pipeline::RectanglePipeline, timer::Timer,
 };
 
 pub const WIDTH: u32 = 1920;
@@ -26,6 +26,7 @@ pub struct FluidSimApp {
     circle_pipeline: Option<CirclePipeline>,
     rectangle_pipeline: Option<RectanglePipeline>,
     quad_pipeline: Option<QuadPipeline>,
+    post_processing: Option<PostProcessing>,
     render_target: Option<Texture>,
     camera: Camera,
     input: WinitInputHelper,
@@ -40,6 +41,7 @@ impl FluidSimApp {
             rectangle_pipeline: None,
             quad_pipeline: None,
             render_target: None,
+            post_processing: None,
             camera: Camera::new([WIDTH as f32, HEIGHT as f32]),
             input: WinitInputHelper::default(),
             fluid_scene: FluidScene::new(WIDTH as f32, HEIGHT as f32),
@@ -67,13 +69,7 @@ impl GlassApp for FluidSimApp {
             blend: Some(BlendState::REPLACE),
             write_mask: ColorWrites::ALL,
         }));
-        println!("PIC / FLIP Fluid Sim");
-        println!("====================");
-        println!("Space: Pause / Unpause");
-        println!("G: Toggle Grid Render");
-        println!("P: Toggle Particle Render");
-        println!("F: Toggle Gravity");
-        println!("R: Reset");
+        self.post_processing = Some(PostProcessing::new(context));
     }
 
     fn input(
@@ -147,6 +143,7 @@ impl GlassApp for FluidSimApp {
             circle_pipeline,
             rectangle_pipeline,
             quad_pipeline,
+            post_processing,
             render_target,
             camera,
             input,
@@ -156,6 +153,7 @@ impl GlassApp for FluidSimApp {
         let circle_pipeline = circle_pipeline.as_ref().unwrap();
         let rectangle_pipeline = rectangle_pipeline.as_ref().unwrap();
         let quad_pipeline = quad_pipeline.as_ref().unwrap();
+        let post_processing = post_processing.as_ref().unwrap();
         let render_target = render_target.as_ref().unwrap();
         let window = context.primary_render_window();
         let window_size = window.surface_size();
@@ -266,13 +264,17 @@ impl GlassApp for FluidSimApp {
             );
         }
 
+        // Post Processing
+        post_processing.run(context, encoder, render_target);
+        let post_processed_target = post_processing.output();
+
         let main_view = frame
             .texture
             .create_view(&wgpu::TextureViewDescriptor::default());
         let render_target_bind_group = quad_pipeline.create_bind_group(
             context.device(),
-            &render_target.views[0],
-            &render_target.sampler,
+            &post_processed_target.views[0],
+            &post_processed_target.sampler,
         );
         // Draw render target over swapchain image
         {
@@ -315,14 +317,13 @@ impl FluidSimApp {
     }
 }
 
-fn create_render_target(context: &GlassContext) -> Texture {
-    let window_size = context.primary_render_window().surface_size();
+pub fn create_render_target(context: &GlassContext) -> Texture {
     Texture::empty(
         context.device(),
         "Render Target",
         Extent3d {
-            width: window_size[0],
-            height: window_size[1],
+            width: WIDTH,
+            height: HEIGHT,
             depth_or_array_layers: 1,
         },
         1,

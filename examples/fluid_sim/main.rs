@@ -3,6 +3,7 @@ mod camera;
 mod circle_pipeline;
 mod color;
 mod fluid_sim;
+mod post_processing;
 mod rectangle_pipeline;
 mod simple_vertex;
 mod timer;
