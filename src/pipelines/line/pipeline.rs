@@ -1,0 +1,134 @@
+use std::borrow::Cow;
+
+use bytemuck::{Pod, Zeroable};
+use glam::Vec3;
+use wgpu::{
+    util::DeviceExt, Buffer, Device, PushConstantRange, RenderPass, RenderPipeline, ShaderStages,
+};
+
+use crate::pipelines::ColoredVertex;
+
+pub struct LinePipeline {
+    pipeline: RenderPipeline,
+    vertices: Buffer,
+}
+
+impl LinePipeline {
+    pub fn new(device: &Device, color_target_state: wgpu::ColorTargetState) -> LinePipeline {
+        let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
+            label: Some("Vertex Buffer"),
+            contents: bytemuck::cast_slice(&[ColoredVertex::default(); 2]),
+            usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+        });
+        let pipeline = Self::new_render_pipeline(device, color_target_state);
+        Self {
+            pipeline,
+            vertices,
+        }
+    }
+
+    pub fn new_render_pipeline(
+        device: &Device,
+        color_target_state: wgpu::ColorTargetState,
+    ) -> RenderPipeline {
+        let shader = device.create_shader_module(wgpu::ShaderModuleDescriptor {
+            label: Some("Shader"),
+            source: wgpu::ShaderSource::Wgsl(Cow::Borrowed(include_str!("line.wgsl"))),
+        });
+        let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
+            label: Some("Line Pipeline Layout"),
+            bind_group_layouts: &[],
+            push_constant_ranges: &[PushConstantRange {
+                stages: ShaderStages::VERTEX_FRAGMENT,
+                range: 0..std::mem::size_of::<LinePushConstants>() as u32,
+            }],
+        });
+        let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
+            label: Some("Line Render Pipeline"),
+            layout: Some(&layout),
+            vertex: wgpu::VertexState {
+                module: &shader,
+                entry_point: "vs_main",
+                buffers: &[ColoredVertex::desc()],
+            },
+            fragment: Some(wgpu::FragmentState {
+                module: &shader,
+                entry_point: "fs_main",
+                targets: &[Some(color_target_state)],
+            }),
+            primitive: wgpu::PrimitiveState {
+                topology: wgpu::PrimitiveTopology::LineList,
+                strip_index_format: None,
+                front_face: wgpu::FrontFace::Ccw,
+                cull_mode: None,
+                polygon_mode: wgpu::PolygonMode::Line,
+                unclipped_depth: false,
+                conservative: false,
+            },
+            depth_stencil: None,
+            multisample: wgpu::MultisampleState {
+                count: 1,
+                mask: !0,
+                alpha_to_coverage_enabled: false,
+            },
+            multiview: None,
+        });
+        pipeline
+    }
+
+    pub fn draw<'r>(
+        &'r self,
+        rpass: &mut RenderPass<'r>,
+        view_pos: [f32; 4],
+        view_proj: [[f32; 4]; 4],
+        line: Line,
+    ) {
+        rpass.set_pipeline(&self.pipeline);
+        rpass.set_vertex_buffer(0, self.vertices.slice(..));
+        rpass.set_push_constants(
+            ShaderStages::VERTEX_FRAGMENT,
+            0,
+            bytemuck::cast_slice(&[LinePushConstants::new(view_pos, view_proj, line)]),
+        );
+        rpass.draw(0..2, 0..1);
+    }
+}
+
+#[repr(C)]
+#[derive(Copy, Clone, Pod, Zeroable)]
+pub struct LinePushConstants {
+    pub view_position: [f32; 4],
+    pub view_proj: [[f32; 4]; 4],
+    pub start: [f32; 4],
+    pub end: [f32; 4],
+    pub color: [f32; 4],
+}
+
+impl LinePushConstants {
+    pub fn new(view_pos: [f32; 4], view_proj: [[f32; 4]; 4], line: Line) -> LinePushConstants {
+        LinePushConstants {
+            view_position: view_pos,
+            view_proj,
+            start: line.start.extend(1.0).to_array(),
+            end: line.end.extend(1.0).to_array(),
+            color: line.color,
+        }
+    }
+}
+
+#[derive(Default, Copy, Clone, Debug)]
+pub struct Line {
+    pub start: Vec3,
+    pub end: Vec3,
+    pub color: [f32; 4],
+}
+
+impl Line {
+    pub fn new(start: Vec3, end: Vec3, color: [f32; 4]) -> Line {
+        Line {
+            start,
+            end,
+            color,
+        }
+    }
+}

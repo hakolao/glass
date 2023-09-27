@@ -98,3 +98,12 @@ required-features = ["egui_gui"]
 [package.metadata.example.fluid_sim]
 name = "Fluid Sim"
 description = "Example that runs a fluid simulation using glass"
+
+[[example]]
+name = "lines"
+path = "examples/lines.rs"
+required-features = []
+
+[package.metadata.example.lines]
+name = "Line Draw"
+description = "Example that draws lines"

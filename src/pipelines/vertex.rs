@@ -1,8 +1,9 @@
 use bytemuck::{Pod, Zeroable};
+use glam::Vec2;
 
 /// A vertex with texture coordinates
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
+#[derive(Default, Copy, Clone, Debug, Pod, Zeroable)]
 pub struct TexturedVertex {
     pub position: [f32; 4],
     pub color: [f32; 4],
@@ -37,17 +38,17 @@ impl TexturedVertex {
 }
 
 #[repr(C)]
-#[derive(Copy, Clone, Debug, Pod, Zeroable)]
-pub struct Vertex2D {
+#[derive(Default, Copy, Clone, Debug, Pod, Zeroable)]
+pub struct SimpleTexturedVertex {
     pub position: [f32; 4],
     pub tex_coords: [f32; 2],
 }
 
-impl Vertex2D {
+impl SimpleTexturedVertex {
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
         use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<Vertex2D>() as wgpu::BufferAddress,
+            array_stride: mem::size_of::<SimpleTexturedVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
@@ -59,6 +60,42 @@ impl Vertex2D {
                     offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x2,
+                },
+            ],
+        }
+    }
+}
+
+#[repr(C)]
+#[derive(Default, Copy, Clone, Debug, Pod, Zeroable)]
+pub struct ColoredVertex {
+    pub position: [f32; 4],
+    pub color: [f32; 4],
+}
+
+impl ColoredVertex {
+    pub fn new_2d(pos: Vec2, color: [f32; 4]) -> ColoredVertex {
+        ColoredVertex {
+            position: [pos.x, pos.y, 0.0, 1.0],
+            color,
+        }
+    }
+
+    pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
+        use std::mem;
+        wgpu::VertexBufferLayout {
+            array_stride: mem::size_of::<SimpleTexturedVertex>() as wgpu::BufferAddress,
+            step_mode: wgpu::VertexStepMode::Vertex,
+            attributes: &[
+                wgpu::VertexAttribute {
+                    offset: 0,
+                    shader_location: 0,
+                    format: wgpu::VertexFormat::Float32x4,
+                },
+                wgpu::VertexAttribute {
+                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    shader_location: 1,
+                    format: wgpu::VertexFormat::Float32x4,
                 },
             ],
         }
@@ -118,16 +155,16 @@ pub const TEXTURED_QUAD_VERTICES: &[TexturedVertex] = &[
 
 pub const QUAD_INDICES: &[u16] = &[0, 2, 1, 0, 3, 2];
 
-pub const FULL_SCREEN_TRIANGLE_VERTICES: &[Vertex2D] = &[
-    Vertex2D {
+pub const FULL_SCREEN_TRIANGLE_VERTICES: &[SimpleTexturedVertex] = &[
+    SimpleTexturedVertex {
         position: [-1.0, 1.0, 0.0, 1.0],
         tex_coords: [0.0, 1.0],
     },
-    Vertex2D {
+    SimpleTexturedVertex {
         position: [-1.0, -3.0, 0.0, 1.0],
         tex_coords: [0.0, 0.0],
     },
-    Vertex2D {
+    SimpleTexturedVertex {
         position: [3.0, 1.0, 0.0, 1.0],
         tex_coords: [1.0, 0.0],
     },

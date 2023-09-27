@@ -10,7 +10,7 @@ use wgpu::{
 };
 
 use crate::{
-    pipelines::{Vertex2D, FULL_SCREEN_TRIANGLE_VERTICES},
+    pipelines::{SimpleTexturedVertex, FULL_SCREEN_TRIANGLE_VERTICES},
     texture::Texture,
 };
 
@@ -70,7 +70,7 @@ impl TonemappingPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
-                buffers: &[Vertex2D::desc()],
+                buffers: &[SimpleTexturedVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
