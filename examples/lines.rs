@@ -96,7 +96,6 @@ impl GlassApp for LineApp {
             for line in lines {
                 line_pipeline.draw(
                     &mut rpass,
-                    [0.0; 4],
                     camera_projection([WIDTH as f32, HEIGHT as f32]).to_cols_array_2d(),
                     line,
                 );

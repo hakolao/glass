@@ -76,19 +76,13 @@ impl LinePipeline {
         pipeline
     }
 
-    pub fn draw<'r>(
-        &'r self,
-        rpass: &mut RenderPass<'r>,
-        view_pos: [f32; 4],
-        view_proj: [[f32; 4]; 4],
-        line: Line,
-    ) {
+    pub fn draw<'r>(&'r self, rpass: &mut RenderPass<'r>, view_proj: [[f32; 4]; 4], line: Line) {
         rpass.set_pipeline(&self.pipeline);
         rpass.set_vertex_buffer(0, self.vertices.slice(..));
         rpass.set_push_constants(
             ShaderStages::VERTEX_FRAGMENT,
             0,
-            bytemuck::cast_slice(&[LinePushConstants::new(view_pos, view_proj, line)]),
+            bytemuck::cast_slice(&[LinePushConstants::new(view_proj, line)]),
         );
         rpass.draw(0..2, 0..1);
     }
@@ -97,7 +91,6 @@ impl LinePipeline {
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct LinePushConstants {
-    pub view_position: [f32; 4],
     pub view_proj: [[f32; 4]; 4],
     pub start: [f32; 4],
     pub end: [f32; 4],
@@ -105,9 +98,8 @@ pub struct LinePushConstants {
 }
 
 impl LinePushConstants {
-    pub fn new(view_pos: [f32; 4], view_proj: [[f32; 4]; 4], line: Line) -> LinePushConstants {
+    pub fn new(view_proj: [[f32; 4]; 4], line: Line) -> LinePushConstants {
         LinePushConstants {
-            view_position: view_pos,
             view_proj,
             start: line.start.extend(1.0).to_array(),
             end: line.end.extend(1.0).to_array(),

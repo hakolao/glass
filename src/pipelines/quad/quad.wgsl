@@ -1,5 +1,5 @@
 struct PushConstants {
-    view_pos: vec4<f32>,
+    quad_pos: vec4<f32>,
     view_proj: mat4x4<f32>,
     dims: vec2<f32>,
     aa_strength: f32,
@@ -28,7 +28,7 @@ fn vs_main(
         // Scale vertices
         model.position +
         // Offset by pos
-        pc.view_pos;
+        pc.quad_pos;
     out.clip_position = pc.view_proj * world_position;
     out.color = model.color;
     return out;

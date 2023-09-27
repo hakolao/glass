@@ -109,13 +109,13 @@ impl QuadPipeline {
     }
 
     pub fn push_constants(
-        view_position: [f32; 4],
+        quad_pos: [f32; 4],
         view_proj: [[f32; 4]; 4],
         quad_size: [f32; 2],
         aa_strength: f32,
     ) -> QuadPushConstants {
         QuadPushConstants {
-            view_position,
+            quad_pos,
             view_proj,
             dims: quad_size,
             aa_strength,
@@ -150,7 +150,7 @@ impl QuadPipeline {
         &'r self,
         rpass: &mut RenderPass<'r>,
         bind_group: &'r BindGroup,
-        view_pos: [f32; 4],
+        quad_pos: [f32; 4],
         view_proj: [[f32; 4]; 4],
         quad_size: [f32; 2],
         aa_strength: f32,
@@ -163,7 +163,7 @@ impl QuadPipeline {
             ShaderStages::VERTEX_FRAGMENT,
             0,
             bytemuck::cast_slice(&[QuadPipeline::push_constants(
-                view_pos,
+                quad_pos,
                 view_proj,
                 quad_size,
                 aa_strength,
@@ -177,7 +177,7 @@ impl QuadPipeline {
 #[repr(C)]
 #[derive(Copy, Clone, Pod, Zeroable)]
 pub struct QuadPushConstants {
-    pub view_position: [f32; 4],
+    pub quad_pos: [f32; 4],
     pub view_proj: [[f32; 4]; 4],
     pub dims: [f32; 2],
     pub aa_strength: f32,
