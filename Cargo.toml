@@ -34,6 +34,7 @@ egui_demo_lib = { version = "0.22", optional = true }
 [dev-dependencies]
 egui_demo_lib = { version = "0.22" }
 winit_input_helper = "0.14.1"
+rapier2d = { version = "0.17.2", features = ["default", "debug-render"] }
 
 [profile.dev]
 opt-level = 3
