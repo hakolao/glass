@@ -64,17 +64,25 @@ fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {
 
     // Static includes
     let mut static_includes = HashMap::default();
-    // In order for relative paths to work, use full path (from project root) for the root key
-    let root_key = "examples/shader_with_includes/triangle_with_include.wgsl";
     // Include all files that you wish to refer to in your root shader. Tedious, but this ensures
     // You can keep using includes while containing static shaders.
-    static_includes.insert(root_key, include_str!("triangle_with_include.wgsl"));
-    static_includes.insert("consts.wgsl", include_str!("consts.wgsl"));
     static_includes.insert(
-        "../triangle/triangle.wgsl",
+        "examples/shader_with_includes/triangle_with_include.wgsl",
+        include_str!("triangle_with_include.wgsl"),
+    );
+    static_includes.insert(
+        "examples/shader_with_includes/consts.wgsl",
+        include_str!("consts.wgsl"),
+    );
+    static_includes.insert(
+        "examples/triangle/triangle.wgsl",
         include_str!("../triangle/triangle.wgsl"),
     );
-    let shader_module = ShaderModule::new_with_static_sources(root_key, &static_includes).unwrap();
+    let shader_module = ShaderModule::new_with_static_sources(
+        "examples/shader_with_includes/triangle_with_include.wgsl",
+        &static_includes,
+    )
+    .unwrap();
     let shader = context
         .device()
         .create_shader_module(ShaderModuleDescriptor {
