@@ -132,7 +132,6 @@ impl ShaderSource {
         let path = PathBuf::from(source_filepath);
         let source = wgsl_source_with_includes(
             &path,
-            &path,
             &mut included_files,
             &mut file_stack,
             &mut included_parts,
@@ -183,7 +182,6 @@ pub struct IncludedPart {
 }
 
 fn wgsl_source_with_includes(
-    root_path: &Path,
     file_path: &Path,
     included_files: &mut HashSet<String>,
     file_stack: &mut VecDeque<String>,
@@ -224,7 +222,10 @@ fn wgsl_source_with_includes(
     for line in source.lines() {
         if line.starts_with("#include") {
             let included_file_name = line.trim_start_matches("#include ").trim();
-            let included_file_path = root_path.parent().unwrap().join(included_file_name).clean();
+            let included_file_path = std::env::current_dir()
+                .unwrap()
+                .join(included_file_name)
+                .clean();
 
             let included_file_path_str = included_file_path.to_string_lossy().into_owned();
             if included_files.contains(&included_file_path_str) {
@@ -235,7 +236,6 @@ fn wgsl_source_with_includes(
             }
             if !file_stack.contains(&included_file_path_str) {
                 let included_part = wgsl_source_with_includes(
-                    root_path,
                     &included_file_path,
                     included_files,
                     file_stack,

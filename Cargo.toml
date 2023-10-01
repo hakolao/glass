@@ -94,7 +94,7 @@ description = "Example that runs an egui demo app"
 [[example]]
 name = "fluid_sim"
 path = "examples/fluid_sim/main.rs"
-required-features = []
+required-features = ["egui_gui"]
 
 [package.metadata.example.fluid_sim]
 name = "Fluid Sim"
