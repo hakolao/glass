@@ -53,8 +53,8 @@ pub struct ShaderModule {
 }
 
 impl ShaderModule {
-    pub fn new(source_filepath: &str) -> Result<ShaderModule, ShaderError> {
-        let source = ShaderSource::new(source_filepath)?;
+    pub fn new(path: &Path) -> Result<ShaderModule, ShaderError> {
+        let source = ShaderSource::new(path)?;
         Self::new_from_source(source)
     }
 
@@ -123,13 +123,12 @@ pub struct ShaderSource {
 }
 
 impl ShaderSource {
-    pub fn new(source_filepath: &str) -> Result<ShaderSource, ShaderError> {
+    pub fn new(path: &Path) -> Result<ShaderSource, ShaderError> {
         let mut included_files = HashSet::new();
         let mut file_stack = VecDeque::new();
         let mut included_parts = Vec::new();
         let mut main_file_line_count = 0;
 
-        let path = PathBuf::from(source_filepath);
         let source = wgsl_source_with_includes(
             &path,
             &mut included_files,
@@ -139,7 +138,7 @@ impl ShaderSource {
             0,
         )?;
         Ok(ShaderSource {
-            path: source_filepath.to_string(),
+            path: path.clean().display().to_string(),
             source,
             parts: included_parts,
         })
@@ -192,7 +191,7 @@ fn wgsl_source_with_includes(
     let mut result = String::new();
     let file_path_str = file_path.to_string_lossy().into_owned();
 
-    let ext = Path::new(file_path)
+    let ext = file_path
         .extension()
         .map(std::ffi::OsStr::to_string_lossy)
         .map(Cow::into_owned);
@@ -359,6 +358,8 @@ fn wgsl_source_with_static_includes(
 
 #[cfg(test)]
 mod tests {
+    use std::path::PathBuf;
+
     use crate::utils::{ShaderError, ShaderModule, ShaderSource};
 
     #[test]
@@ -417,7 +418,7 @@ const TEST2: u32 = u32(2);
 "#,
         );
 
-        let result = ShaderSource::new(includes_file1);
+        let result = ShaderSource::new(&PathBuf::from(includes_file1));
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);
@@ -456,7 +457,7 @@ const TEST2: u32 = u32(2);
 "#,
         );
 
-        let result = ShaderSource::new(includes_file1);
+        let result = ShaderSource::new(&PathBuf::from(includes_file1));
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);
@@ -488,7 +489,7 @@ const TEST2: u32 = u32(2);
 "#,
         );
 
-        let result = ShaderSource::new(includes_file1);
+        let result = ShaderSource::new(&PathBuf::from(includes_file1));
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);
@@ -507,7 +508,7 @@ const TEST2: u32 = u32(2);
 #include includes_2.aaa"#,
         );
 
-        let result = ShaderSource::new(includes_file1);
+        let result = ShaderSource::new(&PathBuf::from(includes_file1));
 
         let _ = std::fs::remove_file(includes_file1);
 
@@ -539,7 +540,7 @@ const TEST2: u32 = i32(1);
 "#,
         );
 
-        let result = ShaderModule::new(includes_file1);
+        let result = ShaderModule::new(&PathBuf::from(includes_file1));
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);
@@ -574,7 +575,7 @@ const TEST3: u32 = i32(1);
 "#,
         );
 
-        let result = ShaderModule::new(includes_file1);
+        let result = ShaderModule::new(&PathBuf::from(includes_file1));
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);
@@ -611,7 +612,7 @@ const TEST4: u32 = i32(1);
 "#,
         );
 
-        let result = ShaderModule::new(includes_file1);
+        let result = ShaderModule::new(&PathBuf::from(includes_file1));
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);
@@ -639,7 +640,7 @@ const REDEF: u32 = i32(1);
 "#,
         );
 
-        let result = ShaderModule::new(includes_file1);
+        let result = ShaderModule::new(&PathBuf::from(includes_file1));
 
         let _ = std::fs::remove_file(includes_file1);
         let _ = std::fs::remove_file(includes_file2);

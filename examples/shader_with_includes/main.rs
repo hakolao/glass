@@ -1,4 +1,4 @@
-use std::{borrow::Cow, collections::HashMap};
+use std::{borrow::Cow, collections::HashMap, path::PathBuf};
 
 use glass::{
     utils::ShaderModule, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
@@ -59,8 +59,10 @@ impl GlassApp for TriangleApp {
 
 fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {
     // Dynamic includes
-    let _shader_module =
-        ShaderModule::new("examples/shader_with_includes/triangle_with_include.wgsl").unwrap();
+    let _shader_module = ShaderModule::new(&PathBuf::from(
+        "examples/shader_with_includes/triangle_with_include.wgsl",
+    ))
+    .unwrap();
 
     // Static includes
     let mut static_includes = HashMap::default();
