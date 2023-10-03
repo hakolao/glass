@@ -130,7 +130,7 @@ impl ShaderSource {
         let mut main_file_line_count = 0;
 
         let source = wgsl_source_with_includes(
-            &path,
+            path,
             &mut included_files,
             &mut file_stack,
             &mut included_parts,
