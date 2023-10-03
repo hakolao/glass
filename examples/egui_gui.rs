@@ -59,8 +59,12 @@ fn initialize_gui_app(
     event_loop: &EventLoopWindowTarget<()>,
 ) {
     let mut egui_winit = egui_winit::State::new(event_loop);
-    let renderer =
-        egui_wgpu::Renderer::new(context.device(), GlassWindow::surface_format(), None, 1);
+    let renderer = egui_wgpu::Renderer::new(
+        context.device(),
+        GlassWindow::default_surface_format(),
+        None,
+        1,
+    );
 
     egui_winit.set_max_texture_side(context.device().limits().max_texture_dimension_2d as usize);
     let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;

@@ -65,7 +65,7 @@ impl GlassApp for FluidSimApp {
                 write_mask: ColorWrites::ALL,
             }));
         self.quad_pipeline = Some(QuadPipeline::new(context.device(), ColorTargetState {
-            format: GlassWindow::surface_format(),
+            format: GlassWindow::default_surface_format(),
             blend: Some(BlendState::REPLACE),
             write_mask: ColorWrites::ALL,
         }));

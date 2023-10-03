@@ -19,6 +19,7 @@ pub struct WindowConfig {
     pub pos: WindowPos,
     pub present_mode: PresentMode,
     pub alpha_mode: CompositeAlphaMode,
+    pub surface_format: TextureFormat,
     pub max_size: Option<LogicalSize<u32>>,
     pub min_size: Option<LogicalSize<u32>>,
     pub exit_on_esc: bool,
@@ -33,6 +34,7 @@ impl Default for WindowConfig {
             pos: WindowPos::Centered,
             present_mode: PresentMode::AutoVsync,
             alpha_mode: CompositeAlphaMode::Auto,
+            surface_format: GlassWindow::default_surface_format(),
             exit_on_esc: false,
             max_size: None,
             min_size: None,
@@ -67,6 +69,7 @@ pub struct GlassWindow {
     surface: Surface,
     present_mode: PresentMode,
     alpha_mode: CompositeAlphaMode,
+    surface_format: TextureFormat,
     exit_on_esc: bool,
     has_focus: bool,
     last_surface_size: [u32; 2],
@@ -86,11 +89,21 @@ impl GlassWindow {
                 Err(e) => return Err(e),
             }
         };
+        let allowed_formats = GlassWindow::allowed_surface_formats();
+        if !(config.surface_format == allowed_formats[0]
+            || config.surface_format == allowed_formats[1])
+        {
+            panic!(
+                "{:?} not allowed. Surface should be created with either: {:?} or {:?}",
+                config.surface_format, allowed_formats[0], allowed_formats[1]
+            );
+        }
         Ok(GlassWindow {
             window,
             surface,
             present_mode: config.present_mode,
             alpha_mode: config.alpha_mode,
+            surface_format: config.surface_format,
             exit_on_esc: config.exit_on_esc,
             has_focus: false,
             last_surface_size: size,
@@ -101,7 +114,7 @@ impl GlassWindow {
     pub(crate) fn configure_surface_with_size(&mut self, device: &Device, size: PhysicalSize<u32>) {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: Self::surface_format(),
+            format: self.surface_format,
             width: size.width,
             height: size.height,
             present_mode: self.present_mode,
@@ -179,8 +192,14 @@ impl GlassWindow {
         self.present_mode
     }
 
-    /// Return [`TextureFormat`](wgpu::TextureFormat) belonging to the window surface
-    pub fn surface_format() -> TextureFormat {
+    /// Return allowed [`TextureFormat`](wgpu::TextureFormat)s for the surface.
+    /// These are `Bgra8UnormSrgb` and `Bgra8Unorm`
+    pub fn allowed_surface_formats() -> [TextureFormat; 2] {
+        [TextureFormat::Bgra8UnormSrgb, TextureFormat::Bgra8Unorm]
+    }
+
+    /// Return default [`TextureFormat`](wgpu::TextureFormat)s
+    pub fn default_surface_format() -> TextureFormat {
         TextureFormat::Bgra8UnormSrgb
     }
 

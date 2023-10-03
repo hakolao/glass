@@ -63,7 +63,7 @@ impl GlassApp for LineApp {
         self.line_pipeline = Some(LinePipeline::new(
             context.device(),
             wgpu::ColorTargetState {
-                format: GlassWindow::surface_format(),
+                format: GlassWindow::default_surface_format(),
                 blend: Some(wgpu::BlendState::ALPHA_BLENDING),
                 write_mask: wgpu::ColorWrites::ALL,
             },
