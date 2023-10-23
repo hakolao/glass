@@ -1,4 +1,4 @@
-use std::fmt::Formatter;
+use std::{fmt::Formatter, sync::Arc};
 
 use image::ImageError;
 use indexmap::IndexMap;
@@ -286,8 +286,16 @@ impl GlassContext {
         self.device_context.device()
     }
 
+    pub fn device_arc(&self) -> Arc<Device> {
+        self.device_context.device_arc()
+    }
+
     pub fn queue(&self) -> &Queue {
         self.device_context.queue()
+    }
+
+    pub fn queue_arc(&self) -> Arc<Queue> {
+        self.device_context.queue_arc()
     }
 
     pub fn configure_surface(&mut self, window_id: &WindowId, config: &SurfaceConfiguration) {

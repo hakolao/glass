@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use wgpu::{
     Adapter, Backends, Device, DeviceDescriptor, Instance, InstanceDescriptor, Limits,
     PowerPreference, Queue, RequestAdapterOptions, Surface,
@@ -41,8 +43,8 @@ pub struct DeviceContext {
     config: DeviceConfig,
     instance: Instance,
     adapter: Adapter,
-    device: Device,
-    queue: Queue,
+    device: Arc<Device>,
+    queue: Arc<Queue>,
 }
 
 unsafe impl Send for DeviceContext {}
@@ -81,8 +83,8 @@ impl DeviceContext {
             config: config.clone(),
             instance,
             adapter,
-            device,
-            queue,
+            device: Arc::new(device),
+            queue: Arc::new(queue),
         })
     }
 
@@ -98,8 +100,8 @@ impl DeviceContext {
             Err(e) => return Err(e),
         };
         self.adapter = adapter;
-        self.device = device;
-        self.queue = queue;
+        self.device = Arc::new(device);
+        self.queue = Arc::new(queue);
         Ok(())
     }
 
@@ -147,7 +149,15 @@ impl DeviceContext {
         &self.device
     }
 
+    pub fn device_arc(&self) -> Arc<Device> {
+        self.device.clone()
+    }
+
     pub fn queue(&self) -> &Queue {
         &self.queue
+    }
+
+    pub fn queue_arc(&self) -> Arc<Queue> {
+        self.queue.clone()
     }
 }
