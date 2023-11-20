@@ -306,6 +306,10 @@ impl GlassContext {
         }
     }
 
+    pub fn primary_render_window_maybe(&self) -> Option<&GlassWindow> {
+        self.windows.first().map(|(_k, v)| v)
+    }
+
     pub fn primary_render_window(&self) -> &GlassWindow {
         self.windows.first().unwrap().1
     }
