@@ -25,15 +25,15 @@ use crate::{
 /// [`Glass`] is an application that exposes an easy to use API to organize your winit applications
 /// which render using wgpu. Just impl [`GlassApp`] for your application (of any type) and you
 /// are good to go.
-pub struct Glass<A> {
-    app: A,
+pub struct Glass {
+    app: Box<dyn GlassApp>,
     config: GlassConfig,
 }
 
-impl<A: GlassApp + 'static> Glass<A> {
-    pub fn new(app: A, config: GlassConfig) -> Glass<A> {
+impl Glass {
+    pub fn new(app: impl GlassApp + 'static, config: GlassConfig) -> Glass {
         Glass {
-            app,
+            app: Box::new(app),
             config,
         }
     }
