@@ -6,7 +6,7 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use rapier2d::prelude::*;
-use wgpu::{Features, Limits};
+use wgpu::{Features, Limits, StoreOp};
 use winit::event_loop::EventLoop;
 
 const WIDTH: u32 = 1920;
@@ -159,10 +159,12 @@ impl GlassApp for LineApp {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                    store: true,
+                    store: StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
         let line_pipeline = line_pipeline.as_ref().unwrap();
         for line in lines.lines.iter() {

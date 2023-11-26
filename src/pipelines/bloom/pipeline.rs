@@ -8,7 +8,7 @@ use wgpu::{
     BlendFactor, BlendOperation, BlendState, Buffer, Color, ColorTargetState, ColorWrites,
     CommandEncoder, Device, Extent3d, FilterMode, LoadOp, Operations, PushConstantRange,
     RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, SamplerBindingType,
-    SamplerDescriptor, ShaderStages, TextureFormat, TextureSampleType, TextureUsages,
+    SamplerDescriptor, ShaderStages, StoreOp, TextureFormat, TextureSampleType, TextureUsages,
     TextureViewDimension,
 };
 
@@ -363,6 +363,8 @@ impl BloomPipeline {
                     ops: Operations::default(),
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             first_downsample_pass.set_pipeline(&self.downsample_first_pipeline);
             first_downsample_pass.set_bind_group(0, &downsampling_first_bind_group, &[]);
@@ -386,11 +388,13 @@ impl BloomPipeline {
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Load,
-                        store: true,
+                        store: StoreOp::Store,
                     },
                     // ops: Operations::default(),
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             downsampling_pass.set_pipeline(&self.downsample_pipeline);
             downsampling_pass.set_bind_group(
@@ -419,10 +423,12 @@ impl BloomPipeline {
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Load,
-                        store: true,
+                        store: StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             upsampling_pass.set_pipeline(&self.upsample_pipeline);
             upsampling_pass.set_bind_group(
@@ -457,10 +463,12 @@ impl BloomPipeline {
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Load,
-                        store: true,
+                        store: StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             upsampling_final_pass.set_pipeline(&self.final_pipeline);
             upsampling_final_pass.set_bind_group(

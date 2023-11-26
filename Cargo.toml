@@ -9,31 +9,31 @@ edition = "2021"
 default = []
 egui_gui = ["egui-wgpu", "egui-winit", "egui"]
 egui_extra = ["egui_gui", "egui_extras"]
-egui_demo = ["egui_gui", "egui_demo_lib", "egui_demo_lib/syntax_highlighting"]
+egui_demo = ["egui_gui", "egui_demo_lib", "egui_demo_lib/syntect"]
 egui_persistence = ["egui_gui", "egui_demo", "egui/persistence", "egui_demo_lib/serde"]
 trace = ["wgpu/trace"]
 
 [dependencies]
-indexmap = "1.9.3"
+indexmap = "2.1"
 pollster = "0.3.0"
 image = "0.24"
 bytemuck = { version = "1.13.1", features = ["derive"] }
-wgpu = { version = "0.16", default_features = true, features = ["naga"] }
-naga = "0.12.0"
+wgpu = { version = "0.18", default_features = true, features = ["naga"] }
+naga = "0.14"
 winit = "0.28"
 glam = "0.24.0"
 path-clean = "1.0.1"
 
 # Optional Egui
-egui       = { version = "0.22", optional = true }
-egui-wgpu  = { version = "0.22", optional = true }
-egui-winit = { version = "0.22", optional = true }
-egui_extras = { version = "0.22", optional = true }
-egui_demo_lib = { version = "0.22", optional = true }
+egui = { version = "0.24", optional = true }
+egui-wgpu = { version = "0.24", optional = true }
+egui-winit = { version = "0.24", optional = true }
+egui_extras = { version = "0.24", optional = true }
+egui_demo_lib = { version = "0.24", optional = true }
 
 [dev-dependencies]
-egui_demo_lib = { version = "0.22" }
-winit_input_helper = "0.14.1"
+egui_demo_lib = { version = "0.24" }
+winit_input_helper = "0.14"
 rapier2d = { version = "0.17.2", features = ["default", "debug-render"] }
 
 [profile.dev]

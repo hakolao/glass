@@ -12,7 +12,7 @@ use glass::{
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandEncoder, ComputePassDescriptor,
     ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode, Limits, PowerPreference,
-    PresentMode, PushConstantRange, SamplerDescriptor, ShaderStages, StorageTextureAccess,
+    PresentMode, PushConstantRange, SamplerDescriptor, ShaderStages, StorageTextureAccess, StoreOp,
     TextureFormat, TextureUsages,
 };
 use winit::{
@@ -222,10 +222,12 @@ fn render(app: &mut GameOfLifeApp, render_data: RenderData) {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::WHITE),
-                    store: true,
+                    store: StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
         quad_pipeline.draw(
             &mut rpass,
@@ -282,6 +284,7 @@ fn draw_game_of_life(
 
     let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
         label: Some("Update"),
+        timestamp_writes: None,
     });
     let pc = GameOfLifePushConstants::new(start, end, 10.0);
     cpass.set_pipeline(draw_pipeline);
@@ -323,6 +326,7 @@ fn update_game_of_life(
     });
     let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
         label: Some("Update"),
+        timestamp_writes: None,
     });
     let pc = GameOfLifePushConstants::new(Vec2::ZERO, Vec2::ZERO, 0.0);
     cpass.set_pipeline(game_of_life_pipeline);
@@ -350,6 +354,7 @@ fn init_game_of_life(app: &mut GameOfLifeApp, context: &GlassContext) {
     {
         let mut cpass = encoder.begin_compute_pass(&ComputePassDescriptor {
             label: Some("Init"),
+            timestamp_writes: None,
         });
         cpass.set_pipeline(init_pipeline);
         cpass.set_bind_group(0, &data.init_bind_group, &[]);

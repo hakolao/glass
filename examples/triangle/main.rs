@@ -3,7 +3,7 @@ use std::borrow::Cow;
 use glass::{Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData};
 use wgpu::{
     MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
-    RenderPipelineDescriptor, ShaderModuleDescriptor, TextureFormat,
+    RenderPipelineDescriptor, ShaderModuleDescriptor, StoreOp, TextureFormat,
 };
 use winit::event_loop::EventLoop;
 
@@ -44,10 +44,12 @@ impl GlassApp for TriangleApp {
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                    store: true,
+                    store: StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
         let triangle_pipeline = self.triangle_pipeline.as_ref().unwrap();
         rpass.set_pipeline(triangle_pipeline);

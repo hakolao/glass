@@ -1,11 +1,11 @@
-use egui::FullOutput;
+use egui::{FullOutput, ViewportId};
 use egui_demo_lib::DemoWindows;
 use egui_wgpu::renderer::ScreenDescriptor;
 use egui_winit::EventResponse;
 use glass::{
     window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
-use wgpu::{CommandEncoder, TextureView};
+use wgpu::{CommandEncoder, StoreOp, TextureView};
 use winit::{
     event::Event,
     event_loop::{EventLoop, EventLoopWindowTarget},
@@ -58,17 +58,19 @@ fn initialize_gui_app(
     context: &mut GlassContext,
     event_loop: &EventLoopWindowTarget<()>,
 ) {
-    let mut egui_winit = egui_winit::State::new(event_loop);
+    let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;
+    let egui_winit = egui_winit::State::new(
+        ViewportId::ROOT,
+        event_loop,
+        Some(pixels_per_point),
+        Some(context.device().limits().max_texture_dimension_2d as usize),
+    );
     let renderer = egui_wgpu::Renderer::new(
         context.device(),
         GlassWindow::default_surface_format(),
         None,
         1,
     );
-
-    egui_winit.set_max_texture_side(context.device().limits().max_texture_dimension_2d as usize);
-    let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;
-    egui_winit.set_pixels_per_point(pixels_per_point);
     app.gui = Some(GuiState {
         egui_ctx: egui::Context::default(),
         egui_winit,
@@ -87,7 +89,7 @@ fn update_egui_with_winit_event(app: &mut GuiApp, _context: &mut GlassContext, e
             let EventResponse {
                 consumed,
                 repaint,
-            } = gui.egui_winit.on_event(&gui.egui_ctx, event);
+            } = gui.egui_winit.on_window_event(&gui.egui_ctx, event);
             gui.repaint = repaint;
             // Skip input if event was consumed by egui
             if consumed {
@@ -134,13 +136,14 @@ fn render_egui(
         // Ui content
         ui_app.ui(egui_ctx);
     });
+    let pixels_per_point = window.window().scale_factor() as f32;
     // creates triangles to paint
-    let clipped_primitives = egui_ctx.tessellate(shapes);
+    let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
     let size = window.surface_size();
     let screen_descriptor = ScreenDescriptor {
         size_in_pixels: size,
-        pixels_per_point: window.window().scale_factor() as f32,
+        pixels_per_point,
     };
 
     // Upload all resources for the GPU.
@@ -168,10 +171,12 @@ fn render_egui(
                 resolve_target: None,
                 ops: wgpu::Operations {
                     load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                    store: true,
+                    store: StoreOp::Store,
                 },
             })],
             depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
         });
         // Here you would render your scene
         // Render Egui

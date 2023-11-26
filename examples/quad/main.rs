@@ -6,7 +6,8 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
-    AddressMode, BindGroup, FilterMode, Limits, SamplerDescriptor, TextureFormat, TextureUsages,
+    AddressMode, BindGroup, FilterMode, Limits, SamplerDescriptor, StoreOp, TextureFormat,
+    TextureUsages,
 };
 use winit::event_loop::EventLoop;
 
@@ -98,10 +99,12 @@ impl GlassApp for TreeApp {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
+                        store: StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
             quad_pipeline.draw(
                 &mut rpass,

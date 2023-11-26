@@ -1,7 +1,7 @@
 use glass::{
     window::WindowConfig, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
-use wgpu::Color;
+use wgpu::{Color, StoreOp};
 use winit::{
     event::{DeviceEvent, ElementState, Event, VirtualKeyCode},
     event_loop::{EventLoop, EventLoopWindowTarget},
@@ -95,10 +95,12 @@ impl GlassApp for MultiWindowApp {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(clear_color),
-                        store: true,
+                        store: StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
         }
     }

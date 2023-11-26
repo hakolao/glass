@@ -1,4 +1,4 @@
-use wgpu::{CommandEncoder, SurfaceTexture};
+use wgpu::{CommandEncoder, StoreOp, SurfaceTexture};
 use winit::{
     event::Event,
     event_loop::{EventLoop, EventLoopWindowTarget},
@@ -49,10 +49,12 @@ pub trait GlassApp {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
+                        store: StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
         }
     }

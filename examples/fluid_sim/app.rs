@@ -12,6 +12,7 @@ use glass::{
     },
     GlassApp, GlassContext, RenderData,
 };
+use wgpu::StoreOp;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
@@ -76,7 +77,7 @@ impl GlassApp for FluidSimApp {
         &mut self,
         _context: &mut GlassContext,
         _event_loop: &EventLoopWindowTarget<()>,
-        event: &Event<()>,
+        event: &Event<'_, ()>,
     ) {
         self.input.update(event);
     }
@@ -181,10 +182,12 @@ impl GlassApp for FluidSimApp {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
+                        store: StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
 
             let view_proj = camera.view_proj().to_cols_array_2d();
@@ -285,10 +288,12 @@ impl GlassApp for FluidSimApp {
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: true,
+                        store: StoreOp::Store,
                     },
                 })],
                 depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
             });
 
             quad_pipeline.draw(
