@@ -46,36 +46,14 @@ impl std::fmt::Display for ShaderError {
 
 pub struct WatchedShaderModule {
     source: ShaderSource,
-    _watchers: Vec<Option<RecommendedWatcher>>,
-    _receivers: Vec<Receiver<notify::Result<Event>>>,
-    is_static: bool,
+    _watchers: HashMap<String, Option<RecommendedWatcher>>,
+    _receivers: HashMap<String, Receiver<notify::Result<Event>>>,
 }
 
 impl WatchedShaderModule {
     pub fn new(path: &Path) -> Result<WatchedShaderModule, ShaderError> {
         let source = ShaderSource::new(path)?;
-        let mut watchers = vec![];
-        let mut receivers = vec![];
-        let path_buf = PathBuf::from(&source.path);
-        if path_buf.exists() {
-            let (rec, wat) = start_file_watcher(&source.path);
-            watchers.push(wat);
-            receivers.push(rec);
-        }
-        for path in source.parts.iter() {
-            let path_buf = PathBuf::from(&path.file_path);
-            if path_buf.exists() {
-                let (rec, wat) = start_file_watcher(&path.file_path);
-                watchers.push(wat);
-                receivers.push(rec);
-            }
-        }
-        Ok(WatchedShaderModule {
-            source,
-            _watchers: watchers,
-            _receivers: receivers,
-            is_static: false,
-        })
+        Self::new_from_source(source)
     }
 
     pub fn new_with_static_sources(
@@ -83,28 +61,87 @@ impl WatchedShaderModule {
         include_srcs: &HashMap<&'static str, &'static str>,
     ) -> Result<WatchedShaderModule, ShaderError> {
         let source = ShaderSource::new_with_static_sources(root_source_path, include_srcs)?;
-        info!(
-            "Static shader sources are not watched for {}",
-            root_source_path
-        );
+        Self::new_from_source(source)
+    }
+
+    pub fn new_from_source(source: ShaderSource) -> Result<WatchedShaderModule, ShaderError> {
+        let (watchers, receivers) = if !source.is_static {
+            let mut watchers = HashMap::new();
+            let mut receivers = HashMap::new();
+            for path in Self::paths_to_watch(&source) {
+                let (rec, wat) = start_file_watcher(&path);
+                watchers.insert(path.clone(), wat);
+                receivers.insert(path, rec);
+            }
+            (watchers, receivers)
+        } else {
+            info!("Static shader sources are not watched for {}", source.path);
+            (HashMap::default(), HashMap::default())
+        };
         Ok(WatchedShaderModule {
             source,
-            _watchers: vec![],
-            _receivers: vec![],
-            is_static: true,
+            _watchers: watchers,
+            _receivers: receivers,
         })
     }
 
+    fn paths_to_watch(source: &ShaderSource) -> HashSet<String> {
+        let mut paths_to_watch = HashSet::new();
+        let path_buf = PathBuf::from(&source.path);
+        if path_buf.exists() {
+            paths_to_watch.insert(source.path.clone());
+        }
+        for path in source.parts.iter() {
+            let path_buf = PathBuf::from(&path.file_path);
+            if path_buf.exists() {
+                paths_to_watch.insert(path.file_path.clone());
+            }
+        }
+        paths_to_watch
+    }
+
     pub fn reload(&mut self) -> Result<(), ShaderError> {
-        if !self.is_static {
-            *self = Self::new(&PathBuf::from(&self.source.path))?;
+        if !self.source.is_static {
+            let source = ShaderSource::new(&PathBuf::from(&self.source.path))?;
+            let new_watches = Self::paths_to_watch(&source);
+            let mut removes = vec![];
+            // Find if we need to remove old watchers
+            for (key, _) in self._receivers.iter() {
+                if !new_watches.contains(key) {
+                    removes.push(key.clone());
+                }
+            }
+            // Remove them
+            for remove in removes {
+                self._receivers.remove(&remove);
+                self._watchers.remove(&remove);
+                info!("Reload removed: {}", remove);
+            }
+            // Insert new watchers
+            for path in new_watches {
+                if !self._receivers.contains_key(&path) {
+                    let (rec, wat) = start_file_watcher(&path);
+                    self._receivers.insert(path.clone(), rec);
+                    self._watchers.insert(path, wat);
+                }
+            }
+            // Replace source with new
+            self.source = source;
         }
         Ok(())
     }
 
+    pub fn reload_with_modified_source(
+        &mut self,
+        mut modify_fn: impl FnMut(&mut ShaderSource) -> Result<(), ShaderError>,
+    ) -> Result<(), ShaderError> {
+        self.reload()?;
+        modify_fn(&mut self.source)
+    }
+
     pub fn changed_paths(&self) -> HashSet<String> {
         let mut paths: HashSet<String> = HashSet::default();
-        for receiver in self._receivers.iter() {
+        for (_path, receiver) in self._receivers.iter() {
             for event in receiver.try_iter().flatten() {
                 for path in event.paths.iter() {
                     if let Some(p) = path.to_str() {
@@ -233,6 +270,7 @@ pub struct ShaderSource {
     pub path: String,
     pub source: String,
     pub parts: Vec<IncludedPart>,
+    pub is_static: bool,
 }
 
 impl ShaderSource {
@@ -254,6 +292,7 @@ impl ShaderSource {
             path: path.clean().display().to_string(),
             source,
             parts: included_parts,
+            is_static: false,
         })
     }
 
@@ -280,6 +319,7 @@ impl ShaderSource {
             path: root_source_path.to_string(),
             source,
             parts: included_parts,
+            is_static: true,
         })
     }
 }
