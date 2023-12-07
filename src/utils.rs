@@ -6,7 +6,10 @@ use std::{
     path::{Path, PathBuf},
 };
 
+use flume::{unbounded, Receiver, Sender};
+use log::{error, info};
 use naga::Module;
+use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use path_clean::PathClean;
 
 pub fn wait_async<F: Future>(fut: F) -> F::Output {
@@ -39,6 +42,116 @@ impl std::fmt::Display for ShaderError {
         };
         write!(f, "{}", s)
     }
+}
+
+pub struct WatchedShaderModule {
+    source: ShaderSource,
+    _watchers: Vec<Option<RecommendedWatcher>>,
+    _receivers: Vec<Receiver<notify::Result<Event>>>,
+    is_static: bool,
+}
+
+impl WatchedShaderModule {
+    pub fn new(path: &Path) -> Result<WatchedShaderModule, ShaderError> {
+        let source = ShaderSource::new(path)?;
+        let mut watchers = vec![];
+        let mut receivers = vec![];
+        let path_buf = PathBuf::from(&source.path);
+        if path_buf.exists() {
+            let (rec, wat) = start_file_watcher(&source.path);
+            watchers.push(wat);
+            receivers.push(rec);
+        }
+        for path in source.parts.iter() {
+            let path_buf = PathBuf::from(&path.file_path);
+            if path_buf.exists() {
+                let (rec, wat) = start_file_watcher(&path.file_path);
+                watchers.push(wat);
+                receivers.push(rec);
+            }
+        }
+        Ok(WatchedShaderModule {
+            source,
+            _watchers: watchers,
+            _receivers: receivers,
+            is_static: false,
+        })
+    }
+
+    pub fn new_with_static_sources(
+        root_source_path: &str,
+        include_srcs: &HashMap<&'static str, &'static str>,
+    ) -> Result<WatchedShaderModule, ShaderError> {
+        let source = ShaderSource::new_with_static_sources(root_source_path, include_srcs)?;
+        info!(
+            "Static shader sources are not watched for {}",
+            root_source_path
+        );
+        Ok(WatchedShaderModule {
+            source,
+            _watchers: vec![],
+            _receivers: vec![],
+            is_static: true,
+        })
+    }
+
+    pub fn reload(&mut self) -> Result<(), ShaderError> {
+        if !self.is_static {
+            *self = Self::new(&PathBuf::from(&self.source.path))?;
+        }
+        Ok(())
+    }
+
+    pub fn changed_paths(&self) -> HashSet<String> {
+        let mut paths: HashSet<String> = HashSet::default();
+        for receiver in self._receivers.iter() {
+            for event in receiver.try_iter().flatten() {
+                for path in event.paths.iter() {
+                    if let Some(p) = path.to_str() {
+                        if !p.ends_with('~') {
+                            paths.insert(p.to_string());
+                        }
+                    }
+                }
+            }
+        }
+
+        paths
+    }
+
+    pub fn module(&self) -> Result<ShaderModule, ShaderError> {
+        ShaderModule::new_from_source(self.source.clone())
+    }
+}
+
+fn file_watcher(
+    tx: Sender<notify::Result<Event>>,
+    path: &str,
+) -> notify::Result<RecommendedWatcher> {
+    let mut watcher = notify::recommended_watcher(move |res| {
+        tx.send(res).expect("sending watch event failed");
+    })?;
+    watcher.watch(path.as_ref(), RecursiveMode::NonRecursive)?;
+    Ok(watcher)
+}
+
+pub fn start_file_watcher(
+    path: &str,
+) -> (Receiver<notify::Result<Event>>, Option<RecommendedWatcher>) {
+    let (rx, watcher) = {
+        let (tx, rx) = unbounded::<notify::Result<Event>>();
+        match file_watcher(tx, path) {
+            Ok(watcher) => {
+                info!("Watching {} for changes", path);
+                (rx, Some(watcher))
+            }
+            Err(e) => {
+                error!("Shader {} file watcher failed: {:?}", path, e);
+                (rx, None)
+            }
+        }
+    };
+    (rx, watcher)
 }
 
 impl From<ShaderModule> for Module {
@@ -115,7 +228,7 @@ impl ShaderModule {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct ShaderSource {
     pub path: String,
     pub source: String,
