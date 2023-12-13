@@ -23,13 +23,15 @@ fn vs_main(
 ) -> VertexOutput {
     var out: VertexOutput;
     var world_position = vec4<f32>(0.0);
-    if (model.index == u32(0)) {
-        world_position = pc.start;
+    // if drawing buffer, position defines where to draw the line. pc.start = 1.0,1.0
+    // If drawing single line, push constant defines where to draw the line.
+    if ((model.index % 2u) == 0u) {
+        world_position = vec4<f32>(pc.start.xy * model.position.xy, 0.0, 1.0);
     } else {
-        world_position = pc.end;
+        world_position = vec4<f32>(pc.end.xy * model.position.xy, 0.0, 1.0);
     }
     out.clip_position = pc.view_proj * world_position;
-    out.color = pc.color;
+    out.color = pc.color * model.color;
     return out;
 }
 

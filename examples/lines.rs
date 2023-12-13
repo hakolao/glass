@@ -1,12 +1,12 @@
 use glam::{Mat4, Vec2, Vec3};
 use glass::{
     device_context::DeviceConfig,
-    pipelines::{Line, LinePipeline},
+    pipelines::{ColoredVertex, Line, LinePipeline},
     window::{GlassWindow, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use rapier2d::prelude::*;
-use wgpu::{Features, Limits, StoreOp};
+use wgpu::{util::DeviceExt, Buffer, Features, Limits, StoreOp};
 use winit::event_loop::EventLoop;
 
 const WIDTH: u32 = 1920;
@@ -44,6 +44,7 @@ struct LineApp {
     physics_world: PhysicsWorld,
     view_proj: Mat4,
     lines: DebugLines,
+    another_line_buffer: Option<Buffer>,
 }
 
 impl LineApp {
@@ -54,6 +55,7 @@ impl LineApp {
             physics_world: PhysicsWorld::new(Vec2::new(0.0, -9.81)),
             view_proj: camera_projection([WIDTH as f32, HEIGHT as f32]),
             lines: DebugLines::new(),
+            another_line_buffer: None,
         }
     }
 }
@@ -85,6 +87,29 @@ impl GlassApp for LineApp {
             ball_body_handle,
             &mut self.physics_world.rigid_body_set,
         );
+        let mut some_lines = vec![];
+        let line1 = Line::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(512.0, 512.0, 0.0), [
+            1.0, 0.0, 0.0, 1.0,
+        ]);
+        let line2 = Line::new(Vec3::new(512.0, 0.0, 0.0), Vec3::new(512.0, 512.0, 0.0), [
+            0.0, 1.0, 0.0, 1.0,
+        ]);
+        let line3 = Line::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(512.0, 0.0, 0.0), [
+            0.0, 0.0, 1.0, 1.0,
+        ]);
+        for line in [line1, line2, line3] {
+            some_lines.push(ColoredVertex::new_2d(line.start.truncate(), line.color));
+            some_lines.push(ColoredVertex::new_2d(line.end.truncate(), line.color));
+        }
+        let line_vertices =
+            context
+                .device()
+                .create_buffer_init(&wgpu::util::BufferInitDescriptor {
+                    label: Some("Line Buffer"),
+                    contents: bytemuck::cast_slice(&some_lines),
+                    usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
+                });
+        self.another_line_buffer = Some(line_vertices);
     }
 
     fn update(&mut self, _context: &mut GlassContext) {
@@ -142,6 +167,7 @@ impl GlassApp for LineApp {
             line_pipeline,
             view_proj,
             lines,
+            another_line_buffer,
             ..
         } = self;
         let RenderData {
@@ -170,6 +196,13 @@ impl GlassApp for LineApp {
         for line in lines.lines.iter() {
             line_pipeline.draw(&mut rpass, view_proj.to_cols_array_2d(), *line);
         }
+        let another_line_buffer = another_line_buffer.as_ref().unwrap();
+        line_pipeline.draw_line_buffer(
+            &mut rpass,
+            view_proj.to_cols_array_2d(),
+            another_line_buffer,
+            0..6,
+        )
     }
 }
 

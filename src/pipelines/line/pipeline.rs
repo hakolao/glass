@@ -1,7 +1,7 @@
-use std::borrow::Cow;
+use std::{borrow::Cow, ops::Range};
 
 use bytemuck::{Pod, Zeroable};
-use glam::Vec3;
+use glam::{Vec2, Vec3};
 use wgpu::{
     util::DeviceExt, Buffer, Device, PushConstantRange, RenderPass, RenderPipeline, ShaderStages,
 };
@@ -17,7 +17,7 @@ impl LinePipeline {
     pub fn new(device: &Device, color_target_state: wgpu::ColorTargetState) -> LinePipeline {
         let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&[ColoredVertex::default(); 2]),
+            contents: bytemuck::cast_slice(&[ColoredVertex::new_2d(Vec2::ONE, [1.0; 4]); 2]),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
         let pipeline = Self::new_render_pipeline(device, color_target_state);
@@ -86,6 +86,24 @@ impl LinePipeline {
         );
         rpass.draw(0..2, 0..1);
     }
+
+    /// Buffer should contain [`ColoredVertex`]
+    pub fn draw_line_buffer<'r>(
+        &'r self,
+        rpass: &mut RenderPass<'r>,
+        view_proj: [[f32; 4]; 4],
+        buffer: &'r Buffer,
+        vertices: Range<u32>,
+    ) {
+        rpass.set_pipeline(&self.pipeline);
+        rpass.set_vertex_buffer(0, buffer.slice(..));
+        rpass.set_push_constants(
+            ShaderStages::VERTEX_FRAGMENT,
+            0,
+            bytemuck::cast_slice(&[LinePushConstants::buffer(view_proj)]),
+        );
+        rpass.draw(vertices, 0..1);
+    }
 }
 
 #[repr(C)]
@@ -104,6 +122,15 @@ impl LinePushConstants {
             start: line.start.extend(1.0).to_array(),
             end: line.end.extend(1.0).to_array(),
             color: line.color,
+        }
+    }
+
+    pub fn buffer(view_proj: [[f32; 4]; 4]) -> LinePushConstants {
+        LinePushConstants {
+            view_proj,
+            start: Vec3::ONE.extend(1.0).to_array(),
+            end: Vec3::ONE.extend(1.0).to_array(),
+            color: [1.0; 4],
         }
     }
 }
