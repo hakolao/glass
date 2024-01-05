@@ -108,20 +108,6 @@ impl QuadPipeline {
         pipeline
     }
 
-    pub fn push_constants(
-        quad_pos: [f32; 4],
-        view_proj: [[f32; 4]; 4],
-        quad_size: [f32; 2],
-        aa_strength: f32,
-    ) -> QuadPushConstants {
-        QuadPushConstants {
-            quad_pos,
-            view_proj,
-            dims: quad_size,
-            aa_strength,
-        }
-    }
-
     pub fn create_bind_group(
         &self,
         device: &Device,
@@ -155,6 +141,54 @@ impl QuadPipeline {
         quad_size: [f32; 2],
         aa_strength: f32,
     ) {
+        self.draw_inner(
+            rpass,
+            bind_group,
+            quad_pos,
+            view_proj,
+            quad_size,
+            [0.0; 2],
+            [1.0, 1.0],
+            aa_strength,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    pub fn draw_with_uv<'r>(
+        &'r self,
+        rpass: &mut RenderPass<'r>,
+        bind_group: &'r BindGroup,
+        quad_pos: [f32; 4],
+        view_proj: [[f32; 4]; 4],
+        quad_size: [f32; 2],
+        uv_offset: [f32; 2],
+        uv_scale: [f32; 2],
+        aa_strength: f32,
+    ) {
+        self.draw_inner(
+            rpass,
+            bind_group,
+            quad_pos,
+            view_proj,
+            quad_size,
+            uv_offset,
+            uv_scale,
+            aa_strength,
+        );
+    }
+
+    #[allow(clippy::too_many_arguments)]
+    fn draw_inner<'r>(
+        &'r self,
+        rpass: &mut RenderPass<'r>,
+        bind_group: &'r BindGroup,
+        quad_pos: [f32; 4],
+        view_proj: [[f32; 4]; 4],
+        quad_size: [f32; 2],
+        uv_offset: [f32; 2],
+        uv_scale: [f32; 2],
+        aa_strength: f32,
+    ) {
         rpass.set_pipeline(&self.pipeline);
         rpass.set_bind_group(0, bind_group, &[]);
         rpass.set_vertex_buffer(0, self.vertices.slice(..));
@@ -166,10 +200,30 @@ impl QuadPipeline {
                 quad_pos,
                 view_proj,
                 quad_size,
+                uv_offset,
+                uv_scale,
                 aa_strength,
             )]),
         );
         rpass.draw_indexed(0..(QUAD_INDICES.len() as u32), 0, 0..1);
+    }
+
+    fn push_constants(
+        quad_pos: [f32; 4],
+        view_proj: [[f32; 4]; 4],
+        quad_size: [f32; 2],
+        uv_offset: [f32; 2],
+        uv_scale: [f32; 2],
+        aa_strength: f32,
+    ) -> QuadPushConstants {
+        QuadPushConstants {
+            quad_pos,
+            view_proj,
+            dims: quad_size,
+            uv_offset,
+            uv_scale,
+            aa_strength,
+        }
     }
 }
 
@@ -180,5 +234,7 @@ pub struct QuadPushConstants {
     pub quad_pos: [f32; 4],
     pub view_proj: [[f32; 4]; 4],
     pub dims: [f32; 2],
+    pub uv_offset: [f32; 2],
+    pub uv_scale: [f32; 2],
     pub aa_strength: f32,
 }

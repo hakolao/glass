@@ -2,6 +2,8 @@ struct PushConstants {
     quad_pos: vec4<f32>,
     view_proj: mat4x4<f32>,
     dims: vec2<f32>,
+    uv_offset: vec2<f32>,
+    uv_scale: vec2<f32>,
     aa_strength: f32,
 }
 var<push_constant> pc: PushConstants;
@@ -23,7 +25,7 @@ fn vs_main(
     model: VertexInput,
 ) -> VertexOutput {
     var out: VertexOutput;
-    out.tex_coords = model.tex_coords;
+    out.tex_coords = (model.tex_coords + pc.uv_offset) / pc.uv_scale;
     let world_position = vec4<f32>(pc.dims, 0.0, 1.0) *
         // Scale vertices
         model.position +
