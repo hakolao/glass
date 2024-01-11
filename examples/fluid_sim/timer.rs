@@ -33,6 +33,7 @@ impl Timer {
         self.time.elapsed().as_nanos() as f64 * 1.0e-6
     }
 
+    #[allow(unused)]
     pub fn time_since_last_update_sec(&self) -> f64 {
         self.end() / 1000.0
     }
@@ -60,6 +61,7 @@ impl Timer {
         self.delta
     }
 
+    #[allow(unused)]
     pub fn dt_sec(&self) -> f64 {
         self.delta / 1000.0
     }

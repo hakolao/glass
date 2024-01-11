@@ -58,8 +58,10 @@ fn initialize_gui_app(
     context: &mut GlassContext,
     event_loop: &EventLoopWindowTarget<()>,
 ) {
+    let ctx = egui::Context::default();
     let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;
     let egui_winit = egui_winit::State::new(
+        ctx.clone(),
         ViewportId::ROOT,
         event_loop,
         Some(pixels_per_point),
@@ -72,7 +74,7 @@ fn initialize_gui_app(
         1,
     );
     app.gui = Some(GuiState {
-        egui_ctx: egui::Context::default(),
+        egui_ctx: ctx,
         egui_winit,
         renderer,
         repaint: false,
@@ -80,20 +82,24 @@ fn initialize_gui_app(
     });
 }
 
-fn update_egui_with_winit_event(app: &mut GuiApp, _context: &mut GlassContext, event: &Event<()>) {
+fn update_egui_with_winit_event(app: &mut GuiApp, context: &mut GlassContext, event: &Event<()>) {
     match event {
         Event::WindowEvent {
-            event, ..
+            window_id,
+            event,
+            ..
         } => {
             let gui = app.gui();
-            let EventResponse {
-                consumed,
-                repaint,
-            } = gui.egui_winit.on_window_event(&gui.egui_ctx, event);
-            gui.repaint = repaint;
-            // Skip input if event was consumed by egui
-            if consumed {
-                return;
+            if let Some(window) = context.render_window(*window_id) {
+                let EventResponse {
+                    consumed,
+                    repaint,
+                } = gui.egui_winit.on_window_event(window.window(), event);
+                gui.repaint = repaint;
+                // Skip input if event was consumed by egui
+                if consumed {
+                    return;
+                }
             }
         }
         _ => {}

@@ -7,12 +7,13 @@ use glass::{
     wgpu::{BlendState, ColorTargetState, ColorWrites, Extent3d, TextureFormat, TextureUsages},
     window::GlassWindow,
     winit::{
-        event::{Event, VirtualKeyCode},
+        event::Event,
         event_loop::{EventLoop, EventLoopWindowTarget},
     },
     GlassApp, GlassContext, RenderData,
 };
 use wgpu::StoreOp;
+use winit::keyboard::KeyCode;
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
@@ -77,7 +78,7 @@ impl GlassApp for FluidSimApp {
         &mut self,
         _context: &mut GlassContext,
         _event_loop: &EventLoopWindowTarget<()>,
-        event: &Event<'_, ()>,
+        event: &Event<()>,
     ) {
         self.input.update(event);
     }
@@ -87,7 +88,7 @@ impl GlassApp for FluidSimApp {
             .primary_render_window()
             .window()
             .set_title(&format!("FPS: {:.3}", self.timer.avg_fps()));
-        let scroll_diff = self.input.scroll_diff();
+        let (_, scroll_diff) = self.input.scroll_diff();
         if scroll_diff > 0.0 {
             self.camera.set_scale(self.camera.scale() / 1.05);
         } else if scroll_diff < 0.0 {
@@ -97,22 +98,22 @@ impl GlassApp for FluidSimApp {
             self.resize(context);
         }
         // Read inputs state
-        if self.input.key_pressed(VirtualKeyCode::Space) {
+        if self.input.key_pressed(KeyCode::Space) {
             self.fluid_scene.toggle_pause();
         }
-        if self.input.key_pressed(VirtualKeyCode::R) {
+        if self.input.key_pressed(KeyCode::KeyR) {
             self.fluid_scene.reset();
         }
-        if self.input.key_pressed(VirtualKeyCode::G) {
+        if self.input.key_pressed(KeyCode::KeyG) {
             self.fluid_scene.toggle_grid();
         }
-        if self.input.key_pressed(VirtualKeyCode::P) {
+        if self.input.key_pressed(KeyCode::KeyP) {
             self.fluid_scene.toggle_particles();
         }
-        if self.input.key_pressed(VirtualKeyCode::F) {
+        if self.input.key_pressed(KeyCode::KeyF) {
             self.fluid_scene.toggle_gravity();
         }
-        if let Some((x, y)) = self.input.mouse() {
+        if let Some((x, y)) = self.input.cursor() {
             let screen_size = context.primary_render_window().surface_size();
             let scale_factor = context.primary_render_window().window().scale_factor() as f32;
             let pos = cursor_to_world(

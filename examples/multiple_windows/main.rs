@@ -3,8 +3,9 @@ use glass::{
 };
 use wgpu::{Color, StoreOp};
 use winit::{
-    event::{DeviceEvent, ElementState, Event, VirtualKeyCode},
+    event::{DeviceEvent, ElementState, Event},
     event_loop::{EventLoop, EventLoopWindowTarget},
+    keyboard::{KeyCode, PhysicalKey},
     window::WindowId,
 };
 
@@ -55,21 +56,21 @@ impl GlassApp for MultiWindowApp {
             ..
         } = event
         {
-            if let Some(key) = input.virtual_keycode {
-                if key == VirtualKeyCode::Space && input.state == ElementState::Pressed {
-                    // Create window
-                    self.window_ids.push(
-                        context
-                            .create_window(event_loop, WindowConfig {
-                                width: WIDTH,
-                                height: HEIGHT,
-                                exit_on_esc: true,
-                                ..WindowConfig::default()
-                            })
-                            .unwrap(),
-                    );
-                    println!("Window ids: {:#?}", self.window_ids);
-                }
+            if input.physical_key == PhysicalKey::Code(KeyCode::Space)
+                && input.state == ElementState::Pressed
+            {
+                // Create window
+                self.window_ids.push(
+                    context
+                        .create_window(event_loop, WindowConfig {
+                            width: WIDTH,
+                            height: HEIGHT,
+                            exit_on_esc: true,
+                            ..WindowConfig::default()
+                        })
+                        .unwrap(),
+                );
+                println!("Window ids: {:#?}", self.window_ids);
             }
         }
     }
