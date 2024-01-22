@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use wgpu::{
-    Adapter, Backends, Device, DeviceDescriptor, Instance, InstanceDescriptor, Limits,
-    PowerPreference, Queue, RequestAdapterOptions, Surface,
+    Adapter, Backends, Device, DeviceDescriptor, Instance, InstanceDescriptor, InstanceFlags,
+    Limits, PowerPreference, Queue, RequestAdapterOptions, Surface,
 };
 use winit::window::Window;
 
@@ -14,6 +14,7 @@ pub struct DeviceConfig {
     pub features: wgpu::Features,
     pub limits: Limits,
     pub backends: Backends,
+    pub instance_flags: InstanceFlags,
 }
 
 impl DeviceConfig {
@@ -23,6 +24,7 @@ impl DeviceConfig {
             features: wgpu::Features::empty(),
             limits: Limits::default(),
             backends: Backends::all(),
+            instance_flags: InstanceFlags::empty(),
         }
     }
 }
@@ -34,6 +36,7 @@ impl Default for DeviceConfig {
             features: wgpu::Features::empty(),
             limits: Limits::default(),
             backends: Backends::all(),
+            instance_flags: InstanceFlags::from_build_config(),
         }
     }
 }
@@ -58,6 +61,7 @@ impl DeviceContext {
     ) -> Result<DeviceContext, GlassError> {
         let instance = Instance::new(InstanceDescriptor {
             backends: config.backends,
+            flags: config.instance_flags,
             ..Default::default()
         });
         // Ensure render context is compatible with our window...

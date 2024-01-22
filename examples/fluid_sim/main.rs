@@ -15,6 +15,7 @@ use glass::{
     window::WindowConfig,
     Glass, GlassConfig, GlassError,
 };
+use wgpu::InstanceFlags;
 
 use crate::app::{FluidSimApp, HEIGHT, WIDTH};
 
@@ -29,6 +30,7 @@ fn config() -> GlassConfig {
                 ..Limits::default()
             },
             backends: Backends::all(),
+            instance_flags: InstanceFlags::from_build_config(),
         },
         window_configs: vec![WindowConfig {
             width: WIDTH,

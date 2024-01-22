@@ -11,9 +11,9 @@ use glass::{
 };
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandEncoder, ComputePassDescriptor,
-    ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode, Limits, PowerPreference,
-    PresentMode, PushConstantRange, SamplerDescriptor, ShaderStages, StorageTextureAccess, StoreOp,
-    TextureFormat, TextureUsages,
+    ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode, InstanceFlags, Limits,
+    PowerPreference, PresentMode, PushConstantRange, SamplerDescriptor, ShaderStages,
+    StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
 };
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
@@ -42,6 +42,7 @@ fn config() -> GlassConfig {
                 ..Limits::default()
             },
             backends: Backends::all(),
+            instance_flags: InstanceFlags::from_build_config(),
         },
         window_configs: vec![WindowConfig {
             width: WIDTH,
