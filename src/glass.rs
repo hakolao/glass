@@ -149,7 +149,7 @@ impl Glass {
         runner_state: &mut RunnerState,
     ) {
         self.app.update(context);
-        // Close window(s)
+
         if runner_state.request_window_close || context.exit {
             for window in runner_state.remove_windows.iter() {
                 context.windows.remove(window);
@@ -164,12 +164,10 @@ impl Glass {
 
         self.render(context);
 
-        // End of frame
         self.app.end_of_frame(context);
     }
 
     fn render(&mut self, context: &mut GlassContext) {
-        // Render
         for (_, window) in context.windows.iter() {
             match window.surface().get_current_texture() {
                 Ok(frame) => {
