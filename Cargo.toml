@@ -39,6 +39,9 @@ egui_demo_lib = { version = "0.25" }
 winit_input_helper = "0.15"
 rapier2d = { version = "0.17.2", features = ["default", "debug-render"] }
 
+[lints.clippy]
+blocks_in_conditions = "allow"
+
 [profile.dev]
 opt-level = 3
 
