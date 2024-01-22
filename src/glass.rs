@@ -46,8 +46,10 @@ impl Glass {
         };
         let mut context = GlassContext::new(&event_loop, self.config.clone())?;
         self.app.start(&event_loop, &mut context);
-        let mut remove_windows = vec![];
-        let mut request_window_close = false;
+        let mut runner_state = RunnerState::default();
+        // Run update at start
+        runner_state.run_update = true;
+        runner_state.is_start = true;
 
         match event_loop.run(move |event, event_loop| {
             event_loop.set_control_flow(ControlFlow::Poll);
@@ -56,6 +58,12 @@ impl Glass {
             if !event_loop.exiting() {
                 self.app.input(&mut context, event_loop, &event);
             }
+            // We want to trigger one update before any render. Resizes (at app start trigger renders)
+            if !runner_state.is_start {
+                runner_state.run_update = false;
+            }
+            runner_state.render_without_update = false;
+
             match event {
                 Event::WindowEvent {
                     window_id,
@@ -71,6 +79,7 @@ impl Glass {
                                         context.device_context.device(),
                                         physical_size,
                                     );
+                                    runner_state.render_without_update = true;
                                 }
                             }
                             WindowEvent::ScaleFactorChanged {
@@ -81,6 +90,7 @@ impl Glass {
                                     context.device_context.device(),
                                     size,
                                 );
+                                runner_state.render_without_update = true;
                             }
                             WindowEvent::KeyboardInput {
                                 event,
@@ -93,76 +103,24 @@ impl Glass {
                                     && window.is_focused()
                                     && event.state == ElementState::Pressed
                                 {
-                                    request_window_close = true;
-                                    remove_windows.push(window_id);
+                                    runner_state.request_window_close = true;
+                                    runner_state.remove_windows.push(window_id);
                                 }
                             }
                             WindowEvent::Focused(has_focus) => {
                                 window.set_focus(has_focus);
                             }
                             WindowEvent::CloseRequested => {
-                                request_window_close = true;
-                                remove_windows.push(window_id);
+                                runner_state.request_window_close = true;
+                                runner_state.remove_windows.push(window_id);
                             }
+
                             _ => (),
                         }
                     }
                 }
                 Event::AboutToWait => {
-                    if !event_loop.exiting() {
-                        self.app.update(&mut context);
-                        // Close window(s)
-                        if request_window_close || context.exit {
-                            for window in remove_windows.iter() {
-                                context.windows.remove(window);
-                            }
-                            remove_windows.clear();
-                            request_window_close = false;
-                            // Exit
-                            if context.windows.is_empty() || context.exit {
-                                event_loop.exit();
-                            }
-                        }
-                        // Render
-                        for (_, window) in context.windows.iter() {
-                            match window.surface().get_current_texture() {
-                                Ok(frame) => {
-                                    let mut encoder = context
-                                        .device_context
-                                        .device()
-                                        .create_command_encoder(&wgpu::CommandEncoderDescriptor {
-                                            label: Some("Render Commands"),
-                                        });
-
-                                    // Run render
-                                    self.app.render(&context, RenderData {
-                                        encoder: &mut encoder,
-                                        window,
-                                        frame: &frame,
-                                    });
-
-                                    context
-                                        .device_context
-                                        .queue()
-                                        .submit(Some(encoder.finish()));
-
-                                    frame.present();
-
-                                    self.app.after_render(&context);
-                                }
-                                Err(error) => {
-                                    if error == wgpu::SurfaceError::OutOfMemory {
-                                        panic!(
-                                            "Swapchain error: {error}. Rendering cannot continue."
-                                        )
-                                    }
-                                }
-                            }
-                            window.window().request_redraw();
-                        }
-                        // End of frame
-                        self.app.end_of_frame(&mut context);
-                    }
+                    runner_state.run_update = true;
                 }
                 Event::LoopExiting => {
                     // Run end
@@ -170,11 +128,91 @@ impl Glass {
                 }
                 _ => {}
             }
+            if !event_loop.exiting() {
+                if runner_state.run_update {
+                    self.run_update(event_loop, &mut context, &mut runner_state);
+                    runner_state.is_start = false;
+                } else if runner_state.render_without_update {
+                    self.render(&mut context);
+                }
+            }
         }) {
             Err(e) => Err(GlassError::EventLoopError(e)),
             Ok(a) => Ok(a),
         }
     }
+
+    fn run_update(
+        &mut self,
+        event_loop: &EventLoopWindowTarget<()>,
+        context: &mut GlassContext,
+        runner_state: &mut RunnerState,
+    ) {
+        self.app.update(context);
+        // Close window(s)
+        if runner_state.request_window_close || context.exit {
+            for window in runner_state.remove_windows.iter() {
+                context.windows.remove(window);
+            }
+            runner_state.remove_windows.clear();
+            runner_state.request_window_close = false;
+            // Exit
+            if context.windows.is_empty() || context.exit {
+                event_loop.exit();
+            }
+        }
+
+        self.render(context);
+
+        // End of frame
+        self.app.end_of_frame(context);
+    }
+
+    fn render(&mut self, context: &mut GlassContext) {
+        // Render
+        for (_, window) in context.windows.iter() {
+            match window.surface().get_current_texture() {
+                Ok(frame) => {
+                    let mut encoder = context.device_context.device().create_command_encoder(
+                        &wgpu::CommandEncoderDescriptor {
+                            label: Some("Render Commands"),
+                        },
+                    );
+
+                    // Run render
+                    self.app.render(context, RenderData {
+                        encoder: &mut encoder,
+                        window,
+                        frame: &frame,
+                    });
+
+                    context
+                        .device_context
+                        .queue()
+                        .submit(Some(encoder.finish()));
+
+                    frame.present();
+
+                    self.app.after_render(context);
+                }
+                Err(error) => {
+                    if error == wgpu::SurfaceError::OutOfMemory {
+                        panic!("Swapchain error: {error}. Rendering cannot continue.")
+                    }
+                }
+            }
+            window.window().request_redraw();
+        }
+    }
+}
+
+#[derive(Default)]
+struct RunnerState {
+    is_start: bool,
+    run_update: bool,
+    request_window_close: bool,
+    render_without_update: bool,
+    remove_windows: Vec<WindowId>,
 }
 
 /// Configuration of your windows and devices.

@@ -41,6 +41,7 @@ rapier2d = { version = "0.17.2", features = ["default", "debug-render"] }
 
 [lints.clippy]
 blocks_in_conditions = "allow"
+field_reassign_with_default = "allow"
 
 [profile.dev]
 opt-level = 3
