@@ -49,7 +49,6 @@ impl Glass {
         let mut runner_state = RunnerState::default();
         // Run update at start
         runner_state.run_update = true;
-        runner_state.is_start = true;
 
         match event_loop.run(move |event, event_loop| {
             event_loop.set_control_flow(ControlFlow::Poll);
@@ -58,11 +57,8 @@ impl Glass {
             if !event_loop.exiting() {
                 self.app.input(&mut context, event_loop, &event);
             }
-            // We want to trigger one update before any render. Resizes (at app start trigger renders)
-            if !runner_state.is_start {
-                runner_state.run_update = false;
-            }
-            runner_state.render_without_update = false;
+
+            runner_state.run_update = false;
 
             match event {
                 Event::WindowEvent {
@@ -79,7 +75,7 @@ impl Glass {
                                         context.device_context.device(),
                                         physical_size,
                                     );
-                                    runner_state.render_without_update = true;
+                                    runner_state.run_update = true;
                                 }
                             }
                             WindowEvent::ScaleFactorChanged {
@@ -90,7 +86,7 @@ impl Glass {
                                     context.device_context.device(),
                                     size,
                                 );
-                                runner_state.render_without_update = true;
+                                runner_state.run_update = true;
                             }
                             WindowEvent::KeyboardInput {
                                 event,
@@ -128,13 +124,8 @@ impl Glass {
                 }
                 _ => {}
             }
-            if !event_loop.exiting() {
-                if runner_state.run_update {
-                    self.run_update(event_loop, &mut context, &mut runner_state);
-                    runner_state.is_start = false;
-                } else if runner_state.render_without_update {
-                    self.render(&mut context);
-                }
+            if !event_loop.exiting() && runner_state.run_update {
+                self.run_update(event_loop, &mut context, &mut runner_state);
             }
         }) {
             Err(e) => Err(GlassError::EventLoopError(e)),
@@ -206,10 +197,8 @@ impl Glass {
 
 #[derive(Default)]
 struct RunnerState {
-    is_start: bool,
     run_update: bool,
     request_window_close: bool,
-    render_without_update: bool,
     remove_windows: Vec<WindowId>,
 }
 
