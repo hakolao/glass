@@ -22,6 +22,7 @@ pub struct WindowConfig {
     pub present_mode: PresentMode,
     pub alpha_mode: CompositeAlphaMode,
     pub surface_format: TextureFormat,
+    pub desired_maximum_frame_latency: u32,
     pub max_size: Option<LogicalSize<u32>>,
     pub min_size: Option<LogicalSize<u32>>,
     pub exit_on_esc: bool,
@@ -37,6 +38,7 @@ impl Default for WindowConfig {
             present_mode: PresentMode::AutoVsync,
             alpha_mode: CompositeAlphaMode::Auto,
             surface_format: GlassWindow::default_surface_format(),
+            desired_maximum_frame_latency: 2,
             exit_on_esc: false,
             max_size: None,
             min_size: None,
@@ -72,6 +74,7 @@ pub struct GlassWindow {
     present_mode: PresentMode,
     alpha_mode: CompositeAlphaMode,
     surface_format: TextureFormat,
+    desired_maximum_frame_latency: u32,
     exit_on_esc: bool,
     has_focus: bool,
     last_surface_size: [u32; 2],
@@ -105,6 +108,7 @@ impl GlassWindow {
             alpha_mode: config.alpha_mode,
             surface_format: config.surface_format,
             exit_on_esc: config.exit_on_esc,
+            desired_maximum_frame_latency: config.desired_maximum_frame_latency,
             has_focus: false,
             last_surface_size: size,
         })
@@ -120,7 +124,7 @@ impl GlassWindow {
             present_mode: self.present_mode,
             alpha_mode: self.alpha_mode,
             view_formats: vec![],
-            desired_maximum_frame_latency: 2,
+            desired_maximum_frame_latency: self.desired_maximum_frame_latency,
         };
         self.configure_surface(device, &config);
         self.last_surface_size = [size.width, size.height];
@@ -131,6 +135,8 @@ impl GlassWindow {
         self.surface.configure(device, config);
         self.present_mode = config.present_mode;
         self.alpha_mode = config.alpha_mode;
+        self.surface_format = config.format;
+        self.desired_maximum_frame_latency = config.desired_maximum_frame_latency;
         self.last_surface_size = [config.width, config.height];
     }
 
