@@ -57,7 +57,7 @@ unsafe impl Sync for DeviceContext {}
 impl DeviceContext {
     pub fn new(
         config: &DeviceConfig,
-        initial_windows: &[(WindowConfig, Window)],
+        initial_windows: &[(WindowConfig, Arc<Window>)],
     ) -> Result<DeviceContext, GlassError> {
         let instance = Instance::new(InstanceDescriptor {
             backends: config.backends,
@@ -66,11 +66,9 @@ impl DeviceContext {
         });
         // Ensure render context is compatible with our window...
         let surface_maybe = if let Some((_c, w)) = initial_windows.first() {
-            Some(unsafe {
-                match instance.create_surface(&w) {
-                    Ok(s) => s,
-                    Err(e) => return Err(GlassError::SurfaceError(e)),
-                }
+            Some(match instance.create_surface(w.clone()) {
+                Ok(s) => s,
+                Err(e) => return Err(GlassError::SurfaceError(e)),
             })
         } else {
             None
@@ -129,8 +127,8 @@ impl DeviceContext {
         let (device, queue) = match wait_async(adapter.request_device(
             &DeviceDescriptor {
                 label: None,
-                features: config.features,
-                limits: config.limits.clone(),
+                required_features: config.features,
+                required_limits: config.limits.clone(),
             },
             if cfg!(feature = "trace") { path } else { None },
         )) {

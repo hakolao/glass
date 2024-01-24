@@ -389,7 +389,11 @@ impl GlassContext {
         Ok(id)
     }
 
-    fn add_window(&mut self, config: WindowConfig, window: Window) -> Result<WindowId, GlassError> {
+    fn add_window(
+        &mut self,
+        config: WindowConfig,
+        window: Arc<Window>,
+    ) -> Result<WindowId, GlassError> {
         let id = window.id();
         let render_window = match GlassWindow::new(&self.device_context, config, window) {
             Ok(window) => window,
@@ -402,7 +406,7 @@ impl GlassContext {
     fn create_winit_window(
         event_loop: &EventLoopWindowTarget<()>,
         config: &WindowConfig,
-    ) -> Result<Window, GlassError> {
+    ) -> Result<Arc<Window>, GlassError> {
         let mut window_builder = winit::window::WindowBuilder::new()
             .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
             .with_title(config.title);
@@ -453,7 +457,7 @@ impl GlassContext {
         };
 
         match window_builder.build(event_loop) {
-            Ok(w) => Ok(w),
+            Ok(w) => Ok(Arc::new(w)),
             Err(e) => Err(GlassError::WindowError(e)),
         }
     }

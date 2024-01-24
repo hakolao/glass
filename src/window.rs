@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use glam::IVec2;
 use wgpu::{
     CompositeAlphaMode, CreateSurfaceError, Device, PresentMode, Surface, SurfaceConfiguration,
@@ -65,8 +67,8 @@ pub enum SurfaceError {
 }
 
 pub struct GlassWindow {
-    window: Window,
-    surface: Surface,
+    window: Arc<Window>,
+    surface: Surface<'static>,
     present_mode: PresentMode,
     alpha_mode: CompositeAlphaMode,
     surface_format: TextureFormat,
@@ -80,14 +82,12 @@ impl GlassWindow {
     pub fn new(
         context: &DeviceContext,
         config: WindowConfig,
-        window: Window,
+        window: Arc<Window>,
     ) -> Result<GlassWindow, CreateSurfaceError> {
         let size = [window.inner_size().width, window.inner_size().height];
-        let surface = unsafe {
-            match context.instance().create_surface(&window) {
-                Ok(surface) => surface,
-                Err(e) => return Err(e),
-            }
+        let surface = match context.instance().create_surface(window.clone()) {
+            Ok(surface) => surface,
+            Err(e) => return Err(e),
         };
         let allowed_formats = GlassWindow::allowed_surface_formats();
         if !(config.surface_format == allowed_formats[0]
@@ -120,6 +120,7 @@ impl GlassWindow {
             present_mode: self.present_mode,
             alpha_mode: self.alpha_mode,
             view_formats: vec![],
+            desired_maximum_frame_latency: 2,
         };
         self.configure_surface(device, &config);
         self.last_surface_size = [size.width, size.height];

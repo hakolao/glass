@@ -8,9 +8,9 @@ use std::{
 
 use flume::{unbounded, Receiver, Sender};
 use log::{error, info};
-use naga::Module;
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use path_clean::PathClean;
+use wgpu::naga::Module;
 
 pub fn wait_async<F: Future>(fut: F) -> F::Output {
     pollster::block_on(fut)
@@ -217,7 +217,7 @@ impl ShaderModule {
     }
 
     pub fn new_from_source(source: ShaderSource) -> Result<ShaderModule, ShaderError> {
-        let mut wgsl_parser = naga::front::wgsl::Frontend::new();
+        let mut wgsl_parser = wgpu::naga::front::wgsl::Frontend::new();
         match wgsl_parser.parse(&source.source) {
             Ok(module) => Ok(ShaderModule {
                 module,
