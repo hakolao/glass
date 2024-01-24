@@ -24,7 +24,7 @@ impl DeviceConfig {
             features: wgpu::Features::empty(),
             limits: Limits::default(),
             backends: Backends::all(),
-            instance_flags: InstanceFlags::VALIDATION,
+            instance_flags: InstanceFlags::from_build_config(),
         }
     }
 }
