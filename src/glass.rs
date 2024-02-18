@@ -143,7 +143,7 @@ impl Glass {
 
         if runner_state.request_window_close || context.exit {
             for window in runner_state.remove_windows.iter() {
-                context.windows.remove(window);
+                context.windows.swap_remove(window);
             }
             runner_state.remove_windows.clear();
             runner_state.request_window_close = false;
