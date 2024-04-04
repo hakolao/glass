@@ -39,12 +39,38 @@ impl Glass {
         }
     }
 
-    pub fn run(mut self) -> Result<(), GlassError> {
+    pub fn run(self) -> Result<(), GlassError> {
         let event_loop = match EventLoop::new() {
             Ok(e) => e,
             Err(e) => return Err(GlassError::EventLoopError(e)),
         };
-        let mut context = GlassContext::new(&event_loop, self.config.clone())?;
+        let context = GlassContext::new(&event_loop, self.config.clone())?;
+        self.run_inner(event_loop, context)
+    }
+
+    /// This is useful, if you want to avoid `Option<T>` within your app for anything that depends
+    /// on `Device` context
+    pub fn new_and_run(
+        config: GlassConfig,
+        mut app_create_fn: impl FnMut(&EventLoop<()>, &mut GlassContext) -> Box<dyn GlassApp>,
+    ) -> Result<(), GlassError> {
+        let event_loop = match EventLoop::new() {
+            Ok(e) => e,
+            Err(e) => return Err(GlassError::EventLoopError(e)),
+        };
+        let mut context = GlassContext::new(&event_loop, config.clone())?;
+        Glass {
+            app: app_create_fn(&event_loop, &mut context),
+            config,
+        }
+        .run_inner(event_loop, context)
+    }
+
+    fn run_inner(
+        mut self,
+        event_loop: EventLoop<()>,
+        mut context: GlassContext,
+    ) -> Result<(), GlassError> {
         self.app.start(&event_loop, &mut context);
         let mut runner_state = RunnerState::default();
         // Run update at start

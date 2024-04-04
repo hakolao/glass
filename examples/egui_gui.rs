@@ -6,20 +6,17 @@ use glass::{
     window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{CommandEncoder, StoreOp, TextureView};
-use winit::{
-    event::Event,
-    event_loop::{EventLoop, EventLoopWindowTarget},
-};
+use winit::{event::Event, event_loop::EventLoopWindowTarget};
 
 fn main() -> Result<(), GlassError> {
-    Glass::new(GuiApp::default(), GlassConfig::default()).run()
+    Glass::new_and_run(GlassConfig::default(), |event_loop, context| {
+        Box::new(GuiApp {
+            gui: GuiState::new(event_loop, context),
+        })
+    })
 }
 
 impl GlassApp for GuiApp {
-    fn start(&mut self, event_loop: &EventLoop<()>, context: &mut GlassContext) {
-        initialize_gui_app(self, context, event_loop);
-    }
-
     fn input(
         &mut self,
         context: &mut GlassContext,
@@ -34,15 +31,8 @@ impl GlassApp for GuiApp {
     }
 }
 
-#[derive(Default)]
 struct GuiApp {
-    gui: Option<GuiState>,
-}
-
-impl GuiApp {
-    fn gui(&mut self) -> &mut GuiState {
-        self.gui.as_mut().unwrap()
-    }
+    gui: GuiState,
 }
 
 struct GuiState {
@@ -53,33 +43,31 @@ struct GuiState {
     ui_app: DemoWindows,
 }
 
-fn initialize_gui_app(
-    app: &mut GuiApp,
-    context: &mut GlassContext,
-    event_loop: &EventLoopWindowTarget<()>,
-) {
-    let ctx = egui::Context::default();
-    let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;
-    let egui_winit = egui_winit::State::new(
-        ctx.clone(),
-        ViewportId::ROOT,
-        event_loop,
-        Some(pixels_per_point),
-        Some(context.device().limits().max_texture_dimension_2d as usize),
-    );
-    let renderer = egui_wgpu::Renderer::new(
-        context.device(),
-        GlassWindow::default_surface_format(),
-        None,
-        1,
-    );
-    app.gui = Some(GuiState {
-        egui_ctx: ctx,
-        egui_winit,
-        renderer,
-        repaint: false,
-        ui_app: egui_demo_lib::DemoWindows::default(),
-    });
+impl GuiState {
+    fn new(event_loop: &EventLoopWindowTarget<()>, context: &mut GlassContext) -> GuiState {
+        let ctx = egui::Context::default();
+        let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;
+        let egui_winit = egui_winit::State::new(
+            ctx.clone(),
+            ViewportId::ROOT,
+            event_loop,
+            Some(pixels_per_point),
+            Some(context.device().limits().max_texture_dimension_2d as usize),
+        );
+        let renderer = egui_wgpu::Renderer::new(
+            context.device(),
+            GlassWindow::default_surface_format(),
+            None,
+            1,
+        );
+        GuiState {
+            egui_ctx: ctx,
+            egui_winit,
+            renderer,
+            repaint: false,
+            ui_app: egui_demo_lib::DemoWindows::default(),
+        }
+    }
 }
 
 fn update_egui_with_winit_event(app: &mut GuiApp, context: &mut GlassContext, event: &Event<()>) {
@@ -89,7 +77,7 @@ fn update_egui_with_winit_event(app: &mut GuiApp, context: &mut GlassContext, ev
             event,
             ..
         } => {
-            let gui = app.gui();
+            let gui = &mut app.gui;
             if let Some(window) = context.render_window(*window_id) {
                 let EventResponse {
                     consumed,
@@ -132,7 +120,7 @@ fn render_egui(
         egui_winit,
         ui_app,
         ..
-    } = app.gui();
+    } = &mut app.gui;
     let raw_input = egui_winit.take_egui_input(window.window());
     let FullOutput {
         shapes,

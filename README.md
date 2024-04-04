@@ -14,6 +14,8 @@ Example:
 ```rust
 fn main() {
     Glass::new(MyApp, GlassConfig::default()).run();
+    // Or if you want to avoid Device dependent Option<T> types within your app
+    Glass::new_and_run(GlassConfig::default(), |e, context| MyApp::new(context));
 }
 
 // Organize your app in anyway you like
