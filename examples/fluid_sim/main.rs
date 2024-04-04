@@ -10,7 +10,6 @@ mod timer;
 
 use glass::{
     device_context::DeviceConfig,
-    wgpu,
     wgpu::{Backends, Limits, PowerPreference, PresentMode},
     window::WindowConfig,
     Glass, GlassConfig, GlassError,

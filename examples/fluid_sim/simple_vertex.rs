@@ -1,5 +1,4 @@
 use bytemuck::{Pod, Zeroable};
-use glass::wgpu;
 
 /// A vertex with position
 #[repr(C)]

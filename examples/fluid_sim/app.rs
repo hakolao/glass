@@ -3,7 +3,6 @@ use glass::{
     egui::Color32,
     pipelines::QuadPipeline,
     texture::Texture,
-    wgpu,
     wgpu::{BlendState, ColorTargetState, ColorWrites, Extent3d, TextureFormat, TextureUsages},
     window::GlassWindow,
     winit::{

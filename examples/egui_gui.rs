@@ -1,6 +1,6 @@
 use egui::{FullOutput, ViewportId};
 use egui_demo_lib::DemoWindows;
-use egui_wgpu::renderer::ScreenDescriptor;
+use egui_wgpu::ScreenDescriptor;
 use egui_winit::EventResponse;
 use glass::{
     window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,

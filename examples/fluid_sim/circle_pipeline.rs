@@ -1,12 +1,9 @@
 use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
-use glass::{
-    wgpu,
-    wgpu::{
-        util::DeviceExt, BindGroup, Buffer, Device, PushConstantRange, RenderPass, RenderPipeline,
-        ShaderStages,
-    },
+use glass::wgpu::{
+    util::DeviceExt, BindGroup, Buffer, Device, PushConstantRange, RenderPass, RenderPipeline,
+    ShaderStages,
 };
 
 use crate::{
