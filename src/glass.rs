@@ -52,7 +52,7 @@ impl Glass {
     /// on `Device` context
     pub fn new_and_run(
         config: GlassConfig,
-        mut app_create_fn: impl FnMut(&EventLoop<()>, &mut GlassContext) -> Box<dyn GlassApp>,
+        app_create_fn: impl FnOnce(&EventLoop<()>, &mut GlassContext) -> Box<dyn GlassApp>,
     ) -> Result<(), GlassError> {
         let event_loop = match EventLoop::new() {
             Ok(e) => e,
