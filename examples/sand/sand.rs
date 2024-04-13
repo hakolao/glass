@@ -5,11 +5,16 @@ use glam::Vec2;
 pub enum SandType {
     Empty,
     Sand,
+    Water,
 }
 
 impl SandType {
     pub fn is_empty(&self) -> bool {
         *self == SandType::Empty
+    }
+
+    pub fn is_water(&self) -> bool {
+        *self == SandType::Water
     }
 }
 
@@ -24,6 +29,7 @@ impl Sand {
         match sand {
             SandType::Sand => Self::sand(pos),
             SandType::Empty => Self::empty(),
+            SandType::Water => Self::water(),
         }
     }
 
@@ -32,6 +38,14 @@ impl Sand {
         let color = Color32::from_rgb(rand_color[0], rand_color[1], rand_color[2]);
         Sand {
             sand: SandType::Sand,
+            color: Rgba::from(color),
+        }
+    }
+
+    pub fn water() -> Sand {
+        let color = Color32::from_rgb(0x23, 0x89, 0xda);
+        Sand {
+            sand: SandType::Water,
             color: Rgba::from(color),
         }
     }

@@ -97,28 +97,58 @@ impl Grid {
                 if !curr_sand.is_empty() && y as i32 - 1 >= 0 {
                     let below_index = self.index(x as i32, y as i32 - 1);
                     let below_sand = self.data[below_index].sand;
-                    let swap_below = below_sand.is_empty();
-                    let empty = Sand::empty();
+                    let below = self.data[below_index];
+                    let swap_below =
+                        below_sand.is_empty() || (!curr_sand.is_water() && below_sand.is_water());
                     if swap_below {
-                        self.draw_sand(x as i32, y as i32, empty);
+                        self.draw_sand(x as i32, y as i32, below);
                         self.draw_sand(x as i32, y as i32 - 1, curr);
                     } else {
                         let p = rand::random::<f32>();
+                        let mut is_swap = false;
                         if p > 0.5 && x as i32 - 1 >= 0 {
                             let left_diag_index = self.index(x as i32 - 1, y as i32 - 1);
                             let left_diag_sand = self.data[left_diag_index].sand;
-                            let swap_left_diag = left_diag_sand.is_empty();
+                            let left = self.data[left_diag_index];
+                            let swap_left_diag = left_diag_sand.is_empty()
+                                || (!curr_sand.is_water() && left_diag_sand.is_water());
                             if swap_left_diag {
-                                self.draw_sand(x as i32, y as i32, empty);
+                                self.draw_sand(x as i32, y as i32, left);
                                 self.draw_sand(x as i32 - 1, y as i32 - 1, curr);
+                                is_swap = true;
                             }
                         } else if x as i32 + 1 < self.width as i32 {
                             let right_diag_index = self.index(x as i32 + 1, y as i32 - 1);
                             let right_diag_sand = self.data[right_diag_index].sand;
-                            let swap_right_diag = right_diag_sand.is_empty();
+                            let swap_right_diag = right_diag_sand.is_empty()
+                                || (!curr_sand.is_water() && right_diag_sand.is_water());
+                            let right = self.data[right_diag_index];
                             if swap_right_diag {
-                                self.draw_sand(x as i32, y as i32, empty);
+                                self.draw_sand(x as i32, y as i32, right);
                                 self.draw_sand(x as i32 + 1, y as i32 - 1, curr);
+                                is_swap = true;
+                            }
+                        }
+                        if !is_swap && curr_sand.is_water() {
+                            let p = rand::random::<f32>();
+                            if p > 0.5 && x as i32 - 1 >= 0 {
+                                let left_index = self.index(x as i32 - 1, y as i32);
+                                let left_sand = self.data[left_index].sand;
+                                let left = self.data[left_index];
+                                let swap_left = left_sand.is_empty();
+                                if swap_left {
+                                    self.draw_sand(x as i32, y as i32, left);
+                                    self.draw_sand(x as i32 - 1, y as i32, curr);
+                                }
+                            } else if x as i32 + 1 < self.width as i32 {
+                                let right_index = self.index(x as i32 + 1, y as i32);
+                                let right_sand = self.data[right_index].sand;
+                                let right = self.data[right_index];
+                                let swap_right = right_sand.is_empty();
+                                if swap_right {
+                                    self.draw_sand(x as i32, y as i32, right);
+                                    self.draw_sand(x as i32 + 1, y as i32, curr);
+                                }
                             }
                         }
                     }

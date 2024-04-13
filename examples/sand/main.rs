@@ -2,6 +2,7 @@
 
 mod grid;
 mod sand;
+mod timer;
 
 use glam::Vec2;
 use glass::{
@@ -11,18 +12,18 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
-    Color, Limits, LoadOp, Operations, RenderPassColorAttachment, RenderPassDescriptor, StoreOp,
-    TextureViewDescriptor,
+    Color, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
+    RenderPassDescriptor, StoreOp, TextureViewDescriptor,
 };
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
     event_loop::EventLoopWindowTarget,
 };
 
-use crate::{grid::Grid, sand::SandType};
+use crate::{grid::Grid, sand::SandType, timer::Timer};
 
-const CANVAS_SIZE: u32 = 256;
-const CANVAS_SCALE: u32 = 4;
+const CANVAS_SIZE: u32 = 512;
+const CANVAS_SCALE: u32 = 2;
 
 fn main() -> Result<(), GlassError> {
     Glass::new_and_run(config(), |_e, context| {
@@ -35,7 +36,9 @@ struct SandSim {
     quad_pipeline: QuadPipeline,
     cursor_pos: Vec2,
     draw_sand: bool,
+    draw_water: bool,
     draw_empty: bool,
+    timer: Timer,
 }
 
 impl SandSim {
@@ -54,7 +57,9 @@ impl SandSim {
             quad_pipeline,
             cursor_pos: Vec2::ZERO,
             draw_sand: false,
+            draw_water: false,
             draw_empty: false,
+            timer: Timer::new(),
         }
     }
 }
@@ -90,13 +95,20 @@ impl GlassApp for SandSim {
                 } => {
                     self.draw_empty = state == &ElementState::Pressed;
                 }
+                WindowEvent::MouseInput {
+                    button: MouseButton::Middle,
+                    state,
+                    ..
+                } => {
+                    self.draw_water = state == &ElementState::Pressed;
+                }
                 _ => (),
             }
         }
     }
 
     fn update(&mut self, context: &mut GlassContext) {
-        if self.draw_sand || self.draw_empty {
+        if self.draw_sand || self.draw_empty || self.draw_water {
             let screen_size = context.primary_render_window().surface_size();
             let scale_factor = context.primary_render_window().window().scale_factor() as f32;
             let pos = cursor_to_canvas(
@@ -110,6 +122,8 @@ impl GlassApp for SandSim {
                 rounded.y,
                 if self.draw_sand {
                     SandType::Sand
+                } else if self.draw_water {
+                    SandType::Water
                 } else {
                     SandType::Empty
                 },
@@ -171,6 +185,14 @@ impl GlassApp for SandSim {
             );
         }
     }
+
+    fn end_of_frame(&mut self, context: &mut GlassContext) {
+        self.timer.update();
+        if let Some(w) = context.primary_render_window_maybe() {
+            w.window()
+                .set_title(&format!("Sand Grid - FPS: {:.2}", self.timer.avg_fps()));
+        }
+    }
 }
 
 fn cursor_to_canvas(cursor: Vec2, screen_width: f32, screen_height: f32) -> Vec2 {
@@ -213,6 +235,7 @@ fn config() -> GlassConfig {
         window_configs: vec![WindowConfig {
             width: CANVAS_SIZE * CANVAS_SCALE,
             height: CANVAS_SIZE * CANVAS_SCALE,
+            present_mode: PresentMode::Immediate,
             exit_on_esc: true,
             ..WindowConfig::default()
         }],
