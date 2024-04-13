@@ -35,9 +35,10 @@ egui_demo_lib = { version = "0.27", optional = true }
 egui_plot = { version = "0.27", optional = true }
 
 [dev-dependencies]
-egui_demo_lib = { version = "0.27"}
+egui_demo_lib = { version = "0.27" }
 winit_input_helper = "0.15"
 rapier2d = { version = "0.18", features = ["default", "debug-render"] }
+rand = "0.8"
 
 [lints.clippy]
 blocks_in_conditions = "allow"
@@ -115,3 +116,12 @@ required-features = []
 [package.metadata.example.lines]
 name = "Line Draw"
 description = "Example that draws lines"
+
+[[example]]
+name = "sand"
+path = "examples/sand/main.rs"
+required-features = ["egui_gui"]
+
+[package.metadata.example.sand]
+name = "Sand Sim"
+description = "Example sand fall"
