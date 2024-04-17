@@ -12,6 +12,7 @@ egui_extra = ["egui_gui", "egui_extras", "egui_plot"]
 egui_demo = ["egui_gui", "egui_demo_lib", "egui_demo_lib/syntect"]
 egui_persistence = ["egui_gui", "egui_demo", "egui/persistence", "egui_demo_lib/serde"]
 trace = ["wgpu/trace"]
+wgpu_serde = ["wgpu/serde"]
 
 [dependencies]
 indexmap = "2.2"
