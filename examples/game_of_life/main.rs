@@ -10,10 +10,10 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
-    AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandEncoder, ComputePassDescriptor,
-    ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode, InstanceFlags, Limits,
-    PowerPreference, PresentMode, PushConstantRange, SamplerDescriptor, ShaderStages,
-    StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
+    AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder,
+    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode,
+    InstanceFlags, Limits, PowerPreference, PresentMode, PushConstantRange, SamplerDescriptor,
+    ShaderStages, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
 };
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},
@@ -102,8 +102,12 @@ impl GlassApp for GameOfLifeApp {
         run_update(self, context);
     }
 
-    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
-        render(self, render_data);
+    fn render(
+        &mut self,
+        _context: &GlassContext,
+        render_data: RenderData,
+    ) -> Option<Vec<CommandBuffer>> {
+        render(self, render_data)
     }
 }
 
@@ -121,6 +125,7 @@ struct GameOfLifeApp {
     time: Instant,
     updated_time: Instant,
     count: usize,
+    commands: Option<CommandBuffer>,
 }
 
 impl Default for GameOfLifeApp {
@@ -139,6 +144,7 @@ impl Default for GameOfLifeApp {
             time: Instant::now(),
             updated_time: Instant::now(),
             count: 0,
+            commands: None,
         }
     }
 }
@@ -185,11 +191,10 @@ fn run_update(app: &mut GameOfLifeApp, context: &GlassContext) {
     }
     // Update prev cursor pos
     app.prev_cursor_pos = Some(app.cursor_pos);
-    // Submit
-    context.queue().submit(Some(encoder.finish()));
+    app.commands = Some(encoder.finish());
 }
 
-fn render(app: &mut GameOfLifeApp, render_data: RenderData) {
+fn render(app: &mut GameOfLifeApp, render_data: RenderData) -> Option<Vec<CommandBuffer>> {
     let GameOfLifeApp {
         data,
         quad_pipeline,
@@ -238,6 +243,7 @@ fn render(app: &mut GameOfLifeApp, render_data: RenderData) {
             canvas_data.canvas.size,
             1.0,
         );
+        Some(vec![app.commands.take().unwrap()])
     }
 }
 

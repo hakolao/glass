@@ -12,7 +12,7 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
-    Color, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
+    Color, CommandBuffer, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
     RenderPassDescriptor, StoreOp, TextureViewDescriptor,
 };
 use winit::{
@@ -135,7 +135,11 @@ impl GlassApp for SandSim {
         self.grid.update_texture(context.queue());
     }
 
-    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
+    fn render(
+        &mut self,
+        _context: &GlassContext,
+        render_data: RenderData,
+    ) -> Option<Vec<CommandBuffer>> {
         let SandSim {
             grid,
             quad_pipeline,
@@ -184,6 +188,7 @@ impl GlassApp for SandSim {
                 1.0,
             );
         }
+        None
     }
 
     fn end_of_frame(&mut self, context: &mut GlassContext) {

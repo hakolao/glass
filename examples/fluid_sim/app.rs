@@ -11,7 +11,7 @@ use glass::{
     },
     GlassApp, GlassContext, RenderData,
 };
-use wgpu::StoreOp;
+use wgpu::{CommandBuffer, StoreOp};
 use winit::keyboard::KeyCode;
 use winit_input_helper::WinitInputHelper;
 
@@ -137,7 +137,11 @@ impl GlassApp for FluidSimApp {
         self.fluid_scene.simulate();
     }
 
-    fn render(&mut self, context: &GlassContext, render_data: RenderData) {
+    fn render(
+        &mut self,
+        context: &GlassContext,
+        render_data: RenderData,
+    ) -> Option<Vec<CommandBuffer>> {
         // Render on render target
         // Paste render target over swapchain image
         let FluidSimApp {
@@ -306,6 +310,7 @@ impl GlassApp for FluidSimApp {
                 1.0,
             );
         }
+        None
     }
 
     fn end_of_frame(&mut self, _context: &mut GlassContext) {

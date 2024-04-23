@@ -1,4 +1,4 @@
-use wgpu::{CommandEncoder, StoreOp, SurfaceTexture};
+use wgpu::{CommandBuffer, CommandEncoder, StoreOp, SurfaceTexture};
 use winit::{
     event::Event,
     event_loop::{EventLoop, EventLoopWindowTarget},
@@ -32,7 +32,11 @@ pub trait GlassApp {
     /// Run each frame
     fn update(&mut self, _context: &mut GlassContext) {}
     /// Run each frame for each window after update
-    fn render(&mut self, _context: &GlassContext, _render_data: RenderData) {
+    fn render(
+        &mut self,
+        _context: &GlassContext,
+        _render_data: RenderData,
+    ) -> Option<Vec<CommandBuffer>> {
         let RenderData {
             encoder,
             frame,
@@ -57,6 +61,8 @@ pub trait GlassApp {
                 occlusion_query_set: None,
             });
         }
+
+        None
     }
 
     /// Run each frame for each window after post processing

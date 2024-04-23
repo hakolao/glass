@@ -6,7 +6,7 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use rapier2d::prelude::*;
-use wgpu::{util::DeviceExt, Buffer, Features, Limits, StoreOp};
+use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, StoreOp};
 use winit::event_loop::EventLoop;
 
 const WIDTH: u32 = 1920;
@@ -162,7 +162,11 @@ impl GlassApp for LineApp {
         );
     }
 
-    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
+    fn render(
+        &mut self,
+        _context: &GlassContext,
+        render_data: RenderData,
+    ) -> Option<Vec<CommandBuffer>> {
         let LineApp {
             line_pipeline,
             view_proj,
@@ -202,7 +206,8 @@ impl GlassApp for LineApp {
             view_proj.to_cols_array_2d(),
             another_line_buffer,
             0..6,
-        )
+        );
+        None
     }
 }
 

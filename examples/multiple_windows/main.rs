@@ -1,7 +1,7 @@
 use glass::{
     window::WindowConfig, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
-use wgpu::{Color, StoreOp};
+use wgpu::{Color, CommandBuffer, StoreOp};
 use winit::{
     event::{DeviceEvent, ElementState, Event},
     event_loop::{EventLoop, EventLoopWindowTarget},
@@ -75,7 +75,11 @@ impl GlassApp for MultiWindowApp {
         }
     }
 
-    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
+    fn render(
+        &mut self,
+        _context: &GlassContext,
+        render_data: RenderData,
+    ) -> Option<Vec<CommandBuffer>> {
         let RenderData {
             encoder,
             frame,
@@ -104,5 +108,6 @@ impl GlassApp for MultiWindowApp {
                 occlusion_query_set: None,
             });
         }
+        None
     }
 }

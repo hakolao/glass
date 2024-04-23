@@ -6,8 +6,8 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
-    AddressMode, BindGroup, FilterMode, Limits, SamplerDescriptor, StoreOp, TextureFormat,
-    TextureUsages,
+    AddressMode, BindGroup, CommandBuffer, FilterMode, Limits, SamplerDescriptor, StoreOp,
+    TextureFormat, TextureUsages,
 };
 use winit::event_loop::EventLoop;
 
@@ -65,7 +65,11 @@ impl GlassApp for TreeApp {
         self.quad_pipeline = Some(quad_pipeline);
     }
 
-    fn render(&mut self, _context: &GlassContext, render_data: RenderData) {
+    fn render(
+        &mut self,
+        _context: &GlassContext,
+        render_data: RenderData,
+    ) -> Option<Vec<CommandBuffer>> {
         let TreeApp {
             quad_pipeline,
             data,
@@ -115,6 +119,7 @@ impl GlassApp for TreeApp {
                 1.0,
             );
         }
+        None
     }
 }
 

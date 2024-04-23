@@ -5,7 +5,7 @@ use egui_winit::EventResponse;
 use glass::{
     window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
-use wgpu::{CommandEncoder, StoreOp, TextureView};
+use wgpu::{CommandBuffer, CommandEncoder, StoreOp, TextureView};
 use winit::{event::Event, event_loop::EventLoopWindowTarget};
 
 fn main() -> Result<(), GlassError> {
@@ -26,8 +26,12 @@ impl GlassApp for GuiApp {
         update_egui_with_winit_event(self, context, event);
     }
 
-    fn render(&mut self, context: &GlassContext, render_data: RenderData) {
-        render(self, context, render_data);
+    fn render(
+        &mut self,
+        context: &GlassContext,
+        render_data: RenderData,
+    ) -> Option<Vec<CommandBuffer>> {
+        Some(render(self, context, render_data))
     }
 }
 
@@ -94,7 +98,7 @@ fn update_egui_with_winit_event(app: &mut GuiApp, context: &mut GlassContext, ev
     }
 }
 
-fn render(app: &mut GuiApp, context: &GlassContext, render_data: RenderData) {
+fn render(app: &mut GuiApp, context: &GlassContext, render_data: RenderData) -> Vec<CommandBuffer> {
     let RenderData {
         encoder,
         frame,
@@ -104,7 +108,7 @@ fn render(app: &mut GuiApp, context: &GlassContext, render_data: RenderData) {
         .texture
         .create_view(&wgpu::TextureViewDescriptor::default());
 
-    render_egui(app, context, encoder, &view);
+    render_egui(app, context, encoder, &view)
 }
 
 fn render_egui(
@@ -112,7 +116,7 @@ fn render_egui(
     context: &GlassContext,
     encoder: &mut CommandEncoder,
     view: &TextureView,
-) {
+) -> Vec<CommandBuffer> {
     let window = context.primary_render_window();
     let GuiState {
         egui_ctx,
@@ -181,6 +185,5 @@ fn render_egui(
         renderer.free_texture(id);
     }
 
-    // Submit user cmd buffers
-    context.queue().submit(user_cmd_bufs.into_iter());
+    user_cmd_bufs
 }
