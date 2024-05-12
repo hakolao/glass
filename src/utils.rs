@@ -135,8 +135,8 @@ impl WatchedShaderModule {
         &mut self,
         mut modify_fn: impl FnMut(&mut ShaderSource) -> Result<(), ShaderError>,
     ) -> Result<(), ShaderError> {
-        modify_fn(&mut self.source)?;
-        self.reload()
+        self.reload()?;
+        modify_fn(&mut self.source)
     }
 
     pub fn changed_paths(&self) -> HashSet<String> {
