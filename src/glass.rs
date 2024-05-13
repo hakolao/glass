@@ -195,16 +195,14 @@ impl Glass {
                     );
 
                     // Run render
-                    let mut buffers = if let Some(other_buffers) =
-                        self.app.render(context, RenderData {
+                    let mut buffers = self
+                        .app
+                        .render(context, RenderData {
                             encoder: &mut encoder,
                             window,
                             frame: &frame,
-                        }) {
-                        other_buffers
-                    } else {
-                        vec![]
-                    };
+                        })
+                        .unwrap_or_default();
                     buffers.push(encoder.finish());
                     context.device_context.queue().submit(buffers);
 

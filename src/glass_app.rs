@@ -65,7 +65,7 @@ pub trait GlassApp {
         None
     }
 
-    /// Run each frame for each window after post processing
+    /// Run each frame for each window after render
     fn after_render(&mut self, _context: &GlassContext) {}
     /// Run each frame last
     fn end_of_frame(&mut self, _context: &mut GlassContext) {}
