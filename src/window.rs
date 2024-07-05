@@ -243,7 +243,7 @@ pub fn get_fitting_videomode(
     monitor: &winit::monitor::MonitorHandle,
     width: u32,
     height: u32,
-) -> winit::monitor::VideoMode {
+) -> winit::monitor::VideoModeHandle {
     let mut modes = monitor.video_modes().collect::<Vec<_>>();
 
     fn abs_diff(a: u32, b: u32) -> u32 {
@@ -271,7 +271,9 @@ pub fn get_fitting_videomode(
     modes.first().unwrap().clone()
 }
 
-pub fn get_best_videomode(monitor: &winit::monitor::MonitorHandle) -> winit::monitor::VideoMode {
+pub fn get_best_videomode(
+    monitor: &winit::monitor::MonitorHandle,
+) -> winit::monitor::VideoModeHandle {
     let mut modes = monitor.video_modes().collect::<Vec<_>>();
     modes.sort_by(|a, b| {
         use std::cmp::Ordering::*;

@@ -1,12 +1,12 @@
 use egui::{FullOutput, ViewportId};
 use egui_demo_lib::DemoWindows;
 use egui_wgpu::ScreenDescriptor;
-use egui_winit::EventResponse;
+use egui_winit::{winit::event_loop::EventLoopWindowTarget, EventResponse};
 use glass::{
     window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{CommandBuffer, CommandEncoder, StoreOp, TextureView};
-use winit::{event::Event, event_loop::EventLoopWindowTarget};
+use winit::event::Event;
 
 fn main() -> Result<(), GlassError> {
     Glass::new_and_run(GlassConfig::default(), |event_loop, context| {
@@ -48,13 +48,13 @@ struct GuiState {
 }
 
 impl GuiState {
-    fn new(event_loop: &EventLoopWindowTarget<()>, context: &mut GlassContext) -> GuiState {
+    fn new(window: &EventLoopWindowTarget<()>, context: &mut GlassContext) -> GuiState {
         let ctx = egui::Context::default();
         let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;
         let egui_winit = egui_winit::State::new(
             ctx.clone(),
             ViewportId::ROOT,
-            event_loop,
+            window,
             Some(pixels_per_point),
             Some(context.device().limits().max_texture_dimension_2d as usize),
         );
