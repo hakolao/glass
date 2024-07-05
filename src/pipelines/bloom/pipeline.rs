@@ -125,11 +125,13 @@ impl BloomPipeline {
                 vertex: wgpu::VertexState {
                     module: &shader,
                     entry_point: "vs_main",
+                    compilation_options: Default::default(),
                     buffers: &[SimpleTexturedVertex::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
                     entry_point: "downsample_first",
+                    compilation_options: Default::default(),
                     targets: &[Some(ColorTargetState {
                         format: BLOOM_TEXTURE_FORMAT,
                         blend: None,
@@ -147,11 +149,13 @@ impl BloomPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
+                compilation_options: Default::default(),
                 buffers: &[SimpleTexturedVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "downsample",
+                compilation_options: Default::default(),
                 targets: &[Some(ColorTargetState {
                     format: BLOOM_TEXTURE_FORMAT,
                     blend: None,
@@ -183,11 +187,13 @@ impl BloomPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
+                compilation_options: Default::default(),
                 buffers: &[SimpleTexturedVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "upsample",
+                compilation_options: Default::default(),
                 targets: &[Some(ColorTargetState {
                     format: BLOOM_TEXTURE_FORMAT,
                     blend: Some(BlendState {
@@ -213,11 +219,13 @@ impl BloomPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
+                compilation_options: Default::default(),
                 buffers: &[SimpleTexturedVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "upsample",
+                compilation_options: Default::default(),
                 targets: &[Some(ColorTargetState {
                     format: FINAL_TEXTURE_FORMAT,
                     blend: Some(BlendState {

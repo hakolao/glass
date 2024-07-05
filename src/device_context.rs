@@ -4,9 +4,8 @@ use wgpu::{
     Adapter, Backends, Device, DeviceDescriptor, Instance, InstanceDescriptor, InstanceFlags,
     Limits, PowerPreference, Queue, RequestAdapterOptions, Surface,
 };
-use winit::window::Window;
 
-use crate::{utils::wait_async, window::WindowConfig, GlassError};
+use crate::{utils::wait_async, GlassError};
 
 #[derive(Debug, Clone)]
 pub struct DeviceConfig {
@@ -55,32 +54,17 @@ unsafe impl Send for DeviceContext {}
 unsafe impl Sync for DeviceContext {}
 
 impl DeviceContext {
-    pub fn new(
-        config: &DeviceConfig,
-        initial_windows: &[(WindowConfig, Arc<Window>)],
-    ) -> Result<DeviceContext, GlassError> {
+    pub fn new(config: &DeviceConfig) -> Result<DeviceContext, GlassError> {
         let instance = Instance::new(InstanceDescriptor {
             backends: config.backends,
             flags: config.instance_flags,
             ..Default::default()
         });
-        // Ensure render context is compatible with our window...
-        let surface_maybe = if let Some((_c, w)) = initial_windows.first() {
-            Some(match instance.create_surface(w.clone()) {
-                Ok(s) => s,
-                Err(e) => return Err(GlassError::SurfaceError(e)),
-            })
-        } else {
-            None
-        };
-        let (adapter, device, queue) = match Self::create_adapter_device_and_queue(
-            config,
-            &instance,
-            surface_maybe.as_ref(),
-        ) {
-            Ok(adq) => adq,
-            Err(e) => return Err(e),
-        };
+        let (adapter, device, queue) =
+            match Self::create_adapter_device_and_queue(config, &instance, None) {
+                Ok(adq) => adq,
+                Err(e) => return Err(e),
+            };
         Ok(Self {
             config: config.clone(),
             instance,

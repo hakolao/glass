@@ -12,8 +12,8 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
-    Color, CommandBuffer, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
-    RenderPassDescriptor, StoreOp, TextureViewDescriptor,
+    Backends, Color, CommandBuffer, Limits, LoadOp, Operations, PresentMode,
+    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
 };
 use winit::{
     event::{ElementState, Event, MouseButton, WindowEvent},

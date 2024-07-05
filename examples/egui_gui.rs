@@ -1,27 +1,36 @@
 use egui::{FullOutput, ViewportId};
 use egui_demo_lib::DemoWindows;
 use egui_wgpu::ScreenDescriptor;
-use egui_winit::EventResponse;
+use egui_winit::{winit::event_loop::EventLoopWindowTarget, EventResponse};
 use glass::{
     window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{CommandBuffer, CommandEncoder, StoreOp, TextureView};
-use winit::{event::Event, event_loop::EventLoopWindowTarget};
+use winit::{
+    event::{Event, WindowEvent},
+    event_loop::ActiveEventLoop,
+    window::{Window, WindowId},
+};
 
 fn main() -> Result<(), GlassError> {
-    Glass::new_and_run(GlassConfig::default(), |event_loop, context| {
+    Glass::run(GlassConfig::default(), |_| {
         Box::new(GuiApp {
-            gui: GuiState::new(event_loop, context),
+            gui: None,
         })
     })
 }
 
 impl GlassApp for GuiApp {
-    fn input(
+    fn start(&mut self, event_loop: &ActiveEventLoop, context: &mut GlassContext) {
+        self.gui = Some(GuiState::new(event_loop, context));
+    }
+
+    fn window_input(
         &mut self,
         context: &mut GlassContext,
-        _event_loop: &EventLoopWindowTarget<()>,
-        event: &Event<()>,
+        _event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: &WindowEvent,
     ) {
         update_egui_with_winit_event(self, context, event);
     }
@@ -36,7 +45,7 @@ impl GlassApp for GuiApp {
 }
 
 struct GuiApp {
-    gui: GuiState,
+    gui: Option<GuiState>,
 }
 
 struct GuiState {
@@ -48,7 +57,7 @@ struct GuiState {
 }
 
 impl GuiState {
-    fn new(event_loop: &EventLoopWindowTarget<()>, context: &mut GlassContext) -> GuiState {
+    fn new(event_loop: &ActiveEventLoop, context: &mut GlassContext) -> GuiState {
         let ctx = egui::Context::default();
         let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;
         let egui_winit = egui_winit::State::new(
@@ -86,7 +95,11 @@ fn update_egui_with_winit_event(app: &mut GuiApp, context: &mut GlassContext, ev
                 let EventResponse {
                     consumed,
                     repaint,
-                } = gui.egui_winit.on_window_event(window.window(), event);
+                } = gui
+                    .as_mut()
+                    .unwrap()
+                    .egui_winit
+                    .on_window_event(window.window(), event);
                 gui.repaint = repaint;
                 // Skip input if event was consumed by egui
                 if consumed {

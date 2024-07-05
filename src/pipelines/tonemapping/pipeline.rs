@@ -70,11 +70,13 @@ impl TonemappingPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
+                compilation_options: Default::default(),
                 buffers: &[SimpleTexturedVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fragment",
+                compilation_options: Default::default(),
                 targets: &[Some(ColorTargetState {
                     format: TONEMAPPING_TEXTURE_FORMAT,
                     blend: None,
