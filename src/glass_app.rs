@@ -1,7 +1,8 @@
 use wgpu::{CommandBuffer, CommandEncoder, StoreOp, SurfaceTexture};
 use winit::{
-    event::Event,
-    event_loop::{EventLoop, EventLoopWindowTarget},
+    event::{DeviceEvent, DeviceId, WindowEvent},
+    event_loop::ActiveEventLoop,
+    window::WindowId,
 };
 
 use crate::{window::GlassWindow, GlassContext};
@@ -20,13 +21,23 @@ pub struct RenderData<'a> {
 /// table of contents of your app flow.
 pub trait GlassApp {
     /// Run at start
-    fn start(&mut self, _event_loop: &EventLoop<()>, _context: &mut GlassContext) {}
-    /// Run on each event received from winit
-    fn input(
+    fn start(&mut self, _event_loop: &ActiveEventLoop, _context: &mut GlassContext) {}
+    /// Run on each device event from winit
+    fn device_input(
         &mut self,
         _context: &mut GlassContext,
-        _event_loop: &EventLoopWindowTarget<()>,
-        _event: &Event<()>,
+        _event_loop: &ActiveEventLoop,
+        _device_id: DeviceId,
+        _event: &DeviceEvent,
+    ) {
+    }
+    /// Run on each window event from winit
+    fn window_input(
+        &mut self,
+        _context: &mut GlassContext,
+        _event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        _event: &WindowEvent,
     ) {
     }
     /// Run each frame
@@ -64,9 +75,6 @@ pub trait GlassApp {
 
         None
     }
-
-    /// Run each frame for each window after render
-    fn after_render(&mut self, _context: &GlassContext) {}
     /// Run each frame last
     fn end_of_frame(&mut self, _context: &mut GlassContext) {}
     /// Run at exit
