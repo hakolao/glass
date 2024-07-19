@@ -12,7 +12,7 @@ use glass::{
     GlassApp, GlassContext, RenderData,
 };
 use wgpu::{CommandBuffer, StoreOp};
-use winit::keyboard::KeyCode;
+use winit::{event::MouseButton, keyboard::KeyCode};
 use winit_input_helper::WinitInputHelper;
 
 use crate::{
@@ -123,13 +123,13 @@ impl GlassApp for FluidSimApp {
                 ],
                 &self.camera,
             );
-            if self.input.mouse_pressed(0) {
+            if self.input.mouse_pressed(MouseButton::Left) {
                 self.fluid_scene.drag(pos, true);
             }
-            if self.input.mouse_held(0) {
+            if self.input.mouse_held(MouseButton::Left) {
                 self.fluid_scene.drag(pos, false);
             }
-            if self.input.mouse_released(0) {
+            if self.input.mouse_released(MouseButton::Left) {
                 self.fluid_scene.end_drag();
             }
         }

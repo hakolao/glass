@@ -562,6 +562,7 @@ fn create_game_of_life_pipeline(
             layout: Some(&game_of_life_init_layout),
             module: &game_of_life_shader,
             entry_point: "init",
+            compilation_options: Default::default(),
         });
 
     let game_of_life_layout =
@@ -582,6 +583,7 @@ fn create_game_of_life_pipeline(
             layout: Some(&game_of_life_layout),
             module: &game_of_life_shader,
             entry_point: "update",
+            compilation_options: Default::default(),
         });
 
     let draw_layout = context
@@ -601,6 +603,7 @@ fn create_game_of_life_pipeline(
             layout: Some(&draw_layout),
             module: &brush_shader,
             entry_point: "main",
+            compilation_options: Default::default(),
         });
 
     (init_pipeline, update_pipeline, draw_pipeline)

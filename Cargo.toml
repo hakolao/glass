@@ -18,9 +18,9 @@ wgpu_serde = ["wgpu/serde"]
 indexmap = "2.2"
 pollster = "0.3"
 image = "0.25"
-bytemuck = { version = "1.15", features = ["derive"] }
-wgpu = { version = "0.19", default_features = true, features = ["naga-ir"] }
-winit = { version = "0.29", features = ["rwh_05"] }
+bytemuck = { version = "1.16", features = ["derive"] }
+wgpu = { version = "0.20", default-features = true, features = ["naga-ir"] }
+winit = { version = "0.29", features = [] }
 glam = "0.27"
 path-clean = "1.0.1"
 notify = "6.1"
@@ -28,17 +28,17 @@ flume = "0.11"
 log = "0.4"
 
 # Optional Egui
-egui = { version = "0.27", optional = true }
-egui-wgpu = { version = "0.27", optional = true }
-egui-winit = { version = "0.27", optional = true }
-egui_extras = { version = "0.27", optional = true }
-egui_demo_lib = { version = "0.27", optional = true }
-egui_plot = { version = "0.27", optional = true }
+egui = { version = "0.28", optional = true }
+egui-wgpu = { version = "0.28", optional = true }
+egui-winit = { version = "0.28", optional = true }
+egui_extras = { version = "0.28", optional = true }
+egui_demo_lib = { version = "0.28", optional = true }
+egui_plot = { version = "0.28", optional = true }
 
 [dev-dependencies]
-egui_demo_lib = { version = "0.27" }
-winit_input_helper = "0.15"
-rapier2d = { version = "0.19", features = ["default", "debug-render"] }
+egui_demo_lib = { version = "0.28" }
+winit_input_helper = "0.16"
+rapier2d = { version = "0.21.0", features = ["default", "debug-render"] }
 rand = "0.8"
 
 [lints.clippy]
