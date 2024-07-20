@@ -84,11 +84,13 @@ fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {
             vertex: wgpu::VertexState {
                 module: &shader,
                 entry_point: "vs_main",
+                compilation_options: Default::default(),
                 buffers: &[],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
                 entry_point: "fs_main",
+                compilation_options: Default::default(),
                 targets: &[Some(TextureFormat::Bgra8UnormSrgb.into())],
             }),
             primitive: PrimitiveState::default(),
