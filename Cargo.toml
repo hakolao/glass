@@ -27,16 +27,16 @@ flume = "0.11"
 log = "0.4"
 
 # Optional Egui
-egui = { version = "0.28", optional = true }
-egui-wgpu = { version = "0.28", optional = true }
-egui-winit = { version = "0.28", optional = true }
-egui_extras = { version = "0.28", optional = true }
-egui_demo_lib = { version = "0.28", optional = true }
-egui_plot = { version = "0.28", optional = true }
+egui = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
+egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
+egui-winit = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
+egui_extras = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
+egui_demo_lib = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
+egui_plot = { git = "https://github.com/emilk/egui_plot.git", rev = "d00fa85a84f4d443e2803b5185e230be56da123f", optional = true }
 
 [dev-dependencies]
-egui_demo_lib = { version = "0.28" }
-rapier2d = { version = "0.21", features = ["default", "debug-render"] }
+egui_demo_lib = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b" }
+rapier2d = { version = "0.22", features = ["default", "debug-render"] }
 rand = "0.8"
 
 [lints.clippy]

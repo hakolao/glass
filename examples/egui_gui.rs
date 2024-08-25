@@ -1,16 +1,12 @@
 use egui::{FullOutput, ViewportId};
 use egui_demo_lib::DemoWindows;
 use egui_wgpu::ScreenDescriptor;
-use egui_winit::{winit::event_loop::EventLoopWindowTarget, EventResponse};
+use egui_winit::EventResponse;
 use glass::{
     window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{CommandBuffer, CommandEncoder, StoreOp, TextureView};
-use winit::{
-    event::{Event, WindowEvent},
-    event_loop::ActiveEventLoop,
-    window::{Window, WindowId},
-};
+use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::WindowId};
 
 fn main() -> Result<(), GlassError> {
     Glass::run(GlassConfig::default(), |_| {
@@ -29,10 +25,10 @@ impl GlassApp for GuiApp {
         &mut self,
         context: &mut GlassContext,
         _event_loop: &ActiveEventLoop,
-        _window_id: WindowId,
+        window_id: WindowId,
         event: &WindowEvent,
     ) {
-        update_egui_with_winit_event(self, context, event);
+        update_egui_with_winit_event(self, context, window_id, event);
     }
 
     fn render(
@@ -65,6 +61,7 @@ impl GuiState {
             ViewportId::ROOT,
             event_loop,
             Some(pixels_per_point),
+            None,
             Some(context.device().limits().max_texture_dimension_2d as usize),
         );
         let renderer = egui_wgpu::Renderer::new(
@@ -72,6 +69,7 @@ impl GuiState {
             GlassWindow::default_surface_format(),
             None,
             1,
+            true,
         );
         GuiState {
             egui_ctx: ctx,
@@ -83,31 +81,27 @@ impl GuiState {
     }
 }
 
-fn update_egui_with_winit_event(app: &mut GuiApp, context: &mut GlassContext, event: &Event<()>) {
-    match event {
-        Event::WindowEvent {
-            window_id,
-            event,
-            ..
-        } => {
-            let gui = &mut app.gui;
-            if let Some(window) = context.render_window(*window_id) {
-                let EventResponse {
-                    consumed,
-                    repaint,
-                } = gui
-                    .as_mut()
-                    .unwrap()
-                    .egui_winit
-                    .on_window_event(window.window(), event);
-                gui.repaint = repaint;
-                // Skip input if event was consumed by egui
-                if consumed {
-                    return;
-                }
-            }
+fn update_egui_with_winit_event(
+    app: &mut GuiApp,
+    context: &mut GlassContext,
+    window_id: WindowId,
+    event: &WindowEvent,
+) {
+    let gui = &mut app.gui;
+    if let Some(window) = context.render_window(window_id) {
+        let EventResponse {
+            consumed,
+            repaint,
+        } = gui
+            .as_mut()
+            .unwrap()
+            .egui_winit
+            .on_window_event(window.window(), event);
+        gui.as_mut().unwrap().repaint = repaint;
+        // Skip input if event was consumed by egui
+        if consumed {
+            return;
         }
-        _ => {}
     }
 }
 
@@ -137,7 +131,7 @@ fn render_egui(
         egui_winit,
         ui_app,
         ..
-    } = &mut app.gui;
+    } = &mut app.gui.as_mut().unwrap();
     let raw_input = egui_winit.take_egui_input(window.window());
     let FullOutput {
         shapes,
