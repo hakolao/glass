@@ -16,8 +16,9 @@ use wgpu::{
     ShaderStages, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
 };
 use winit::{
-    event::{ElementState, Event, MouseButton, WindowEvent},
-    event_loop::{EventLoop, EventLoopWindowTarget},
+    event::{ElementState, MouseButton, WindowEvent},
+    event_loop::ActiveEventLoop,
+    window::WindowId,
 };
 
 const WIDTH: u32 = 1024;
@@ -55,7 +56,7 @@ fn config() -> GlassConfig {
 }
 
 fn main() -> Result<(), GlassError> {
-    Glass::new(GameOfLifeApp::default(), config()).run()
+    Glass::run(config(), |_| Box::new(GameOfLifeApp::default()))
 }
 
 // Think of this like reading a "table of contents".
@@ -64,7 +65,7 @@ fn main() -> Result<(), GlassError> {
 // - Update is run every frame
 // - Render is run for each window after update every frame
 impl GlassApp for GameOfLifeApp {
-    fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
+    fn start(&mut self, _event_loop: &ActiveEventLoop, context: &mut GlassContext) {
         // Create pipelines
         let (init_pipeline, game_of_life_pipeline, draw_pipeline) =
             create_game_of_life_pipeline(context);
@@ -89,11 +90,12 @@ impl GlassApp for GameOfLifeApp {
         init_game_of_life(self, context);
     }
 
-    fn input(
+    fn window_input(
         &mut self,
         _context: &mut GlassContext,
-        _event_loop: &EventLoopWindowTarget<()>,
-        event: &Event<()>,
+        _event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: &WindowEvent,
     ) {
         handle_inputs(self, event);
     }
@@ -247,26 +249,21 @@ fn render(app: &mut GameOfLifeApp, render_data: RenderData) -> Option<Vec<Comman
     }
 }
 
-fn handle_inputs(app: &mut GameOfLifeApp, event: &Event<()>) {
-    if let Event::WindowEvent {
-        event, ..
-    } = event
-    {
-        match event {
-            WindowEvent::CursorMoved {
-                position, ..
-            } => {
-                app.cursor_pos = Vec2::new(position.x as f32, position.y as f32);
-            }
-            WindowEvent::MouseInput {
-                button: MouseButton::Left,
-                state,
-                ..
-            } => {
-                app.draw = state == &ElementState::Pressed;
-            }
-            _ => (),
+fn handle_inputs(app: &mut GameOfLifeApp, event: &WindowEvent) {
+    match event {
+        WindowEvent::CursorMoved {
+            position, ..
+        } => {
+            app.cursor_pos = Vec2::new(position.x as f32, position.y as f32);
         }
+        WindowEvent::MouseInput {
+            button: MouseButton::Left,
+            state,
+            ..
+        } => {
+            app.draw = state == &ElementState::Pressed;
+        }
+        _ => (),
     }
 }
 

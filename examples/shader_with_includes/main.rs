@@ -7,17 +7,15 @@ use wgpu::{
     CommandBuffer, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
     RenderPipelineDescriptor, ShaderModuleDescriptor, StoreOp, TextureFormat,
 };
-use winit::event_loop::EventLoop;
+use winit::event_loop::ActiveEventLoop;
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
 
 fn main() -> Result<(), GlassError> {
-    Glass::new(
-        TriangleApp::default(),
-        GlassConfig::performance(WIDTH, HEIGHT),
-    )
-    .run()
+    Glass::run(GlassConfig::performance(WIDTH, HEIGHT), |_| {
+        Box::new(TriangleApp::default())
+    })
 }
 
 #[derive(Default)]
@@ -26,7 +24,7 @@ struct TriangleApp {
 }
 
 impl GlassApp for TriangleApp {
-    fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
+    fn start(&mut self, _event_loop: &ActiveEventLoop, context: &mut GlassContext) {
         self.triangle_pipeline = Some(create_triangle_pipeline(context));
     }
 

@@ -12,12 +12,13 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
-    Backends, Color, CommandBuffer, Limits, LoadOp, Operations, PresentMode,
-    RenderPassColorAttachment, RenderPassDescriptor, StoreOp, TextureViewDescriptor,
+    Color, CommandBuffer, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
+    RenderPassDescriptor, StoreOp, TextureViewDescriptor,
 };
 use winit::{
-    event::{ElementState, Event, MouseButton, WindowEvent},
-    event_loop::EventLoopWindowTarget,
+    event::{ElementState, MouseButton, WindowEvent},
+    event_loop::ActiveEventLoop,
+    window::WindowId,
 };
 
 use crate::{grid::Grid, sand::SandType, timer::Timer};
@@ -26,7 +27,7 @@ const CANVAS_SIZE: u32 = 512;
 const CANVAS_SCALE: u32 = 2;
 
 fn main() -> Result<(), GlassError> {
-    Glass::new_and_run(config(), |_e, context| {
+    Glass::run(config(), |context| {
         Box::new(SandSim::new(context)) as Box<dyn GlassApp>
     })
 }
@@ -65,45 +66,41 @@ impl SandSim {
 }
 
 impl GlassApp for SandSim {
-    fn input(
+    fn window_input(
         &mut self,
         _context: &mut GlassContext,
-        _event_loop: &EventLoopWindowTarget<()>,
-        event: &Event<()>,
+        _event_loop: &ActiveEventLoop,
+        _window_id: WindowId,
+        event: &WindowEvent,
     ) {
-        if let Event::WindowEvent {
-            event, ..
-        } = event
-        {
-            match event {
-                WindowEvent::CursorMoved {
-                    position, ..
-                } => {
-                    self.cursor_pos = Vec2::new(position.x as f32, position.y as f32);
-                }
-                WindowEvent::MouseInput {
-                    button: MouseButton::Left,
-                    state,
-                    ..
-                } => {
-                    self.draw_sand = state == &ElementState::Pressed;
-                }
-                WindowEvent::MouseInput {
-                    button: MouseButton::Right,
-                    state,
-                    ..
-                } => {
-                    self.draw_empty = state == &ElementState::Pressed;
-                }
-                WindowEvent::MouseInput {
-                    button: MouseButton::Middle,
-                    state,
-                    ..
-                } => {
-                    self.draw_water = state == &ElementState::Pressed;
-                }
-                _ => (),
+        match event {
+            WindowEvent::CursorMoved {
+                position, ..
+            } => {
+                self.cursor_pos = Vec2::new(position.x as f32, position.y as f32);
             }
+            WindowEvent::MouseInput {
+                button: MouseButton::Left,
+                state,
+                ..
+            } => {
+                self.draw_sand = state == &ElementState::Pressed;
+            }
+            WindowEvent::MouseInput {
+                button: MouseButton::Right,
+                state,
+                ..
+            } => {
+                self.draw_empty = state == &ElementState::Pressed;
+            }
+            WindowEvent::MouseInput {
+                button: MouseButton::Middle,
+                state,
+                ..
+            } => {
+                self.draw_water = state == &ElementState::Pressed;
+            }
+            _ => (),
         }
     }
 
