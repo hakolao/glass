@@ -1,4 +1,3 @@
-use egui::{Color32, Rgba};
 use glam::Vec2;
 
 #[derive(Copy, Clone, Eq, PartialEq)]
@@ -21,7 +20,7 @@ impl SandType {
 #[derive(Copy, Clone)]
 pub struct Sand {
     pub sand: SandType,
-    pub color: Rgba,
+    pub color: [u8; 3],
 }
 
 impl Sand {
@@ -35,25 +34,24 @@ impl Sand {
 
     pub fn sand(pos: Vec2) -> Sand {
         let rand_color = variate_color([0xc2, 0xb2, 0x80], 0.1, pos);
-        let color = Color32::from_rgb(rand_color[0], rand_color[1], rand_color[2]);
         Sand {
             sand: SandType::Sand,
-            color: Rgba::from(color),
+            color: rand_color,
         }
     }
 
     pub fn water() -> Sand {
-        let color = Color32::from_rgb(0x23, 0x89, 0xda);
+        let color = [0x23, 0x89, 0xda];
         Sand {
             sand: SandType::Water,
-            color: Rgba::from(color),
+            color,
         }
     }
 
     pub fn empty() -> Sand {
         Sand {
             sand: SandType::Empty,
-            color: Rgba::BLACK,
+            color: [0; 3],
         }
     }
 }

@@ -79,7 +79,7 @@ impl Grid {
             self.rgba.put_pixel(
                 x as u32,
                 self.height - y as u32 - 1,
-                sand.color.to_srgba_unmultiplied().into(),
+                [sand.color[0], sand.color[1], sand.color[2], 255].into(),
             );
 
             self.changed = true;

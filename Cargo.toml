@@ -110,7 +110,7 @@ description = "Example that draws lines"
 [[example]]
 name = "sand"
 path = "examples/sand/main.rs"
-required-features = ["egui_gui"]
+required-features = []
 
 [package.metadata.example.sand]
 name = "Sand Sim"
