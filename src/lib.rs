@@ -14,8 +14,6 @@ pub use egui;
 pub use egui_demo_lib;
 #[cfg(all(feature = "egui_extra", feature = "egui_gui"))]
 pub use egui_extras;
-#[cfg(all(feature = "egui_extra", feature = "egui_gui"))]
-pub use egui_plot;
 #[cfg(feature = "egui_gui")]
 pub use egui_wgpu;
 #[cfg(feature = "egui_gui")]

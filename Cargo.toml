@@ -8,7 +8,7 @@ edition = "2021"
 [features]
 default = []
 egui_gui = ["egui-wgpu", "egui-winit", "egui"]
-egui_extra = ["egui_gui", "egui_extras", "egui_plot"]
+egui_extra = ["egui_gui", "egui_extras"]
 egui_demo = ["egui_gui", "egui_demo_lib", "egui_demo_lib/syntect"]
 egui_persistence = ["egui_gui", "egui_demo", "egui/persistence", "egui_demo_lib/serde"]
 wgpu_serde = ["wgpu/serde"]
@@ -31,10 +31,8 @@ egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2a
 egui-winit = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
 egui_extras = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
 egui_demo_lib = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
-egui_plot = { git = "https://github.com/emilk/egui_plot.git", rev = "d00fa85a84f4d443e2803b5185e230be56da123f", optional = true }
 
 [dev-dependencies]
-egui_demo_lib = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b" }
 rapier2d = { version = "0.22", features = ["default", "debug-render"] }
 rand = "0.8"
 glam = "0.29"
