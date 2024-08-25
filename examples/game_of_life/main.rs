@@ -12,8 +12,8 @@ use glass::{
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder,
     ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode,
-    InstanceFlags, Limits, PowerPreference, PresentMode, PushConstantRange, SamplerDescriptor,
-    ShaderStages, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
+    InstanceFlags, Limits, MemoryHints, PowerPreference, PresentMode, PushConstantRange,
+    SamplerDescriptor, ShaderStages, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
 };
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
@@ -36,6 +36,7 @@ fn config() -> GlassConfig {
     GlassConfig {
         device_config: DeviceConfig {
             power_preference: PowerPreference::HighPerformance,
+            memory_hints: MemoryHints::Performance,
             features: wgpu::Features::PUSH_CONSTANTS
                 | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
             limits: Limits {
@@ -44,6 +45,7 @@ fn config() -> GlassConfig {
             },
             backends: Backends::all(),
             instance_flags: InstanceFlags::from_build_config(),
+            trace_path: None,
         },
         window_configs: vec![WindowConfig {
             width: WIDTH,
@@ -560,6 +562,7 @@ fn create_game_of_life_pipeline(
             module: &game_of_life_shader,
             entry_point: "init",
             compilation_options: Default::default(),
+            cache: None,
         });
 
     let game_of_life_layout =
@@ -581,6 +584,7 @@ fn create_game_of_life_pipeline(
             module: &game_of_life_shader,
             entry_point: "update",
             compilation_options: Default::default(),
+            cache: None,
         });
 
     let draw_layout = context
@@ -601,6 +605,7 @@ fn create_game_of_life_pipeline(
             module: &brush_shader,
             entry_point: "main",
             compilation_options: Default::default(),
+            cache: None,
         });
 
     (init_pipeline, update_pipeline, draw_pipeline)

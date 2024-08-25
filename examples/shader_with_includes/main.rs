@@ -124,6 +124,7 @@ fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {
             depth_stencil: None,
             multisample: MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
     pipeline
 }

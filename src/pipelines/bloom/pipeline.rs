@@ -142,6 +142,7 @@ impl BloomPipeline {
                 depth_stencil: None,
                 multisample: wgpu::MultisampleState::default(),
                 multiview: None,
+                cache: None,
             });
         let downsample_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Bloom Downsample Pipeline"),
@@ -166,6 +167,7 @@ impl BloomPipeline {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
 
         let color_blend = match bloom_settings.composite_mode {
@@ -211,6 +213,7 @@ impl BloomPipeline {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
 
         let final_pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
@@ -243,6 +246,7 @@ impl BloomPipeline {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
 
         let (downsampling_bind_groups, upsampling_bind_groups) = Self::create_bind_groups(
