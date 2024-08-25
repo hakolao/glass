@@ -1,4 +1,5 @@
 # Glass
+
 ![Apache](https://img.shields.io/badge/license-Apache-blue.svg)
 ![CI](https://github.com/hakolao/glass/workflows/CI/badge.svg)
 
@@ -11,48 +12,23 @@ to skip annoying _wgpu_ boilerplate, _winit_ boilerplate and _window_ organizati
 render or compute pipelines and organize your app how you like.
 
 Example:
+
 ```rust
 fn main() {
-    Glass::new(MyApp, GlassConfig::default()).run();
-    // Or if you want to avoid Device dependent Option<T> types within your app
-    Glass::new_and_run(GlassConfig::default(), |e, context| MyApp::new(context));
+    Glass::run(GlassConfig::default(), |_| Box::new(YourApp))
 }
 
 // Organize your app in anyway you like
-struct MyApp;
+struct YourApp;
 
 // Implement methods that you need (to render or read inputs)
-impl GlassApp for MyApp {}
+impl GlassApp for YourApp {}
 ```
 
 See `example` folder for more.
 
-```rust
-pub trait GlassApp {
-    /// Run at start
-    fn start(&mut self, _event_loop: &EventLoop<()>, _context: &mut GlassContext) {}
-    /// Run on each event received from winit
-    fn input(
-        &mut self,
-        _context: &mut GlassContext,
-        _event_loop: &EventLoopWindowTarget<()>,
-        _event: &Event<()>,
-    ) {
-    }
-    /// Run each frame
-    fn update(&mut self, _context: &mut GlassContext) {}
-    /// Run each frame for each window after update
-    fn render(&mut self, _context: &GlassContext, _render_data: RenderData) {}
-    /// Run each frame for each window after post processing
-    fn after_render(&mut self, _context: &GlassContext) {}
-    /// Run each frame last
-    fn end_of_frame(&mut self, _context: &mut GlassContext) {}
-    /// Run at exit
-    fn end(&mut self, _context: &mut GlassContext) {}
-}
-```
-
 # For whom
+
 - People who want to learn rendering
 - People annoyed at complexities of game engines, and wanting to have more control over their app
 - People who wish to go back to the roots of coding (simplicity, and no magic)
