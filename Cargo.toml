@@ -20,7 +20,6 @@ image = "0.25"
 bytemuck = { version = "1.16", features = ["derive"] }
 wgpu = { version = "22.1.0", features = ["naga-ir"] }
 winit = { version = "0.30" }
-glam = "0.28"
 path-clean = "1.0.1"
 notify = "6.1"
 flume = "0.11"
@@ -38,6 +37,7 @@ egui_plot = { git = "https://github.com/emilk/egui_plot.git", rev = "d00fa85a84f
 egui_demo_lib = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b" }
 rapier2d = { version = "0.22", features = ["default", "debug-render"] }
 rand = "0.8"
+glam = "0.29"
 
 [lints.clippy]
 blocks_in_conditions = "allow"

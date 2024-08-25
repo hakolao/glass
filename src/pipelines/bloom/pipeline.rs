@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
-use glam::{UVec2, UVec4, Vec4};
 use wgpu::{
     util::DeviceExt, AddressMode, BindGroup, BindGroupDescriptor, BindGroupEntry,
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendComponent,
@@ -338,16 +337,15 @@ impl BloomPipeline {
         device: &Device,
         encoder: &mut CommandEncoder,
         bloom_target: &Texture,
-        viewport_origin: UVec2,
-        viewport_size: UVec2,
+        viewport_origin: [u32; 2],
+        viewport_size: [u32; 2],
     ) {
         let size = bloom_target.size;
-        let push_constants = BloomPushConstants::new(
-            &self.settings,
-            viewport_origin,
-            viewport_size,
-            UVec2::new(size[0] as u32, size[1] as u32),
-        );
+        let push_constants =
+            BloomPushConstants::new(&self.settings, viewport_origin, viewport_size, [
+                size[0] as u32,
+                size[1] as u32,
+            ]);
         // First downsample pass (main image)
         let downsampling_first_bind_group = device.create_bind_group(&BindGroupDescriptor {
             label: Some("bloom_downsampling_first_bind_group"),
@@ -490,10 +488,10 @@ impl BloomPipeline {
             );
             upsampling_final_pass.set_vertex_buffer(0, self.vertices.slice(..));
             upsampling_final_pass.set_viewport(
-                viewport_origin.x as f32,
-                viewport_origin.y as f32,
-                viewport_size.x as f32,
-                viewport_size.y as f32,
+                viewport_origin[0] as f32,
+                viewport_origin[1] as f32,
+                viewport_size[0] as f32,
+                viewport_size[1] as f32,
                 0.0,
                 1.0,
             );
@@ -526,37 +524,27 @@ pub struct BloomPushConstants {
 impl BloomPushConstants {
     pub fn new(
         settings: &BloomSettings,
-        viewport_origin: UVec2,
-        viewport_size: UVec2,
-        target_image_size: UVec2,
+        viewport_origin: [u32; 2],
+        viewport_size: [u32; 2],
+        target_image_size: [u32; 2],
     ) -> BloomPushConstants {
         let threshold = settings.prefilter_settings.threshold;
         let threshold_softness = settings.prefilter_settings.threshold_softness;
         let knee = threshold * threshold_softness.clamp(0.0, 1.0);
         BloomPushConstants {
-            threshold_precomputations: Vec4::new(
+            threshold_precomputations: [
                 threshold,
                 threshold - knee,
                 2.0 * knee,
                 0.25 / (knee + 0.00001),
-            )
-            .into(),
-            viewport: (UVec4::new(
-                viewport_origin.x,
-                viewport_origin.y,
-                viewport_size.x,
-                viewport_size.y,
-            )
-            .as_vec4()
-                / UVec4::new(
-                    target_image_size.x,
-                    target_image_size.y,
-                    target_image_size.x,
-                    target_image_size.y,
-                )
-                .as_vec4())
-            .into(),
-            aspect: viewport_size.x as f32 / viewport_size.y as f32,
+            ],
+            viewport: [
+                viewport_origin[0] as f32 / target_image_size[0] as f32,
+                viewport_origin[1] as f32 / target_image_size[1] as f32,
+                viewport_size[0] as f32 / target_image_size[0] as f32,
+                viewport_size[1] as f32 / target_image_size[1] as f32,
+            ],
+            aspect: viewport_size[0] as f32 / viewport_size[1] as f32,
             use_treshold: (threshold > 0.0) as u32,
         }
     }

@@ -84,18 +84,18 @@ impl GlassApp for LineApp {
             &mut self.physics_world.rigid_body_set,
         );
         let mut some_lines = vec![];
-        let line1 = Line::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(512.0, 512.0, 0.0), [
-            1.0, 0.0, 0.0, 1.0,
-        ]);
-        let line2 = Line::new(Vec3::new(512.0, 0.0, 0.0), Vec3::new(512.0, 512.0, 0.0), [
-            0.0, 1.0, 0.0, 1.0,
-        ]);
-        let line3 = Line::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(512.0, 0.0, 0.0), [
-            0.0, 0.0, 1.0, 1.0,
-        ]);
+        let line1 = Line::new([0.0, 0.0, 0.0], [512.0, 512.0, 0.0], [1.0, 0.0, 0.0, 1.0]);
+        let line2 = Line::new([512.0, 0.0, 0.0], [512.0, 512.0, 0.0], [0.0, 1.0, 0.0, 1.0]);
+        let line3 = Line::new([0.0, 0.0, 0.0], [512.0, 0.0, 0.0], [0.0, 0.0, 1.0, 1.0]);
         for line in [line1, line2, line3] {
-            some_lines.push(ColoredVertex::new_2d(line.start.truncate(), line.color));
-            some_lines.push(ColoredVertex::new_2d(line.end.truncate(), line.color));
+            some_lines.push(ColoredVertex::new_2d(
+                [line.start[0], line.start[1]],
+                line.color,
+            ));
+            some_lines.push(ColoredVertex::new_2d(
+                [line.end[0], line.end[1]],
+                line.color,
+            ));
         }
         let line_vertices =
             context
@@ -235,8 +235,8 @@ impl DebugRenderBackend for DebugLines {
         color: [f32; 4],
     ) {
         let line = Line::new(
-            Vec3::new(a.x, a.y, 0.0) * PHYSICS_TO_PIXELS,
-            Vec3::new(b.x, b.y, 0.0) * PHYSICS_TO_PIXELS,
+            (Vec3::new(a.x, a.y, 0.0) * PHYSICS_TO_PIXELS).into(),
+            (Vec3::new(b.x, b.y, 0.0) * PHYSICS_TO_PIXELS).into(),
             color,
         );
         self.add_line(line);
