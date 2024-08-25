@@ -9,7 +9,7 @@ use wgpu::{
     AddressMode, BindGroup, CommandBuffer, FilterMode, Limits, SamplerDescriptor, StoreOp,
     TextureFormat, TextureUsages,
 };
-use winit::event_loop::EventLoop;
+use winit::event_loop::ActiveEventLoop;
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
@@ -22,7 +22,7 @@ const OPENGL_TO_WGPU: glam::Mat4 = glam::Mat4::from_cols_array(&[
 ]);
 
 fn main() -> Result<(), GlassError> {
-    Glass::new(TreeApp::default(), config()).run()
+    Glass::run(config(), |_| Box::new(TreeApp::default()))
 }
 
 fn config() -> GlassConfig {
@@ -52,7 +52,7 @@ struct TreeApp {
 }
 
 impl GlassApp for TreeApp {
-    fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
+    fn start(&mut self, _event_loop: &ActiveEventLoop, context: &mut GlassContext) {
         let quad_pipeline = QuadPipeline::new(context.device(), wgpu::ColorTargetState {
             format: GlassWindow::default_surface_format(),
             blend: Some(wgpu::BlendState {

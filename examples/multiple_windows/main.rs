@@ -3,8 +3,8 @@ use glass::{
 };
 use wgpu::{Color, CommandBuffer, StoreOp};
 use winit::{
-    event::{DeviceEvent, ElementState, Event},
-    event_loop::{EventLoop, EventLoopWindowTarget},
+    event::{DeviceEvent, DeviceId, ElementState},
+    event_loop::ActiveEventLoop,
     keyboard::{KeyCode, PhysicalKey},
     window::WindowId,
 };
@@ -13,7 +13,9 @@ const WIDTH: u32 = 256;
 const HEIGHT: u32 = 256;
 
 fn main() -> Result<(), GlassError> {
-    Glass::new(MultiWindowApp::default(), GlassConfig::windowless()).run()
+    Glass::run(GlassConfig::windowless(), |_| {
+        Box::new(MultiWindowApp::default())
+    })
 }
 
 const CLEAR_COLORS: [Color; 5] = [
@@ -31,7 +33,7 @@ struct MultiWindowApp {
 }
 
 impl GlassApp for MultiWindowApp {
-    fn start(&mut self, event_loop: &EventLoop<()>, context: &mut GlassContext) {
+    fn start(&mut self, event_loop: &ActiveEventLoop, context: &mut GlassContext) {
         println!("Press space to create windows, esc to close all but last");
         self.window_ids.push(
             context
@@ -45,17 +47,14 @@ impl GlassApp for MultiWindowApp {
         );
     }
 
-    fn input(
+    fn device_input(
         &mut self,
         context: &mut GlassContext,
-        event_loop: &EventLoopWindowTarget<()>,
-        event: &Event<()>,
+        event_loop: &ActiveEventLoop,
+        _device_id: DeviceId,
+        event: &DeviceEvent,
     ) {
-        if let Event::DeviceEvent {
-            event: DeviceEvent::Key(input),
-            ..
-        } = event
-        {
+        if let DeviceEvent::Key(input) = event {
             if input.physical_key == PhysicalKey::Code(KeyCode::Space)
                 && input.state == ElementState::Pressed
             {
