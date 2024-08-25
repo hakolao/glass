@@ -1,7 +1,6 @@
 use std::{borrow::Cow, ops::Range};
 
 use bytemuck::{Pod, Zeroable};
-use glam::{Vec2, Vec3};
 use wgpu::{
     util::DeviceExt, Buffer, Device, PushConstantRange, RenderPass, RenderPipeline, ShaderStages,
 };
@@ -17,7 +16,7 @@ impl LinePipeline {
     pub fn new(device: &Device, color_target_state: wgpu::ColorTargetState) -> LinePipeline {
         let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
-            contents: bytemuck::cast_slice(&[ColoredVertex::new_2d(Vec2::ONE, [1.0; 4]); 2]),
+            contents: bytemuck::cast_slice(&[ColoredVertex::new_2d([1.0, 1.0], [1.0; 4]); 2]),
             usage: wgpu::BufferUsages::VERTEX | wgpu::BufferUsages::COPY_DST,
         });
         let pipeline = Self::new_render_pipeline(device, color_target_state);
@@ -122,8 +121,8 @@ impl LinePushConstants {
     pub fn new(view_proj: [[f32; 4]; 4], line: Line) -> LinePushConstants {
         LinePushConstants {
             view_proj,
-            start: line.start.extend(1.0).to_array(),
-            end: line.end.extend(1.0).to_array(),
+            start: [line.start[0], line.start[1], line.start[2], 1.0],
+            end: [line.end[0], line.end[1], line.end[2], 1.0],
             color: line.color,
         }
     }
@@ -131,8 +130,8 @@ impl LinePushConstants {
     pub fn buffer(view_proj: [[f32; 4]; 4]) -> LinePushConstants {
         LinePushConstants {
             view_proj,
-            start: Vec3::ONE.extend(1.0).to_array(),
-            end: Vec3::ONE.extend(1.0).to_array(),
+            start: [1.0, 1.0, 1.0, 1.0],
+            end: [1.0, 1.0, 1.0, 1.0],
             color: [1.0; 4],
         }
     }
@@ -140,13 +139,13 @@ impl LinePushConstants {
 
 #[derive(Default, Copy, Clone, Debug)]
 pub struct Line {
-    pub start: Vec3,
-    pub end: Vec3,
+    pub start: [f32; 3],
+    pub end: [f32; 3],
     pub color: [f32; 4],
 }
 
 impl Line {
-    pub fn new(start: Vec3, end: Vec3, color: [f32; 4]) -> Line {
+    pub fn new(start: [f32; 3], end: [f32; 3], color: [f32; 4]) -> Line {
         Line {
             start,
             end,

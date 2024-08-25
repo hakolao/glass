@@ -1,5 +1,4 @@
 use bytemuck::{Pod, Zeroable};
-use glam::Vec2;
 
 /// A vertex with texture coordinates
 #[repr(C)]
@@ -12,9 +11,8 @@ pub struct TexturedVertex {
 
 impl TexturedVertex {
     pub fn desc<'a>() -> wgpu::VertexBufferLayout<'a> {
-        use std::mem;
         wgpu::VertexBufferLayout {
-            array_stride: mem::size_of::<TexturedVertex>() as wgpu::BufferAddress,
+            array_stride: size_of::<TexturedVertex>() as wgpu::BufferAddress,
             step_mode: wgpu::VertexStepMode::Vertex,
             attributes: &[
                 wgpu::VertexAttribute {
@@ -23,12 +21,12 @@ impl TexturedVertex {
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
-                    offset: mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    offset: size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 1,
                     format: wgpu::VertexFormat::Float32x4,
                 },
                 wgpu::VertexAttribute {
-                    offset: 2 * mem::size_of::<[f32; 4]>() as wgpu::BufferAddress,
+                    offset: 2 * size_of::<[f32; 4]>() as wgpu::BufferAddress,
                     shader_location: 2,
                     format: wgpu::VertexFormat::Float32x2,
                 },
@@ -74,9 +72,9 @@ pub struct ColoredVertex {
 }
 
 impl ColoredVertex {
-    pub fn new_2d(pos: Vec2, color: [f32; 4]) -> ColoredVertex {
+    pub fn new_2d(pos: [f32; 2], color: [f32; 4]) -> ColoredVertex {
         ColoredVertex {
-            position: [pos.x, pos.y, 0.0, 1.0],
+            position: [pos[0], pos[1], 0.0, 1.0],
             color,
         }
     }
