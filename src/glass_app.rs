@@ -22,6 +22,8 @@ pub struct RenderData<'a> {
 pub trait GlassApp {
     /// Run at start
     fn start(&mut self, _event_loop: &ActiveEventLoop, _context: &mut GlassContext) {}
+    /// Run on winit's `new_events`
+    fn before_input(&mut self, _context: &mut GlassContext, _event_loop: &ActiveEventLoop) {}
     /// Run on each device event from winit
     fn device_input(
         &mut self,
@@ -40,7 +42,7 @@ pub trait GlassApp {
         _event: &WindowEvent,
     ) {
     }
-    /// Run each frame
+    /// Run each frame, called within winit's `about_to_wait`.
     fn update(&mut self, _context: &mut GlassContext) {}
     /// Run each frame for each window after update
     fn render(

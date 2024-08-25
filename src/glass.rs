@@ -63,6 +63,13 @@ impl ApplicationHandler for Glass {
         if event_loop.control_flow() != ControlFlow::Poll {
             event_loop.set_control_flow(ControlFlow::Poll);
         }
+
+        let Glass {
+            app,
+            context,
+            ..
+        } = self;
+        app.before_input(context, event_loop);
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
