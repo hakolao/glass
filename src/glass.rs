@@ -210,6 +210,7 @@ fn run_update(
         // Exit
         if context.windows.is_empty() || context.exit {
             event_loop.exit();
+            return;
         }
     }
 
