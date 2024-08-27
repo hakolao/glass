@@ -201,8 +201,6 @@ fn run_update(
     context: &mut GlassContext,
     runner_state: &mut RunnerState,
 ) {
-    app.update(context);
-
     if runner_state.request_window_close || context.exit {
         for window in runner_state.remove_windows.iter() {
             context.windows.swap_remove(window);
@@ -214,6 +212,8 @@ fn run_update(
             event_loop.exit();
         }
     }
+
+    app.update(context);
 
     render(app, context);
 
