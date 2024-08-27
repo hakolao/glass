@@ -201,19 +201,23 @@ fn run_update(
     context: &mut GlassContext,
     runner_state: &mut RunnerState,
 ) {
-    if runner_state.request_window_close || context.exit {
+    if context.exit {
+        context.windows.clear();
+        event_loop.exit();
+        return;
+    }
+    if runner_state.request_window_close {
         for window in runner_state.remove_windows.iter() {
             context.windows.swap_remove(window);
         }
         runner_state.remove_windows.clear();
         runner_state.request_window_close = false;
         // Exit
-        if context.windows.is_empty() || context.exit {
-            event_loop.exit();
+        if context.windows.is_empty() {
+            context.exit();
             return;
         }
     }
-
     app.update(context);
 
     render(app, context);
