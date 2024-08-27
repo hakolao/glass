@@ -117,6 +117,9 @@ impl ApplicationHandler for Glass {
             ..
         } = self;
         app.window_input(context, event_loop, window_id, &event);
+
+        let mut is_extra_update = false;
+
         if let Some(window) = context.windows.get_mut(&window_id) {
             match event {
                 WindowEvent::Resized(physical_size) => {
@@ -126,6 +129,7 @@ impl ApplicationHandler for Glass {
                             context.device_context.device(),
                             physical_size,
                         );
+                        is_extra_update = true;
                     }
                 }
                 WindowEvent::ScaleFactorChanged {
@@ -133,6 +137,7 @@ impl ApplicationHandler for Glass {
                 } => {
                     let size = window.window().inner_size();
                     window.configure_surface_with_size(context.device_context.device(), size);
+                    is_extra_update = true;
                 }
                 WindowEvent::KeyboardInput {
                     event,
@@ -158,6 +163,10 @@ impl ApplicationHandler for Glass {
                 }
                 _ => (),
             }
+        }
+        // Update immediately, because about_to_wait isn't triggered during resize
+        if is_extra_update {
+            run_update(event_loop, app, context, runner_state);
         }
     }
 
