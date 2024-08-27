@@ -164,7 +164,16 @@ impl ApplicationHandler for Glass {
                 _ => (),
             }
         }
-        // Update immediately, because about_to_wait isn't triggered during resize
+        // Update immediately, because about_to_wait isn't triggered during resize. If it did,
+        // this would not be needed.
+
+        // Winit recommends running rendering inside `RequestRedraw`, but that doesn't really
+        // seem good to me, because I want render to take place immediately after update, and
+        // running entire app's update within one window's `RequestRedraw` doesn't make sense
+        // to me.
+
+        // This ensures resizing's effect is instant. Kinda ugly on performance, but that doesn't
+        // matter, because resize is a rare event.
         if is_extra_update {
             run_update(event_loop, app, context, runner_state);
         }
