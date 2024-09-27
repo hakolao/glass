@@ -26,11 +26,11 @@ flume = "0.11"
 log = "0.4"
 
 # Optional Egui
-egui = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
-egui-wgpu = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
-egui-winit = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
-egui_extras = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
-egui_demo_lib = { git = "https://github.com/emilk/egui.git", rev = "9a1e358a144b5d2af9d03a80257c34883f57cf0b", optional = true }
+egui = { version = "0.29", optional = true }
+egui-wgpu = { version = "0.29", optional = true }
+egui-winit = { version = "0.29", optional = true }
+egui_extras = { version = "0.29", optional = true }
+egui_demo_lib = { version = "0.29", optional = true }
 
 [dev-dependencies]
 rapier2d = { version = "0.22", features = ["default", "debug-render"] }

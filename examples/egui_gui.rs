@@ -169,7 +169,7 @@ fn render_egui(
 
     // Render
     {
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &view,
@@ -185,7 +185,11 @@ fn render_egui(
         });
         // Here you would render your scene
         // Render Egui
-        renderer.render(&mut render_pass, &*clipped_primitives, &screen_descriptor);
+        renderer.render(
+            &mut render_pass.forget_lifetime(),
+            &*clipped_primitives,
+            &screen_descriptor,
+        );
     }
 
     for id in &textures_delta.free {
