@@ -6,24 +6,29 @@ use glass::{
     window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{CommandBuffer, CommandEncoder, StoreOp, TextureView};
-use winit::{event::Event, event_loop::EventLoopWindowTarget};
+use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::WindowId};
 
 fn main() -> Result<(), GlassError> {
-    Glass::new_and_run(GlassConfig::default(), |event_loop, context| {
+    Glass::run(GlassConfig::default(), |_| {
         Box::new(GuiApp {
-            gui: GuiState::new(event_loop, context),
+            gui: None,
         })
     })
 }
 
 impl GlassApp for GuiApp {
-    fn input(
+    fn start(&mut self, event_loop: &ActiveEventLoop, context: &mut GlassContext) {
+        self.gui = Some(GuiState::new(event_loop, context));
+    }
+
+    fn window_input(
         &mut self,
         context: &mut GlassContext,
-        _event_loop: &EventLoopWindowTarget<()>,
-        event: &Event<()>,
+        _event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+        event: &WindowEvent,
     ) {
-        update_egui_with_winit_event(self, context, event);
+        update_egui_with_winit_event(self, context, window_id, event);
     }
 
     fn render(
@@ -36,7 +41,7 @@ impl GlassApp for GuiApp {
 }
 
 struct GuiApp {
-    gui: GuiState,
+    gui: Option<GuiState>,
 }
 
 struct GuiState {
@@ -48,7 +53,7 @@ struct GuiState {
 }
 
 impl GuiState {
-    fn new(event_loop: &EventLoopWindowTarget<()>, context: &mut GlassContext) -> GuiState {
+    fn new(event_loop: &ActiveEventLoop, context: &mut GlassContext) -> GuiState {
         let ctx = egui::Context::default();
         let pixels_per_point = context.primary_render_window().window().scale_factor() as f32;
         let egui_winit = egui_winit::State::new(
@@ -56,6 +61,7 @@ impl GuiState {
             ViewportId::ROOT,
             event_loop,
             Some(pixels_per_point),
+            None,
             Some(context.device().limits().max_texture_dimension_2d as usize),
         );
         let renderer = egui_wgpu::Renderer::new(
@@ -63,6 +69,7 @@ impl GuiState {
             GlassWindow::default_surface_format(),
             None,
             1,
+            true,
         );
         GuiState {
             egui_ctx: ctx,
@@ -74,27 +81,27 @@ impl GuiState {
     }
 }
 
-fn update_egui_with_winit_event(app: &mut GuiApp, context: &mut GlassContext, event: &Event<()>) {
-    match event {
-        Event::WindowEvent {
-            window_id,
-            event,
-            ..
-        } => {
-            let gui = &mut app.gui;
-            if let Some(window) = context.render_window(*window_id) {
-                let EventResponse {
-                    consumed,
-                    repaint,
-                } = gui.egui_winit.on_window_event(window.window(), event);
-                gui.repaint = repaint;
-                // Skip input if event was consumed by egui
-                if consumed {
-                    return;
-                }
-            }
+fn update_egui_with_winit_event(
+    app: &mut GuiApp,
+    context: &mut GlassContext,
+    window_id: WindowId,
+    event: &WindowEvent,
+) {
+    let gui = &mut app.gui;
+    if let Some(window) = context.render_window(window_id) {
+        let EventResponse {
+            consumed,
+            repaint,
+        } = gui
+            .as_mut()
+            .unwrap()
+            .egui_winit
+            .on_window_event(window.window(), event);
+        gui.as_mut().unwrap().repaint = repaint;
+        // Skip input if event was consumed by egui
+        if consumed {
+            return;
         }
-        _ => {}
     }
 }
 
@@ -124,7 +131,7 @@ fn render_egui(
         egui_winit,
         ui_app,
         ..
-    } = &mut app.gui;
+    } = &mut app.gui.as_mut().unwrap();
     let raw_input = egui_winit.take_egui_input(window.window());
     let FullOutput {
         shapes,
@@ -162,7 +169,7 @@ fn render_egui(
 
     // Render
     {
-        let mut render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
             label: None,
             color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                 view: &view,
@@ -178,7 +185,11 @@ fn render_egui(
         });
         // Here you would render your scene
         // Render Egui
-        renderer.render(&mut render_pass, &*clipped_primitives, &screen_descriptor);
+        renderer.render(
+            &mut render_pass.forget_lifetime(),
+            &*clipped_primitives,
+            &screen_descriptor,
+        );
     }
 
     for id in &textures_delta.free {

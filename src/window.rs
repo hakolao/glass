@@ -1,6 +1,5 @@
 use std::sync::Arc;
 
-use glam::IVec2;
 use wgpu::{
     CompositeAlphaMode, CreateSurfaceError, Device, PresentMode, Surface, SurfaceConfiguration,
     TextureFormat,
@@ -233,17 +232,17 @@ pub fn get_centered_window_position(
     window_height: u32,
 ) -> PhysicalPosition<i32> {
     let size = monitor.size();
-    let center = IVec2::new(size.width as i32, size.height as i32) / 2;
     let window_size = PhysicalSize::new(window_width, window_height);
-    let left_top = center - IVec2::new(window_size.width as i32, window_size.height as i32) / 2;
-    PhysicalPosition::new(left_top.x, left_top.y)
+    let lt_x = size.width as i32 / 2 - window_size.width as i32 / 2;
+    let lt_y = size.height as i32 / 2 - window_size.height as i32 / 2;
+    PhysicalPosition::new(lt_x, lt_y)
 }
 
 pub fn get_fitting_videomode(
     monitor: &winit::monitor::MonitorHandle,
     width: u32,
     height: u32,
-) -> winit::monitor::VideoMode {
+) -> winit::monitor::VideoModeHandle {
     let mut modes = monitor.video_modes().collect::<Vec<_>>();
 
     fn abs_diff(a: u32, b: u32) -> u32 {
@@ -271,7 +270,9 @@ pub fn get_fitting_videomode(
     modes.first().unwrap().clone()
 }
 
-pub fn get_best_videomode(monitor: &winit::monitor::MonitorHandle) -> winit::monitor::VideoMode {
+pub fn get_best_videomode(
+    monitor: &winit::monitor::MonitorHandle,
+) -> winit::monitor::VideoModeHandle {
     let mut modes = monitor.video_modes().collect::<Vec<_>>();
     modes.sort_by(|a, b| {
         use std::cmp::Ordering::*;

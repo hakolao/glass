@@ -7,7 +7,7 @@ use glass::{
 };
 use rapier2d::prelude::*;
 use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, StoreOp};
-use winit::event_loop::EventLoop;
+use winit::event_loop::ActiveEventLoop;
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
@@ -35,11 +35,11 @@ fn config() -> GlassConfig {
 }
 
 fn main() -> Result<(), GlassError> {
-    Glass::new(LineApp::new(), config()).run()
+    Glass::run(config(), |context| Box::new(LineApp::new(context)))
 }
 
 struct LineApp {
-    line_pipeline: Option<LinePipeline>,
+    line_pipeline: LinePipeline,
     physics_pipeline: PhysicsPipeline,
     physics_world: PhysicsWorld,
     view_proj: Mat4,
@@ -48,9 +48,13 @@ struct LineApp {
 }
 
 impl LineApp {
-    fn new() -> LineApp {
+    fn new(context: &mut GlassContext) -> LineApp {
         LineApp {
-            line_pipeline: None,
+            line_pipeline: LinePipeline::new(context.device(), wgpu::ColorTargetState {
+                format: GlassWindow::default_surface_format(),
+                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
+                write_mask: wgpu::ColorWrites::ALL,
+            }),
             physics_pipeline: PhysicsPipeline::new(),
             physics_world: PhysicsWorld::new(Vec2::new(0.0, -9.81)),
             view_proj: camera_projection([WIDTH as f32, HEIGHT as f32]),
@@ -61,15 +65,7 @@ impl LineApp {
 }
 
 impl GlassApp for LineApp {
-    fn start(&mut self, _event_loop: &EventLoop<()>, context: &mut GlassContext) {
-        self.line_pipeline = Some(LinePipeline::new(
-            context.device(),
-            wgpu::ColorTargetState {
-                format: GlassWindow::default_surface_format(),
-                blend: Some(wgpu::BlendState::ALPHA_BLENDING),
-                write_mask: wgpu::ColorWrites::ALL,
-            },
-        ));
+    fn start(&mut self, _event_loop: &ActiveEventLoop, context: &mut GlassContext) {
         // Add ground
         let collider = ColliderBuilder::cuboid(100.0, 0.1)
             .translation(vector![0.0, -5.0])
@@ -88,18 +84,18 @@ impl GlassApp for LineApp {
             &mut self.physics_world.rigid_body_set,
         );
         let mut some_lines = vec![];
-        let line1 = Line::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(512.0, 512.0, 0.0), [
-            1.0, 0.0, 0.0, 1.0,
-        ]);
-        let line2 = Line::new(Vec3::new(512.0, 0.0, 0.0), Vec3::new(512.0, 512.0, 0.0), [
-            0.0, 1.0, 0.0, 1.0,
-        ]);
-        let line3 = Line::new(Vec3::new(0.0, 0.0, 0.0), Vec3::new(512.0, 0.0, 0.0), [
-            0.0, 0.0, 1.0, 1.0,
-        ]);
+        let line1 = Line::new([0.0, 0.0, 0.0], [512.0, 512.0, 0.0], [1.0, 0.0, 0.0, 1.0]);
+        let line2 = Line::new([512.0, 0.0, 0.0], [512.0, 512.0, 0.0], [0.0, 1.0, 0.0, 1.0]);
+        let line3 = Line::new([0.0, 0.0, 0.0], [512.0, 0.0, 0.0], [0.0, 0.0, 1.0, 1.0]);
         for line in [line1, line2, line3] {
-            some_lines.push(ColoredVertex::new_2d(line.start.truncate(), line.color));
-            some_lines.push(ColoredVertex::new_2d(line.end.truncate(), line.color));
+            some_lines.push(ColoredVertex::new_2d(
+                [line.start[0], line.start[1]],
+                line.color,
+            ));
+            some_lines.push(ColoredVertex::new_2d(
+                [line.end[0], line.end[1]],
+                line.color,
+            ));
         }
         let line_vertices =
             context
@@ -196,7 +192,6 @@ impl GlassApp for LineApp {
             timestamp_writes: None,
             occlusion_query_set: None,
         });
-        let line_pipeline = line_pipeline.as_ref().unwrap();
         for line in lines.lines.iter() {
             line_pipeline.draw(&mut rpass, view_proj.to_cols_array_2d(), *line);
         }
@@ -240,8 +235,8 @@ impl DebugRenderBackend for DebugLines {
         color: [f32; 4],
     ) {
         let line = Line::new(
-            Vec3::new(a.x, a.y, 0.0) * PHYSICS_TO_PIXELS,
-            Vec3::new(b.x, b.y, 0.0) * PHYSICS_TO_PIXELS,
+            (Vec3::new(a.x, a.y, 0.0) * PHYSICS_TO_PIXELS).into(),
+            (Vec3::new(b.x, b.y, 0.0) * PHYSICS_TO_PIXELS).into(),
             color,
         );
         self.add_line(line);

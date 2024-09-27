@@ -7,9 +7,10 @@ use wgpu::{
     SurfaceConfiguration,
 };
 use winit::{
+    application::ApplicationHandler,
     error::{EventLoopError, OsError},
-    event::{ElementState, Event, WindowEvent},
-    event_loop::{ControlFlow, EventLoop, EventLoopWindowTarget},
+    event::{DeviceEvent, DeviceId, ElementState, StartCause, WindowEvent},
+    event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
     window::{Fullscreen, Window, WindowId},
 };
@@ -27,203 +28,257 @@ use crate::{
 /// which render using wgpu. Just impl [`GlassApp`] for your application (of any type) and you
 /// are good to go.
 pub struct Glass {
-    app: Box<dyn GlassApp>,
     config: GlassConfig,
+    app: Box<dyn GlassApp>,
+    context: GlassContext,
+    runner_state: RunnerState,
 }
 
 impl Glass {
-    pub fn new(app: impl GlassApp + 'static, config: GlassConfig) -> Glass {
-        Glass {
-            app: Box::new(app),
-            config,
-        }
-    }
-
-    pub fn run(self) -> Result<(), GlassError> {
-        let event_loop = match EventLoop::new() {
-            Ok(e) => e,
-            Err(e) => return Err(GlassError::EventLoopError(e)),
-        };
-        let context = GlassContext::new(&event_loop, self.config.clone())?;
-        self.run_inner(event_loop, context)
-    }
-
-    /// This is useful, if you want to avoid `Option<T>` within your app for anything that depends
-    /// on `Device` context
-    pub fn new_and_run(
+    pub fn run(
         config: GlassConfig,
-        app_create_fn: impl FnOnce(&EventLoop<()>, &mut GlassContext) -> Box<dyn GlassApp>,
+        app_create_fn: impl FnOnce(&mut GlassContext) -> Box<dyn GlassApp>,
     ) -> Result<(), GlassError> {
+        let mut context = GlassContext::new(config.clone())?;
+        let app = app_create_fn(&mut context);
+        let mut glass = Glass {
+            app,
+            context,
+            config,
+            runner_state: RunnerState::default(),
+        };
         let event_loop = match EventLoop::new() {
             Ok(e) => e,
             Err(e) => return Err(GlassError::EventLoopError(e)),
         };
-        let mut context = GlassContext::new(&event_loop, config.clone())?;
-        Glass {
-            app: app_create_fn(&event_loop, &mut context),
-            config,
+        event_loop
+            .run_app(&mut glass)
+            .map_err(GlassError::EventLoopError)
+    }
+}
+
+impl ApplicationHandler for Glass {
+    fn new_events(&mut self, event_loop: &ActiveEventLoop, _cause: StartCause) {
+        // Ensure we're poll
+        if event_loop.control_flow() != ControlFlow::Poll {
+            event_loop.set_control_flow(ControlFlow::Poll);
         }
-        .run_inner(event_loop, context)
+
+        let Glass {
+            app,
+            context,
+            ..
+        } = self;
+        app.before_input(context, event_loop);
     }
 
-    fn run_inner(
-        mut self,
-        event_loop: EventLoop<()>,
-        mut context: GlassContext,
-    ) -> Result<(), GlassError> {
-        self.app.start(&event_loop, &mut context);
-        let mut runner_state = RunnerState::default();
-        // Run update at start
-        runner_state.run_update = true;
-
-        match event_loop.run(move |event, event_loop| {
-            event_loop.set_control_flow(ControlFlow::Poll);
-
-            // Run input fn
-            if !event_loop.exiting() {
-                self.app.input(&mut context, event_loop, &event);
+    fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        let Glass {
+            app,
+            config,
+            context,
+            runner_state,
+            ..
+        } = self;
+        // Initial windows
+        if !runner_state.is_init {
+            // Create windows from initial configs
+            let mut winit_windows = vec![];
+            for &window_config in config.window_configs.iter() {
+                winit_windows.push((
+                    window_config,
+                    GlassContext::create_winit_window(event_loop, &window_config).unwrap(),
+                ))
             }
+            for (window_config, window) in winit_windows {
+                let id = context.add_window(window_config, window).unwrap();
+                // Configure window surface with size
+                let window = context.windows.get_mut(&id).unwrap();
+                window.configure_surface_with_size(
+                    context.device_context.device(),
+                    window.window().inner_size(),
+                );
+            }
+            app.start(event_loop, context);
+            runner_state.is_init = true;
+        }
+    }
 
-            runner_state.run_update = false;
+    fn window_event(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        window_id: WindowId,
+        event: WindowEvent,
+    ) {
+        let Glass {
+            app,
+            context,
+            runner_state,
+            ..
+        } = self;
+        app.window_input(context, event_loop, window_id, &event);
 
+        let mut is_extra_update = false;
+
+        if let Some(window) = context.windows.get_mut(&window_id) {
             match event {
-                Event::WindowEvent {
-                    window_id,
-                    event: window_event,
+                WindowEvent::Resized(physical_size) => {
+                    // On windows, minimized app can have 0,0 size
+                    if physical_size.width > 0 && physical_size.height > 0 {
+                        window.configure_surface_with_size(
+                            context.device_context.device(),
+                            physical_size,
+                        );
+                        is_extra_update = true;
+                    }
+                }
+                WindowEvent::ScaleFactorChanged {
                     ..
                 } => {
-                    if let Some(window) = context.windows.get_mut(&window_id) {
-                        match window_event {
-                            WindowEvent::Resized(physical_size) => {
-                                // On windows, minimized app can have 0,0 size
-                                if physical_size.width > 0 && physical_size.height > 0 {
-                                    window.configure_surface_with_size(
-                                        context.device_context.device(),
-                                        physical_size,
-                                    );
-                                    runner_state.run_update = true;
-                                }
-                            }
-                            WindowEvent::ScaleFactorChanged {
-                                ..
-                            } => {
-                                let size = window.window().inner_size();
-                                window.configure_surface_with_size(
-                                    context.device_context.device(),
-                                    size,
-                                );
-                                runner_state.run_update = true;
-                            }
-                            WindowEvent::KeyboardInput {
-                                event,
-                                is_synthetic,
-                                ..
-                            } => {
-                                if event.logical_key == Key::Named(NamedKey::Escape)
-                                    && !is_synthetic
-                                    && window.exit_on_esc()
-                                    && window.is_focused()
-                                    && event.state == ElementState::Pressed
-                                {
-                                    runner_state.request_window_close = true;
-                                    runner_state.remove_windows.push(window_id);
-                                }
-                            }
-                            WindowEvent::Focused(has_focus) => {
-                                window.set_focus(has_focus);
-                            }
-                            WindowEvent::CloseRequested => {
-                                runner_state.request_window_close = true;
-                                runner_state.remove_windows.push(window_id);
-                            }
-
-                            _ => (),
-                        }
+                    let size = window.window().inner_size();
+                    window.configure_surface_with_size(context.device_context.device(), size);
+                    is_extra_update = true;
+                }
+                WindowEvent::KeyboardInput {
+                    event,
+                    is_synthetic,
+                    ..
+                } => {
+                    if event.logical_key == Key::Named(NamedKey::Escape)
+                        && !is_synthetic
+                        && window.exit_on_esc()
+                        && window.is_focused()
+                        && event.state == ElementState::Pressed
+                    {
+                        runner_state.request_window_close = true;
+                        runner_state.remove_windows.push(window_id);
                     }
                 }
-                Event::AboutToWait => {
-                    runner_state.run_update = true;
+                WindowEvent::Focused(has_focus) => {
+                    window.set_focus(has_focus);
                 }
-                Event::LoopExiting => {
-                    // Run end
-                    self.app.end(&mut context);
+                WindowEvent::CloseRequested => {
+                    runner_state.request_window_close = true;
+                    runner_state.remove_windows.push(window_id);
                 }
-                _ => {}
+                _ => (),
             }
-            if !event_loop.exiting() && runner_state.run_update {
-                self.run_update(event_loop, &mut context, &mut runner_state);
-            }
-        }) {
-            Err(e) => Err(GlassError::EventLoopError(e)),
-            Ok(a) => Ok(a),
+        }
+        // Update immediately, because about_to_wait isn't triggered during resize. If it did,
+        // this would not be needed.
+
+        // Winit recommends running rendering inside `RequestRedraw`, but that doesn't really
+        // seem good to me, because I want render to take place immediately after update, and
+        // running entire app's update within one window's `RequestRedraw` doesn't make sense
+        // to me.
+
+        // This ensures resizing's effect is instant. Kinda ugly on performance, but that doesn't
+        // matter, because resize is a rare event.
+        if is_extra_update {
+            run_update(event_loop, app, context, runner_state);
         }
     }
 
-    fn run_update(
+    fn device_event(
         &mut self,
-        event_loop: &EventLoopWindowTarget<()>,
-        context: &mut GlassContext,
-        runner_state: &mut RunnerState,
+        event_loop: &ActiveEventLoop,
+        device_id: DeviceId,
+        event: DeviceEvent,
     ) {
-        self.app.update(context);
-
-        if runner_state.request_window_close || context.exit {
-            for window in runner_state.remove_windows.iter() {
-                context.windows.swap_remove(window);
-            }
-            runner_state.remove_windows.clear();
-            runner_state.request_window_close = false;
-            // Exit
-            if context.windows.is_empty() || context.exit {
-                event_loop.exit();
-            }
-        }
-
-        self.render(context);
-
-        self.app.end_of_frame(context);
+        let Glass {
+            app,
+            context,
+            ..
+        } = self;
+        app.device_input(context, event_loop, device_id, &event);
     }
 
-    fn render(&mut self, context: &mut GlassContext) {
-        for (_, window) in context.windows.iter() {
-            match window.surface().get_current_texture() {
-                Ok(frame) => {
-                    let mut encoder = context.device_context.device().create_command_encoder(
-                        &wgpu::CommandEncoderDescriptor {
-                            label: Some("Render Commands"),
-                        },
-                    );
+    fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        let Glass {
+            app,
+            context,
+            runner_state,
+            ..
+        } = self;
+        run_update(event_loop, app, context, runner_state);
+    }
 
-                    // Run render
-                    let mut buffers = self
-                        .app
-                        .render(context, RenderData {
-                            encoder: &mut encoder,
-                            window,
-                            frame: &frame,
-                        })
-                        .unwrap_or_default();
-                    buffers.push(encoder.finish());
-                    context.device_context.queue().submit(buffers);
+    fn exiting(&mut self, _event_loop: &ActiveEventLoop) {
+        let Glass {
+            app,
+            context,
+            ..
+        } = self;
+        app.end(context);
+    }
+}
 
-                    frame.present();
+fn run_update(
+    event_loop: &ActiveEventLoop,
+    app: &mut Box<dyn GlassApp>,
+    context: &mut GlassContext,
+    runner_state: &mut RunnerState,
+) {
+    if context.exit {
+        context.windows.clear();
+        event_loop.exit();
+        return;
+    }
+    if runner_state.request_window_close {
+        for window in runner_state.remove_windows.iter() {
+            context.windows.swap_remove(window);
+        }
+        runner_state.remove_windows.clear();
+        runner_state.request_window_close = false;
+        // Exit
+        if context.windows.is_empty() {
+            context.exit();
+            return;
+        }
+    }
+    app.update(context);
 
-                    self.app.after_render(context);
-                }
-                Err(error) => {
-                    if error == wgpu::SurfaceError::OutOfMemory {
-                        panic!("Swapchain error: {error}. Rendering cannot continue.")
-                    }
+    render(app, context);
+
+    app.end_of_frame(context);
+}
+
+fn render(app: &mut Box<dyn GlassApp>, context: &mut GlassContext) {
+    for (_, window) in context.windows.iter() {
+        match window.surface().get_current_texture() {
+            Ok(frame) => {
+                let mut encoder = context.device_context.device().create_command_encoder(
+                    &wgpu::CommandEncoderDescriptor {
+                        label: Some("Render Commands"),
+                    },
+                );
+
+                // Run render
+                let mut buffers = app
+                    .render(context, RenderData {
+                        encoder: &mut encoder,
+                        window,
+                        frame: &frame,
+                    })
+                    .unwrap_or_default();
+                buffers.push(encoder.finish());
+                context.device_context.queue().submit(buffers);
+
+                frame.present();
+            }
+            Err(error) => {
+                if error == wgpu::SurfaceError::OutOfMemory {
+                    panic!("Swapchain error: {error}. Rendering cannot continue.")
                 }
             }
-            window.window().request_redraw();
         }
+        window.window().request_redraw();
     }
 }
 
 #[derive(Default)]
 struct RunnerState {
-    run_update: bool,
+    is_init: bool,
     request_window_close: bool,
     remove_windows: Vec<WindowId>,
 }
@@ -302,15 +357,7 @@ pub struct GlassContext {
 }
 
 impl GlassContext {
-    pub fn new(event_loop: &EventLoop<()>, mut config: GlassConfig) -> Result<Self, GlassError> {
-        // Create windows from initial configs
-        let mut winit_windows = vec![];
-        for &window_config in config.window_configs.iter() {
-            winit_windows.push((
-                window_config,
-                Self::create_winit_window(event_loop, &window_config)?,
-            ))
-        }
+    pub fn new(mut config: GlassConfig) -> Result<Self, GlassError> {
         // Modify features & limits needed for common pipelines
         // Add push constants feature for common pipelines
         config.device_config.features |= wgpu::Features::PUSH_CONSTANTS
@@ -318,26 +365,13 @@ impl GlassContext {
         config.device_config.limits = wgpu::Limits {
             ..config.device_config.limits
         };
-        let device_context = DeviceContext::new(
-            &config.device_config,
-            // Needed to ensure our queue families are compatible with surface
-            &winit_windows,
-        )?;
-        let mut app = Self {
+        let device_context = DeviceContext::new(&config.device_config)?;
+
+        Ok(Self {
             device_context,
             windows: IndexMap::default(),
             exit: false,
-        };
-        for (window_config, window) in winit_windows {
-            let id = app.add_window(window_config, window)?;
-            // Configure window surface with size
-            let window = app.windows.get_mut(&id).unwrap();
-            window.configure_surface_with_size(
-                app.device_context.device(),
-                window.window().inner_size(),
-            );
-        }
-        Ok(app)
+        })
     }
 
     #[allow(unused)]
@@ -395,7 +429,7 @@ impl GlassContext {
 
     pub fn create_window(
         &mut self,
-        event_loop: &EventLoopWindowTarget<()>,
+        event_loop: &ActiveEventLoop,
         config: WindowConfig,
     ) -> Result<WindowId, GlassError> {
         let reconfigure_device = self.windows.is_empty();
@@ -430,59 +464,59 @@ impl GlassContext {
     }
 
     fn create_winit_window(
-        event_loop: &EventLoopWindowTarget<()>,
+        event_loop: &ActiveEventLoop,
         config: &WindowConfig,
     ) -> Result<Arc<Window>, GlassError> {
-        let mut window_builder = winit::window::WindowBuilder::new()
+        let mut window_attributes = Window::default_attributes()
             .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
             .with_title(config.title);
 
         // Min size
         if let Some(inner_size) = config.min_size {
-            window_builder = window_builder.with_min_inner_size(inner_size);
+            window_attributes = window_attributes.with_min_inner_size(inner_size);
         }
 
         // Max size
         if let Some(inner_size) = config.max_size {
-            window_builder = window_builder.with_max_inner_size(inner_size);
+            window_attributes = window_attributes.with_max_inner_size(inner_size);
         }
 
-        window_builder = match &config.pos {
-            WindowPos::Maximized => window_builder.with_maximized(true),
+        window_attributes = match &config.pos {
+            WindowPos::Maximized => window_attributes.with_maximized(true),
             WindowPos::FullScreen => {
                 if let Some(monitor) = event_loop.primary_monitor() {
-                    window_builder
+                    window_attributes
                         .with_fullscreen(Some(Fullscreen::Exclusive(get_best_videomode(&monitor))))
                 } else {
-                    window_builder
+                    window_attributes
                 }
             }
             WindowPos::SizedFullScreen => {
                 if let Some(monitor) = event_loop.primary_monitor() {
-                    window_builder.with_fullscreen(Some(Fullscreen::Exclusive(
+                    window_attributes.with_fullscreen(Some(Fullscreen::Exclusive(
                         get_fitting_videomode(&monitor, config.width, config.height),
                     )))
                 } else {
-                    window_builder
+                    window_attributes
                 }
             }
-            WindowPos::FullScreenBorderless => window_builder
+            WindowPos::FullScreenBorderless => window_attributes
                 .with_fullscreen(Some(Fullscreen::Borderless(event_loop.primary_monitor()))),
-            WindowPos::Pos(pos) => window_builder.with_position(*pos),
+            WindowPos::Pos(pos) => window_attributes.with_position(*pos),
             WindowPos::Centered => {
                 if let Some(monitor) = event_loop.primary_monitor() {
-                    window_builder.with_position(get_centered_window_position(
+                    window_attributes.with_position(get_centered_window_position(
                         &monitor,
                         config.width,
                         config.height,
                     ))
                 } else {
-                    window_builder
+                    window_attributes
                 }
             }
         };
 
-        match window_builder.build(event_loop) {
+        match event_loop.create_window(window_attributes) {
             Ok(w) => Ok(Arc::new(w)),
             Err(e) => Err(GlassError::WindowError(e)),
         }

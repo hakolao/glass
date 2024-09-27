@@ -1,7 +1,6 @@
 use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
-use glam::Vec2;
 use wgpu::{
     util::DeviceExt, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
     BindGroupLayoutEntry, BindingResource, BindingType, Buffer, Color, ColorTargetState,
@@ -108,6 +107,7 @@ impl PastePipeline {
             depth_stencil: None,
             multisample: wgpu::MultisampleState::default(),
             multiview: None,
+            cache: None,
         });
 
         PastePipeline {
@@ -126,21 +126,21 @@ impl PastePipeline {
         input: &Texture,
         output: &Texture,
         tint: [f32; 4],
-        size: Vec2,
-        offset: Vec2,
+        size: [f32; 2],
+        offset: [f32; 2],
         flip_x: bool,
         flip_y: bool,
     ) {
-        let image_size = Vec2::new(size.x / output.size[0], size.y / output.size[1]);
+        let image_size = [size[0] / output.size[0], size[1] / output.size[1]];
         let push_constants: PastePushConstants = PastePushConstants {
             tint,
             scale: [
-                image_size.x * if flip_x { -1.0 } else { 1.0 },
-                image_size.y * if flip_y { -1.0 } else { 1.0 },
+                image_size[0] * if flip_x { -1.0 } else { 1.0 },
+                image_size[1] * if flip_y { -1.0 } else { 1.0 },
             ],
             offset: [
-                (2.0 * offset.x - output.size[0]) / output.size[0],
-                -(2.0 * offset.y - output.size[1]) / output.size[1],
+                (2.0 * offset[0] - output.size[0]) / output.size[0],
+                -(2.0 * offset[1] - output.size[1]) / output.size[1],
             ],
         };
         let bind_group = device.create_bind_group(&BindGroupDescriptor {
