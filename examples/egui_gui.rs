@@ -129,12 +129,12 @@ fn render_egui(
     let FullOutput {
         shapes,
         textures_delta,
+        pixels_per_point,
         ..
     } = egui_ctx.run(raw_input, |egui_ctx| {
         // Ui content
         ui_app.ui(egui_ctx);
     });
-    let pixels_per_point = window.window().scale_factor() as f32;
     // creates triangles to paint
     let clipped_primitives = egui_ctx.tessellate(shapes, pixels_per_point);
 
