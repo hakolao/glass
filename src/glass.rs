@@ -53,7 +53,7 @@ impl Glass {
         };
         event_loop
             .run_app(&mut glass)
-            .map_err(|e| GlassError::EventLoopError(e))
+            .map_err(GlassError::EventLoopError)
     }
 }
 

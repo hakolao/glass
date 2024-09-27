@@ -111,7 +111,7 @@ impl DeviceContext {
             None => return Err(GlassError::AdapterError),
         };
 
-        let path = config.trace_path.as_ref().map(|p| p.as_path());
+        let path = config.trace_path.as_deref();
         // Create the logical device and command queue
         let (device, queue) = match wait_async(adapter.request_device(
             &DeviceDescriptor {

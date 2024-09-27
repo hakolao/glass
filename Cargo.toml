@@ -40,6 +40,7 @@ glam = "0.29"
 [lints.clippy]
 blocks_in_conditions = "allow"
 field_reassign_with_default = "allow"
+self_named_constructors = "allow"
 
 [profile.dev]
 opt-level = 3

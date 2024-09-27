@@ -94,7 +94,7 @@ impl Grid {
                 let curr = self.data[curr_index];
                 let curr_sand = curr.sand;
                 // Below
-                if !curr_sand.is_empty() && y as i32 - 1 >= 0 {
+                if !curr_sand.is_empty() && y as i32 > 0 {
                     let below_index = self.index(x as i32, y as i32 - 1);
                     let below_sand = self.data[below_index].sand;
                     let below = self.data[below_index];
@@ -106,7 +106,7 @@ impl Grid {
                     } else {
                         let p = rand::random::<f32>();
                         let mut is_swap = false;
-                        if p > 0.5 && x as i32 - 1 >= 0 {
+                        if p > 0.5 && x as i32 > 0 {
                             let left_diag_index = self.index(x as i32 - 1, y as i32 - 1);
                             let left_diag_sand = self.data[left_diag_index].sand;
                             let left = self.data[left_diag_index];
@@ -131,7 +131,7 @@ impl Grid {
                         }
                         if !is_swap && curr_sand.is_water() {
                             let p = rand::random::<f32>();
-                            if p > 0.5 && x as i32 - 1 >= 0 {
+                            if p > 0.5 && x as i32 > 0 {
                                 let left_index = self.index(x as i32 - 1, y as i32);
                                 let left_sand = self.data[left_index].sand;
                                 let left = self.data[left_index];
