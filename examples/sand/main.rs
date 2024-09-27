@@ -1,5 +1,3 @@
-#![feature(more_float_constants)]
-
 mod grid;
 mod sand;
 mod timer;

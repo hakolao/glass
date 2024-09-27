@@ -68,9 +68,9 @@ pub fn variate_color(color: [u8; 3], range: f32, seed: Vec2) -> [u8; 3] {
     [r, g, b]
 }
 
+const PHI: f32 = 1.61803;
+
 fn sticky_rand(pos: Vec2) -> f32 {
     let seed = 123.0;
-    ((pos * std::f32::consts::PHI).distance(pos) * seed * pos.x)
-        .tan()
-        .fract()
+    ((pos * PHI).distance(pos) * seed * pos.x).tan().fract()
 }
