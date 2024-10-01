@@ -2,11 +2,10 @@ use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
-    util::DeviceExt, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, ColorTargetState, ColorWrites,
-    CommandEncoder, Device, Operations, PushConstantRange, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, SamplerBindingType, ShaderStages, TextureFormat,
-    TextureSampleType, TextureViewDimension,
+    util::DeviceExt, BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
+    Buffer, ColorTargetState, ColorWrites, CommandEncoder, Device, Operations, PushConstantRange,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, SamplerBindingType,
+    ShaderStages, TextureFormat, TextureSampleType, TextureViewDimension,
 };
 
 use crate::{
@@ -98,27 +97,12 @@ impl TonemappingPipeline {
 
     pub fn tonemap(
         &self,
-        device: &Device,
         encoder: &mut CommandEncoder,
-        input: &Texture,
+        input_image_bind_group: &BindGroup,
         output: &Texture,
         color_grading: ColorGrading,
     ) {
         let push_constants: ToneMappingPushConstants = color_grading.into();
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("tonemapping_bind_group"),
-            layout: &self.tonemapping_pipeline.get_bind_group_layout(0),
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&input.views[0]),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&input.sampler),
-                },
-            ],
-        });
         {
             let mut r_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("tonemapping_pass"),
@@ -132,7 +116,7 @@ impl TonemappingPipeline {
                 occlusion_query_set: None,
             });
             r_pass.set_pipeline(&self.tonemapping_pipeline);
-            r_pass.set_bind_group(0, &bind_group, &[]);
+            r_pass.set_bind_group(0, input_image_bind_group, &[]);
             r_pass.set_vertex_buffer(0, self.vertices.slice(..));
             r_pass.set_push_constants(
                 ShaderStages::FRAGMENT,

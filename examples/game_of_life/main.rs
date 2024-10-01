@@ -10,10 +10,10 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
-    AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder,
-    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode,
-    InstanceFlags, Limits, MemoryHints, PowerPreference, PresentMode, PushConstantRange,
-    SamplerDescriptor, ShaderStages, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
+    Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder, ComputePassDescriptor,
+    ComputePipeline, ComputePipelineDescriptor, Extent3d, InstanceFlags, Limits, MemoryHints,
+    PowerPreference, PresentMode, PushConstantRange, ShaderStages, StorageTextureAccess, StoreOp,
+    TextureFormat, TextureUsages,
 };
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
@@ -415,15 +415,6 @@ fn create_canvas_data(
         },
         1,
         TextureFormat::Rgba16Float,
-        &SamplerDescriptor {
-            address_mode_u: AddressMode::ClampToEdge,
-            address_mode_v: AddressMode::ClampToEdge,
-            address_mode_w: AddressMode::ClampToEdge,
-            mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Linear,
-            mipmap_filter: FilterMode::Linear,
-            ..Default::default()
-        },
         TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
     );
     let data_in = Texture::empty(
@@ -436,20 +427,14 @@ fn create_canvas_data(
         },
         1,
         TextureFormat::Rgba16Float,
-        &SamplerDescriptor {
-            address_mode_u: AddressMode::ClampToEdge,
-            address_mode_v: AddressMode::ClampToEdge,
-            address_mode_w: AddressMode::ClampToEdge,
-            mag_filter: FilterMode::Nearest,
-            min_filter: FilterMode::Nearest,
-            mipmap_filter: FilterMode::Nearest,
-            ..Default::default()
-        },
         TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
     );
     // Create bind groups to match pipeline layouts (except update, create that dynamically each frame)
-    let canvas_bind_group =
-        quad_pipeline.create_bind_group(context.device(), &canvas.views[0], &canvas.sampler);
+    let canvas_bind_group = quad_pipeline.create_bind_group(
+        context.device(),
+        &canvas.views[0],
+        context.sampler_linear_clamp_to_edge(),
+    );
     // These must match the bind group layout of our pipeline
     let init_bind_group_layout = init_pipeline.get_bind_group_layout(0);
     let init_bind_group = context.device().create_bind_group(&BindGroupDescriptor {

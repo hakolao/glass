@@ -1,8 +1,8 @@
 use image::DynamicImage;
 use wgpu::{
-    Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, Sampler,
-    SamplerDescriptor, TextureAspect, TextureDescriptor, TextureDimension, TextureFormat,
-    TextureUsages, TextureView, TextureViewDescriptor,
+    Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, TextureAspect,
+    TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
+    TextureViewDescriptor,
 };
 
 use crate::GlassError;
@@ -11,7 +11,6 @@ use crate::GlassError;
 pub struct Texture {
     pub texture: wgpu::Texture,
     pub views: Vec<TextureView>,
-    pub sampler: Sampler,
     pub size: [f32; 2],
 }
 
@@ -22,7 +21,6 @@ impl Texture {
         size: Extent3d,
         mip_count: u32,
         format: TextureFormat,
-        sampler_descriptor: &SamplerDescriptor,
         usage: TextureUsages,
     ) -> Self {
         let texture = device.create_texture(&TextureDescriptor {
@@ -44,12 +42,10 @@ impl Texture {
             });
             views.push(view);
         }
-        let sampler = device.create_sampler(sampler_descriptor);
 
         Self {
             texture,
             views,
-            sampler,
             size: [size.width as f32, size.height as f32],
         }
     }
@@ -60,7 +56,6 @@ impl Texture {
         bytes: &[u8],
         label: &str,
         format: TextureFormat,
-        sampler_descriptor: &SamplerDescriptor,
         usage: TextureUsages,
     ) -> Result<Self, GlassError> {
         let img = match image::load_from_memory(bytes) {
@@ -68,14 +63,7 @@ impl Texture {
             Err(e) => return Err(GlassError::ImageError(e)),
         };
         Ok(Self::from_image(
-            device,
-            queue,
-            &img,
-            label,
-            format,
-            sampler_descriptor,
-            usage,
-            1,
+            device, queue, &img, label, format, usage, 1,
         ))
     }
 
@@ -86,7 +74,6 @@ impl Texture {
         img: &DynamicImage,
         label: &str,
         format: TextureFormat,
-        sampler_descriptor: &SamplerDescriptor,
         usage: TextureUsages,
         mip_count: u32,
     ) -> Self {
@@ -126,12 +113,10 @@ impl Texture {
         );
 
         let view = texture.create_view(&TextureViewDescriptor::default());
-        let sampler = device.create_sampler(sampler_descriptor);
 
         Self {
             texture,
             views: vec![view],
-            sampler,
             size: [dimensions.0 as f32, dimensions.1 as f32],
         }
     }

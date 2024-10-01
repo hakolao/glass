@@ -2,11 +2,10 @@ use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
-    util::DeviceExt, BindGroupDescriptor, BindGroupEntry, BindGroupLayoutDescriptor,
-    BindGroupLayoutEntry, BindingResource, BindingType, Buffer, Color, ColorTargetState,
-    ColorWrites, CommandEncoder, Device, Operations, PushConstantRange, RenderPassColorAttachment,
-    RenderPassDescriptor, RenderPipeline, SamplerBindingType, ShaderStages, TextureFormat,
-    TextureSampleType, TextureViewDimension,
+    util::DeviceExt, BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
+    Buffer, Color, ColorTargetState, ColorWrites, CommandEncoder, Device, Operations,
+    PushConstantRange, RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline,
+    SamplerBindingType, ShaderStages, TextureFormat, TextureSampleType, TextureViewDimension,
 };
 
 use crate::{
@@ -120,10 +119,9 @@ impl PastePipeline {
     #[allow(clippy::too_many_arguments)]
     pub fn paste(
         &self,
-        device: &Device,
         encoder: &mut CommandEncoder,
         ops: Operations<Color>,
-        input: &Texture,
+        input_image_bind_group: &BindGroup,
         output: &Texture,
         tint: [f32; 4],
         size: [f32; 2],
@@ -143,20 +141,6 @@ impl PastePipeline {
                 -(2.0 * offset[1] - output.size[1]) / output.size[1],
             ],
         };
-        let bind_group = device.create_bind_group(&BindGroupDescriptor {
-            label: Some("paste_bind_group"),
-            layout: &self.paste_pipeline.get_bind_group_layout(0),
-            entries: &[
-                BindGroupEntry {
-                    binding: 0,
-                    resource: BindingResource::TextureView(&input.views[0]),
-                },
-                BindGroupEntry {
-                    binding: 1,
-                    resource: BindingResource::Sampler(&input.sampler),
-                },
-            ],
-        });
         {
             let mut r_pass = encoder.begin_render_pass(&RenderPassDescriptor {
                 label: Some("paste_pass"),
@@ -170,7 +154,7 @@ impl PastePipeline {
                 occlusion_query_set: None,
             });
             r_pass.set_pipeline(&self.paste_pipeline);
-            r_pass.set_bind_group(0, &bind_group, &[]);
+            r_pass.set_bind_group(0, input_image_bind_group, &[]);
             r_pass.set_vertex_buffer(0, self.vertices.slice(..));
             r_pass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint16);
             r_pass.set_push_constants(
