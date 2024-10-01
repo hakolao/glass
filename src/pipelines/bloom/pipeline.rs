@@ -6,7 +6,7 @@ use wgpu::{
     BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingResource, BindingType, BlendComponent,
     BlendFactor, BlendOperation, BlendState, Buffer, Color, ColorTargetState, ColorWrites,
     CommandEncoder, Device, Extent3d, FilterMode, LoadOp, Operations, PushConstantRange,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, SamplerBindingType,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, Sampler, SamplerBindingType,
     SamplerDescriptor, ShaderStages, StoreOp, TextureFormat, TextureSampleType, TextureUsages,
     TextureViewDimension,
 };
@@ -31,13 +31,6 @@ fn create_bloom_texture(device: &Device, width: u32, height: u32, mip_count: u32
         },
         mip_count,
         BLOOM_TEXTURE_FORMAT,
-        &SamplerDescriptor {
-            min_filter: FilterMode::Linear,
-            mag_filter: FilterMode::Linear,
-            address_mode_u: AddressMode::ClampToEdge,
-            address_mode_v: AddressMode::ClampToEdge,
-            ..Default::default()
-        },
         TextureUsages::RENDER_ATTACHMENT | TextureUsages::TEXTURE_BINDING,
     )
 }
@@ -48,6 +41,7 @@ pub struct BloomPipeline {
     upsample_pipeline: RenderPipeline,
     final_pipeline: RenderPipeline,
     bloom_texture: Texture,
+    bloom_sampler: Sampler,
     downsampling_bind_groups: Vec<BindGroup>,
     upsampling_bind_groups: Vec<BindGroup>,
     vertices: Buffer,
@@ -247,12 +241,20 @@ impl BloomPipeline {
             multiview: None,
             cache: None,
         });
+        let bloom_sampler = device.create_sampler(&SamplerDescriptor {
+            min_filter: FilterMode::Linear,
+            mag_filter: FilterMode::Linear,
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            ..Default::default()
+        });
 
         let (downsampling_bind_groups, upsampling_bind_groups) = Self::create_bind_groups(
             device,
             &downsample_pipeline,
             &upsample_pipeline,
             &bloom_texture,
+            &bloom_sampler,
             mip_count,
         );
 
@@ -262,6 +264,7 @@ impl BloomPipeline {
             upsample_pipeline,
             final_pipeline,
             bloom_texture,
+            bloom_sampler,
             downsampling_bind_groups,
             upsampling_bind_groups,
             vertices,
@@ -277,6 +280,7 @@ impl BloomPipeline {
         downsample_pipeline: &RenderPipeline,
         upsample_pipeline: &RenderPipeline,
         bloom_texture: &Texture,
+        bloom_sampler: &Sampler,
         mip_count: u32,
     ) -> (Vec<BindGroup>, Vec<BindGroup>) {
         let bind_group_count = mip_count as usize - 1;
@@ -292,7 +296,7 @@ impl BloomPipeline {
                     },
                     BindGroupEntry {
                         binding: 1,
-                        resource: BindingResource::Sampler(&bloom_texture.sampler),
+                        resource: BindingResource::Sampler(bloom_sampler),
                     },
                 ],
             }));
@@ -310,7 +314,7 @@ impl BloomPipeline {
                     },
                     BindGroupEntry {
                         binding: 1,
-                        resource: BindingResource::Sampler(&bloom_texture.sampler),
+                        resource: BindingResource::Sampler(bloom_sampler),
                     },
                 ],
             }));
@@ -358,7 +362,7 @@ impl BloomPipeline {
                 },
                 BindGroupEntry {
                     binding: 1,
-                    resource: BindingResource::Sampler(&self.bloom_texture.sampler),
+                    resource: BindingResource::Sampler(&self.bloom_sampler),
                 },
             ],
         });

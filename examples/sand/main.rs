@@ -50,7 +50,13 @@ impl SandSim {
             }),
             write_mask: wgpu::ColorWrites::ALL,
         });
-        let grid = Grid::new(context.device(), &quad_pipeline, CANVAS_SIZE, CANVAS_SIZE);
+        let grid = Grid::new(
+            context.device(),
+            &quad_pipeline,
+            context.sampler_nearest_clamp_to_edge(),
+            CANVAS_SIZE,
+            CANVAS_SIZE,
+        );
         SandSim {
             grid,
             quad_pipeline,

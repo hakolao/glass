@@ -4,7 +4,7 @@ use image::ImageError;
 use indexmap::IndexMap;
 use wgpu::{
     Adapter, CreateSurfaceError, Device, Instance, PowerPreference, Queue, RequestDeviceError,
-    SurfaceConfiguration,
+    Sampler, SurfaceConfiguration,
 };
 use winit::{
     application::ApplicationHandler,
@@ -372,6 +372,22 @@ impl GlassContext {
             windows: IndexMap::default(),
             exit: false,
         })
+    }
+
+    pub fn sampler_nearest_repeat(&self) -> &Arc<Sampler> {
+        self.device_context.sampler_nearest_repeat()
+    }
+
+    pub fn sampler_linear_repeat(&self) -> &Arc<Sampler> {
+        self.device_context.sampler_linear_repeat()
+    }
+
+    pub fn sampler_nearest_clamp_to_edge(&self) -> &Arc<Sampler> {
+        self.device_context.sampler_nearest_clamp_to_edge()
+    }
+
+    pub fn sampler_linear_clamp_to_edge(&self) -> &Arc<Sampler> {
+        self.device_context.sampler_linear_clamp_to_edge()
     }
 
     #[allow(unused)]

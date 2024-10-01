@@ -2,8 +2,8 @@ use glam::{IVec2, Vec2};
 use glass::{pipelines::QuadPipeline, texture::Texture};
 use image::RgbaImage;
 use wgpu::{
-    BindGroup, Device, Extent3d, FilterMode, ImageCopyTexture, ImageDataLayout, Origin3d, Queue,
-    SamplerDescriptor, TextureAspect, TextureFormat, TextureUsages,
+    BindGroup, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, Sampler,
+    TextureAspect, TextureFormat, TextureUsages,
 };
 
 use crate::sand::{Sand, SandType};
@@ -19,7 +19,13 @@ pub struct Grid {
 }
 
 impl Grid {
-    pub fn new(device: &Device, quad: &QuadPipeline, width: u32, height: u32) -> Grid {
+    pub fn new(
+        device: &Device,
+        quad: &QuadPipeline,
+        sampler: &Sampler,
+        width: u32,
+        height: u32,
+    ) -> Grid {
         let data = vec![Sand::empty(); (width * height) as usize];
         let rgba = RgbaImage::new(width, height);
         let texture = Texture::empty(
@@ -32,14 +38,9 @@ impl Grid {
             },
             1,
             TextureFormat::Rgba8UnormSrgb,
-            &SamplerDescriptor {
-                mag_filter: FilterMode::Nearest,
-                min_filter: FilterMode::Nearest,
-                ..Default::default()
-            },
             TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
         );
-        let grid_bind_group = quad.create_bind_group(device, &texture.views[0], &texture.sampler);
+        let grid_bind_group = quad.create_bind_group(device, &texture.views[0], sampler);
         Grid {
             data,
             rgba,
