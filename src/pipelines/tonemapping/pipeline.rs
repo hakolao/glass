@@ -4,8 +4,8 @@ use bytemuck::{Pod, Zeroable};
 use wgpu::{
     util::DeviceExt, BindGroup, BindGroupLayoutDescriptor, BindGroupLayoutEntry, BindingType,
     Buffer, ColorTargetState, ColorWrites, CommandEncoder, Device, Operations, PushConstantRange,
-    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, SamplerBindingType,
-    ShaderStages, TextureFormat, TextureSampleType, TextureViewDimension,
+    RenderPassColorAttachment, RenderPassDescriptor, RenderPipeline, Sampler, SamplerBindingType,
+    ShaderStages, TextureFormat, TextureSampleType, TextureView, TextureViewDimension,
 };
 
 use crate::{
@@ -35,7 +35,7 @@ impl TonemappingPipeline {
                     binding: 0,
                     ty: BindingType::Texture {
                         sample_type: TextureSampleType::Float {
-                            filterable: true,
+                            filterable: false,
                         },
                         view_dimension: TextureViewDimension::D2,
                         multisampled: false,
@@ -45,7 +45,7 @@ impl TonemappingPipeline {
                 },
                 BindGroupLayoutEntry {
                     binding: 1,
-                    ty: BindingType::Sampler(SamplerBindingType::Filtering),
+                    ty: BindingType::Sampler(SamplerBindingType::NonFiltering),
                     visibility: ShaderStages::FRAGMENT,
                     count: None,
                 },
@@ -93,6 +93,30 @@ impl TonemappingPipeline {
             tonemapping_pipeline,
             vertices,
         }
+    }
+
+    pub fn create_bind_group(
+        &self,
+        device: &Device,
+        image: &TextureView,
+        sampler: &Sampler,
+    ) -> BindGroup {
+        let bind_group_layout = self.tonemapping_pipeline.get_bind_group_layout(0);
+        let bind_group = device.create_bind_group(&wgpu::BindGroupDescriptor {
+            layout: &bind_group_layout,
+            entries: &[
+                wgpu::BindGroupEntry {
+                    binding: 0,
+                    resource: wgpu::BindingResource::TextureView(image),
+                },
+                wgpu::BindGroupEntry {
+                    binding: 1,
+                    resource: wgpu::BindingResource::Sampler(sampler),
+                },
+            ],
+            label: Some("tonemap_bind_group"),
+        });
+        bind_group
     }
 
     pub fn tonemap(
