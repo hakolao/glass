@@ -13,6 +13,8 @@ pub use egui;
 #[cfg(feature = "egui_gui")]
 pub use egui_demo_lib;
 #[cfg(feature = "egui_gui")]
+pub use egui_extras;
+#[cfg(feature = "egui_gui")]
 pub use egui_plot;
 #[cfg(feature = "egui_gui")]
 pub use egui_wgpu;
