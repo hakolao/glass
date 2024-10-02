@@ -5,4 +5,4 @@ cargo run --example quad
 cargo run --example multiple_windows
 cargo run --example game_of_life
 cargo run --example lines
-cargo run --example egui_gui --features "egui_gui egui_demo"
+cargo run --example egui_gui --features "egui_gui"

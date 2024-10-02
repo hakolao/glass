@@ -7,10 +7,8 @@ edition = "2021"
 
 [features]
 default = []
-egui_gui = ["egui-wgpu", "egui-winit", "egui"]
-egui_extra = ["egui_gui", "egui_extras"]
-egui_demo = ["egui_gui", "egui_demo_lib", "egui_demo_lib/syntect"]
-egui_persistence = ["egui_gui", "egui_demo", "egui/persistence", "egui_demo_lib/serde"]
+egui_gui = ["egui-wgpu", "egui-winit", "egui", "egui_extras", "egui_plot", "egui_demo_lib", "egui_demo_lib/syntect"]
+egui_persistence = ["egui_gui", "egui/persistence", "egui_demo_lib/serde"]
 wgpu_serde = ["wgpu/serde"]
 
 [dependencies]
@@ -31,6 +29,7 @@ egui-wgpu = { version = "0.29", optional = true }
 egui-winit = { version = "0.29", optional = true }
 egui_extras = { version = "0.29", optional = true }
 egui_demo_lib = { version = "0.29", optional = true }
+egui_plot = { version = "0.29", optional = true }
 
 [dev-dependencies]
 rapier2d = { version = "0.22", features = ["default", "debug-render"] }
@@ -92,7 +91,7 @@ description = "Example that renders a basic Triangle"
 [[example]]
 name = "egui_gui"
 path = "examples/egui_gui.rs"
-required-features = ["egui_gui", "egui_demo"]
+required-features = ["egui_gui"]
 
 [package.metadata.example.egui_gui]
 name = "Egui Gui"
