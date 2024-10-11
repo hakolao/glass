@@ -66,11 +66,74 @@ impl LineApp {
 
 impl GlassApp for LineApp {
     fn start(&mut self, _event_loop: &ActiveEventLoop, context: &mut GlassContext) {
-        // Add ground
-        let collider = ColliderBuilder::cuboid(100.0, 0.1)
-            .translation(vector![0.0, -5.0])
-            .build();
-        self.physics_world.collider_set.insert(collider);
+        // Add ground level
+        let y_pos = 0.0;
+        let ground = self
+            .physics_world
+            .rigid_body_set
+            .insert(RigidBodyBuilder::fixed().translation(vector![0.0, y_pos]));
+
+        // Add bridge
+        let density = 20.0;
+        let x_base = -8.0;
+        let count = 32;
+        let part_half_width = 0.25;
+        let part_half_height = 0.125;
+        let part_width = 2.0 * part_half_width;
+        let mut prev = ground;
+
+        for i in 0..count {
+            let rigid_body = RigidBodyBuilder::dynamic()
+                .linear_damping(0.1)
+                .angular_damping(0.1)
+                .translation(vector![
+                    x_base + part_half_width + part_width * i as f32,
+                    y_pos
+                ]);
+            let handle = self.physics_world.rigid_body_set.insert(rigid_body);
+            let collider =
+                ColliderBuilder::cuboid(part_half_width, part_half_height).density(density);
+            self.physics_world.collider_set.insert_with_parent(
+                collider,
+                handle,
+                &mut self.physics_world.rigid_body_set,
+            );
+
+            let pivot = point![x_base + part_width * i as f32, y_pos];
+            let joint = RevoluteJointBuilder::new()
+                .local_anchor1(
+                    self.physics_world.rigid_body_set[prev]
+                        .position()
+                        .inverse_transform_point(&pivot),
+                )
+                .local_anchor2(
+                    self.physics_world.rigid_body_set[handle]
+                        .position()
+                        .inverse_transform_point(&pivot),
+                )
+                .contacts_enabled(false);
+            self.physics_world
+                .impulse_joint_set
+                .insert(prev, handle, joint, true);
+            prev = handle;
+        }
+
+        let pivot = point![x_base + part_width * count as f32, y_pos];
+        let joint = RevoluteJointBuilder::new()
+            .local_anchor1(
+                self.physics_world.rigid_body_set[prev]
+                    .position()
+                    .inverse_transform_point(&pivot),
+            )
+            .local_anchor2(
+                self.physics_world.rigid_body_set[ground]
+                    .position()
+                    .inverse_transform_point(&pivot),
+            )
+            .contacts_enabled(false);
+        self.physics_world
+            .impulse_joint_set
+            .insert(prev, ground, joint, true);
 
         // Add ball
         let rigid_body = RigidBodyBuilder::dynamic()
@@ -83,6 +146,7 @@ impl GlassApp for LineApp {
             ball_body_handle,
             &mut self.physics_world.rigid_body_set,
         );
+
         let mut some_lines = vec![];
         let line1 = Line::new([0.0, 0.0, 0.0], [512.0, 512.0, 0.0], [1.0, 0.0, 0.0, 1.0]);
         let line2 = Line::new([512.0, 0.0, 0.0], [512.0, 512.0, 0.0], [0.0, 1.0, 0.0, 1.0]);
