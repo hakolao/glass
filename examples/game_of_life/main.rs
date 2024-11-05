@@ -545,7 +545,7 @@ fn create_game_of_life_pipeline(
             label: Some("Init Pipeline"),
             layout: Some(&game_of_life_init_layout),
             module: &game_of_life_shader,
-            entry_point: "init",
+            entry_point: Some("init"),
             compilation_options: Default::default(),
             cache: None,
         });
@@ -567,7 +567,7 @@ fn create_game_of_life_pipeline(
             label: Some("Update Pipeline"),
             layout: Some(&game_of_life_layout),
             module: &game_of_life_shader,
-            entry_point: "update",
+            entry_point: Some("update"),
             compilation_options: Default::default(),
             cache: None,
         });
@@ -588,7 +588,7 @@ fn create_game_of_life_pipeline(
             label: Some("Draw Pipeline"),
             layout: Some(&draw_layout),
             module: &brush_shader,
-            entry_point: "main",
+            entry_point: Some("main"),
             compilation_options: Default::default(),
             cache: None,
         });

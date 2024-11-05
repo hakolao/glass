@@ -16,7 +16,7 @@ use crate::{
     texture::Texture,
 };
 
-const BLOOM_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rg11b10Float;
+const BLOOM_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rg11b10Ufloat;
 const FINAL_TEXTURE_FORMAT: TextureFormat = TextureFormat::Rgba16Float;
 const MAX_MIP_DIMENSION: u32 = 512;
 
@@ -117,13 +117,13 @@ impl BloomPipeline {
                 layout: Some(&layout),
                 vertex: wgpu::VertexState {
                     module: &shader,
-                    entry_point: "vs_main",
+                    entry_point: Some("vs_main"),
                     compilation_options: Default::default(),
                     buffers: &[SimpleTexturedVertex::desc()],
                 },
                 fragment: Some(wgpu::FragmentState {
                     module: &shader,
-                    entry_point: "downsample_first",
+                    entry_point: Some("downsample_first"),
                     compilation_options: Default::default(),
                     targets: &[Some(ColorTargetState {
                         format: BLOOM_TEXTURE_FORMAT,
@@ -142,13 +142,13 @@ impl BloomPipeline {
             layout: Some(&layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
                 buffers: &[SimpleTexturedVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "downsample",
+                entry_point: Some("downsample"),
                 compilation_options: Default::default(),
                 targets: &[Some(ColorTargetState {
                     format: BLOOM_TEXTURE_FORMAT,
@@ -181,13 +181,13 @@ impl BloomPipeline {
             layout: Some(&layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
                 buffers: &[SimpleTexturedVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "upsample",
+                entry_point: Some("upsample"),
                 compilation_options: Default::default(),
                 targets: &[Some(ColorTargetState {
                     format: BLOOM_TEXTURE_FORMAT,
@@ -214,13 +214,13 @@ impl BloomPipeline {
             layout: Some(&layout),
             vertex: wgpu::VertexState {
                 module: &shader,
-                entry_point: "vs_main",
+                entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
                 buffers: &[SimpleTexturedVertex::desc()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,
-                entry_point: "upsample",
+                entry_point: Some("upsample"),
                 compilation_options: Default::default(),
                 targets: &[Some(ColorTargetState {
                     format: FINAL_TEXTURE_FORMAT,
