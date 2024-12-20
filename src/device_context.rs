@@ -72,10 +72,7 @@ impl DeviceContext {
             ..Default::default()
         });
         let (adapter, device, queue) =
-            match Self::create_adapter_device_and_queue(config, &instance, None) {
-                Ok(adq) => adq,
-                Err(e) => return Err(e),
-            };
+            Self::create_adapter_device_and_queue(config, &instance, None)?;
         let sampler_nearest_repeat = Arc::new(device.create_sampler(&SamplerDescriptor {
             label: None,
             address_mode_u: AddressMode::Repeat,
@@ -129,14 +126,8 @@ impl DeviceContext {
     /// If adapter, device and queue has been created without a window (surface), recreate them
     /// once you have a surface to ensure compatibility of queue families.
     pub fn reconfigure_with_surface(&mut self, surface: &Surface) -> Result<(), GlassError> {
-        let (adapter, device, queue) = match Self::create_adapter_device_and_queue(
-            &self.config,
-            &self.instance,
-            Some(surface),
-        ) {
-            Ok(adq) => adq,
-            Err(e) => return Err(e),
-        };
+        let (adapter, device, queue) =
+            Self::create_adapter_device_and_queue(&self.config, &self.instance, Some(surface))?;
         self.adapter = adapter;
         self.device = Arc::new(device);
         self.queue = Arc::new(queue);

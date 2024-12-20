@@ -87,10 +87,7 @@ impl GlassWindow {
         window: Arc<Window>,
     ) -> Result<GlassWindow, CreateSurfaceError> {
         let size = [window.inner_size().width, window.inner_size().height];
-        let surface = match context.instance().create_surface(window.clone()) {
-            Ok(surface) => surface,
-            Err(e) => return Err(e),
-        };
+        let surface = context.instance().create_surface(window.clone())?;
         let allowed_formats = GlassWindow::allowed_surface_formats();
         if !(config.surface_format == allowed_formats[0]
             || config.surface_format == allowed_formats[1])
