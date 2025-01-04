@@ -169,7 +169,7 @@ impl GlassWindow {
             WindowPos::Centered => {
                 if let Some(monitor) = self.window.current_monitor() {
                     self.window.set_fullscreen(None);
-                    let size = self.window.inner_size();
+                    let size = self.window.inner_size().to_logical(monitor.scale_factor());
                     self.window.set_outer_position(get_centered_window_position(
                         &monitor,
                         size.width,
