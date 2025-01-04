@@ -5,7 +5,7 @@ use wgpu::{
     TextureFormat,
 };
 use winit::{
-    dpi::{LogicalSize, PhysicalPosition, PhysicalSize},
+    dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
     monitor::MonitorHandle,
     window::{Fullscreen, Window},
 };
@@ -227,12 +227,11 @@ pub fn get_centered_window_position(
     monitor: &MonitorHandle,
     window_width: u32,
     window_height: u32,
-) -> PhysicalPosition<i32> {
-    let size = monitor.size();
-    let window_size = PhysicalSize::new(window_width, window_height);
-    let lt_x = size.width as i32 / 2 - window_size.width as i32 / 2;
-    let lt_y = size.height as i32 / 2 - window_size.height as i32 / 2;
-    PhysicalPosition::new(lt_x, lt_y)
+) -> LogicalPosition<i32> {
+    let size: LogicalSize<i32> = monitor.size().to_logical(monitor.scale_factor());
+    let lt_x = size.width / 2 - window_width as i32 / 2;
+    let lt_y = size.height / 2 - window_height as i32 / 2;
+    LogicalPosition::new(lt_x, lt_y)
 }
 
 pub fn get_fitting_videomode(
