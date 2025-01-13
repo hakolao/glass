@@ -1,7 +1,8 @@
-use std::{borrow::Cow, collections::HashMap, path::PathBuf};
+use std::{borrow::Cow, path::PathBuf};
 
 use glass::{
-    utils::ShaderModule, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+    utils::{ShaderModule, WatchedShaderModule},
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
     CommandBuffer, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
@@ -21,18 +22,61 @@ fn main() -> Result<(), GlassError> {
 #[derive(Default)]
 struct TriangleApp {
     triangle_pipeline: Option<RenderPipeline>,
+    shader_module: Option<WatchedShaderModule>,
 }
 
 impl GlassApp for TriangleApp {
     fn start(&mut self, _event_loop: &ActiveEventLoop, context: &mut GlassContext) {
-        self.triangle_pipeline = Some(create_triangle_pipeline(context));
+        // Dynamic includes
+        let shader_module = WatchedShaderModule::new(&PathBuf::from(
+            "examples/shader_with_includes/triangle_with_include.wgsl",
+        ))
+        .unwrap();
+
+        // // Static includes
+        // let mut static_includes = HashMap::default();
+        // // Include all files that you wish to refer to in your root shader. Tedious, but this ensures
+        // // You can keep using includes while containing static shaders.
+        // static_includes.insert(
+        //     "examples/shader_with_includes/triangle_with_include.wgsl",
+        //     include_str!("triangle_with_include.wgsl"),
+        // );
+        // static_includes.insert(
+        //     "examples/shader_with_includes/consts.wgsl",
+        //     include_str!("consts.wgsl"),
+        // );
+        // static_includes.insert(
+        //     "examples/triangle/triangle.wgsl",
+        //     include_str!("../triangle/triangle.wgsl"),
+        // );
+        // let shader_module = WatchedShaderModule::new_with_static_sources(
+        //     "examples/shader_with_includes/triangle_with_include.wgsl",
+        //     &static_includes,
+        // )
+        // .unwrap();
+
+        self.triangle_pipeline = Some(create_triangle_pipeline(
+            context,
+            shader_module.module().unwrap(),
+        ));
+        self.shader_module = Some(shader_module);
     }
 
     fn render(
         &mut self,
-        _context: &GlassContext,
+        context: &GlassContext,
         render_data: RenderData,
     ) -> Option<Vec<CommandBuffer>> {
+        let shader_module = self.shader_module.as_mut().unwrap();
+        if shader_module.should_reload() {
+            shader_module.reload().unwrap();
+            self.triangle_pipeline = Some(create_triangle_pipeline(
+                context,
+                shader_module.module().unwrap(),
+            ));
+            println!("Reloaded pipeline {:#?}", shader_module.paths());
+        }
+
         let RenderData {
             encoder,
             frame,
@@ -62,34 +106,7 @@ impl GlassApp for TriangleApp {
     }
 }
 
-fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {
-    // Dynamic includes
-    let _shader_module = ShaderModule::new(&PathBuf::from(
-        "examples/shader_with_includes/triangle_with_include.wgsl",
-    ))
-    .unwrap();
-
-    // Static includes
-    let mut static_includes = HashMap::default();
-    // Include all files that you wish to refer to in your root shader. Tedious, but this ensures
-    // You can keep using includes while containing static shaders.
-    static_includes.insert(
-        "examples/shader_with_includes/triangle_with_include.wgsl",
-        include_str!("triangle_with_include.wgsl"),
-    );
-    static_includes.insert(
-        "examples/shader_with_includes/consts.wgsl",
-        include_str!("consts.wgsl"),
-    );
-    static_includes.insert(
-        "examples/triangle/triangle.wgsl",
-        include_str!("../triangle/triangle.wgsl"),
-    );
-    let shader_module = ShaderModule::new_with_static_sources(
-        "examples/shader_with_includes/triangle_with_include.wgsl",
-        &static_includes,
-    )
-    .unwrap();
+fn create_triangle_pipeline(context: &GlassContext, shader_module: ShaderModule) -> RenderPipeline {
     let shader = context
         .device()
         .create_shader_module(ShaderModuleDescriptor {

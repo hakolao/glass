@@ -4,6 +4,7 @@ use std::{
     fmt::Formatter,
     future::Future,
     path::{Path, PathBuf},
+    time::{Duration, Instant},
 };
 
 use flume::{unbounded, Receiver, Sender};
@@ -48,6 +49,16 @@ pub struct WatchedShaderModule {
     source: ShaderSource,
     _watchers: HashMap<String, Option<RecommendedWatcher>>,
     _receivers: HashMap<String, Receiver<notify::Result<Event>>>,
+    first_event_time: Option<Instant>,
+    has_pending_changes: bool,
+}
+
+impl std::fmt::Debug for WatchedShaderModule {
+    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("WatchedShaderModule")
+            .field("source", &self.source)
+            .finish()
+    }
 }
 
 impl WatchedShaderModule {
@@ -82,6 +93,8 @@ impl WatchedShaderModule {
             source,
             _watchers: watchers,
             _receivers: receivers,
+            first_event_time: None,
+            has_pending_changes: false,
         })
     }
 
@@ -115,7 +128,6 @@ impl WatchedShaderModule {
             for remove in removes {
                 self._receivers.remove(&remove);
                 self._watchers.remove(&remove);
-                info!("Reload removed: {}", remove);
             }
             // Insert new watchers
             for path in new_watches {
@@ -139,25 +151,50 @@ impl WatchedShaderModule {
         modify_fn(&mut self.source)
     }
 
-    pub fn changed_paths(&self) -> HashSet<String> {
-        let mut paths: HashSet<String> = HashSet::default();
+    pub fn should_reload(&mut self) -> bool {
         for (_path, receiver) in self._receivers.iter() {
+            // Process any new events
             for event in receiver.try_iter().flatten() {
-                for path in event.paths.iter() {
-                    if let Some(p) = path.to_str() {
-                        if !p.ends_with('~') {
-                            paths.insert(p.to_string());
-                        }
+                if event
+                    .paths
+                    .iter()
+                    .filter_map(|p| p.to_str())
+                    .any(|p| !p.ends_with('~'))
+                {
+                    self.has_pending_changes = true;
+                    if self.first_event_time.is_none() {
+                        self.first_event_time = Some(Instant::now());
                     }
                 }
             }
         }
 
-        paths
+        if self.has_pending_changes
+            && self
+                .first_event_time
+                .is_some_and(|t| t.elapsed() >= Duration::from_millis(300))
+        {
+            self.first_event_time = None;
+            self.has_pending_changes = false;
+            return true;
+        }
+
+        false
     }
 
     pub fn module(&self) -> Result<ShaderModule, ShaderError> {
         ShaderModule::new_from_source(self.source.clone())
+    }
+
+    pub fn paths(&self) -> Vec<&str> {
+        let paths = vec![self.source.path.as_str()];
+        let other_paths = self
+            .source
+            .parts
+            .iter()
+            .map(|p| p.file_path.as_str())
+            .collect::<Vec<&str>>();
+        [paths, other_paths].concat()
     }
 }
 
@@ -289,7 +326,12 @@ impl ShaderSource {
             0,
         )?;
         Ok(ShaderSource {
-            path: path.clean().display().to_string(),
+            path: path
+                .clean()
+                .to_str()
+                .unwrap()
+                .replace('\\', "/")
+                .to_string(),
             source,
             parts: included_parts,
             is_static: false,
@@ -316,7 +358,7 @@ impl ShaderSource {
             0,
         )?;
         Ok(ShaderSource {
-            path: root_source_path.to_string(),
+            path: root_source_path.replace('\\', "/").to_string(),
             source,
             parts: included_parts,
             is_static: true,
@@ -373,10 +415,13 @@ fn wgsl_source_with_includes(
 
     for line in source.lines() {
         if line.starts_with("#include") {
-            let included_file_name = line.trim_start_matches("#include ").trim();
+            let included_file_name = line
+                .trim_start_matches("#include ")
+                .trim()
+                .replace('\\', "/");
             let included_file_path = std::env::current_dir()
                 .unwrap()
-                .join(included_file_name)
+                .join(&included_file_name)
                 .clean();
 
             let included_file_path_str = included_file_path.to_string_lossy().into_owned();
