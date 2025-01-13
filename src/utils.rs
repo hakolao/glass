@@ -8,7 +8,7 @@ use std::{
 };
 
 use flume::{unbounded, Receiver, Sender};
-use log::{error, info};
+use log::{error, trace};
 use notify::{Event, RecommendedWatcher, RecursiveMode, Watcher};
 use path_clean::PathClean;
 use wgpu::naga::Module;
@@ -86,7 +86,7 @@ impl WatchedShaderModule {
             }
             (watchers, receivers)
         } else {
-            info!("Static shader sources are not watched for {}", source.path);
+            trace!("Static shader sources are not watched for {}", source.path);
             (HashMap::default(), HashMap::default())
         };
         Ok(WatchedShaderModule {
@@ -216,7 +216,7 @@ pub fn start_file_watcher(
         let (tx, rx) = unbounded::<notify::Result<Event>>();
         match file_watcher(tx, path) {
             Ok(watcher) => {
-                info!("Watching {} for changes", path);
+                trace!("Watching {} for changes", path);
                 (rx, Some(watcher))
             }
             Err(e) => {
