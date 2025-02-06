@@ -7,7 +7,7 @@ edition = "2021"
 
 [features]
 default = []
-egui_gui = ["egui-wgpu", "egui-winit", "egui", "egui_extras", "egui_plot", "egui_demo_lib", "egui_demo_lib/syntect"]
+egui_gui = ["egui-wgpu", "egui-winit", "egui", "egui_extras", "egui_extras/all_loaders", "egui_plot", "egui_demo_lib", "egui_demo_lib/syntect"]
 egui_persistence = ["egui_gui", "egui/persistence", "egui_demo_lib/serde"]
 wgpu_serde = ["wgpu/serde"]
 
