@@ -1,6 +1,6 @@
 use image::DynamicImage;
 use wgpu::{
-    Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, TextureAspect,
+    Device, Extent3d, Origin3d, Queue, TexelCopyBufferLayout, TexelCopyTextureInfo, TextureAspect,
     TextureDescriptor, TextureDimension, TextureFormat, TextureUsages, TextureView,
     TextureViewDescriptor,
 };
@@ -97,14 +97,14 @@ impl Texture {
         });
 
         queue.write_texture(
-            ImageCopyTexture {
+            TexelCopyTextureInfo {
                 aspect: TextureAspect::All,
                 texture: &texture,
                 mip_level: 0,
                 origin: Origin3d::ZERO,
             },
             &rgba,
-            ImageDataLayout {
+            TexelCopyBufferLayout {
                 offset: 0,
                 rows_per_image: None,
                 bytes_per_row: Some(4 * dimensions.0),

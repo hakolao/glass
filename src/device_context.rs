@@ -66,7 +66,7 @@ unsafe impl Sync for DeviceContext {}
 
 impl DeviceContext {
     pub fn new(config: &DeviceConfig) -> Result<DeviceContext, GlassError> {
-        let instance = Instance::new(InstanceDescriptor {
+        let instance = Instance::new(&InstanceDescriptor {
             backends: config.backends,
             flags: config.instance_flags,
             ..Default::default()

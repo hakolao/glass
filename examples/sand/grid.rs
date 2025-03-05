@@ -2,8 +2,8 @@ use glam::{IVec2, Vec2};
 use glass::{pipelines::QuadPipeline, texture::Texture};
 use image::RgbaImage;
 use wgpu::{
-    BindGroup, Device, Extent3d, ImageCopyTexture, ImageDataLayout, Origin3d, Queue, Sampler,
-    TextureAspect, TextureFormat, TextureUsages,
+    BindGroup, Device, Extent3d, Origin3d, Queue, Sampler, TexelCopyBufferLayout,
+    TexelCopyTextureInfo, TextureAspect, TextureFormat, TextureUsages,
 };
 
 use crate::sand::{Sand, SandType};
@@ -161,14 +161,14 @@ impl Grid {
     pub fn update_texture(&mut self, queue: &Queue) {
         if self.changed {
             queue.write_texture(
-                ImageCopyTexture {
+                TexelCopyTextureInfo {
                     texture: &self.texture.texture,
                     mip_level: 0,
                     origin: Origin3d::ZERO,
                     aspect: TextureAspect::All,
                 },
                 &self.rgba,
-                ImageDataLayout {
+                TexelCopyBufferLayout {
                     offset: 0,
                     bytes_per_row: Some(4 * self.width),
                     rows_per_image: None,
