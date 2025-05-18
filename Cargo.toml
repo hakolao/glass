@@ -24,6 +24,7 @@ flume = "0.11"
 log = "0.4"
 
 # Optional Egui
+# ToDo: Update to 0.32 when can
 egui = { version = "0.31", git = "https://github.com/emilk/egui.git", rev = "81b7e7f05a6b03fa2cd5bdc6d4ce5f598e16c628", optional = true }
 egui-wgpu = { version = "0.31", git = "https://github.com/emilk/egui.git", rev = "81b7e7f05a6b03fa2cd5bdc6d4ce5f598e16c628", optional = true }
 egui-winit = { version = "0.31", git = "https://github.com/emilk/egui.git", rev = "81b7e7f05a6b03fa2cd5bdc6d4ce5f598e16c628", optional = true }
