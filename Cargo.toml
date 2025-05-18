@@ -41,6 +41,7 @@ blocks_in_conditions = "allow"
 field_reassign_with_default = "allow"
 self_named_constructors = "allow"
 too_long_first_doc_paragraph = "allow"
+uninlined_format_args = "allow"
 
 [profile.dev]
 opt-level = 3
