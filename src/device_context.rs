@@ -3,7 +3,7 @@ use std::{path::PathBuf, sync::Arc};
 use wgpu::{
     Adapter, AddressMode, Backends, Device, DeviceDescriptor, FilterMode, Instance,
     InstanceDescriptor, InstanceFlags, Limits, MemoryHints, PowerPreference, Queue,
-    RequestAdapterOptions, Sampler, SamplerDescriptor, Surface,
+    RequestAdapterOptions, Sampler, SamplerDescriptor, Surface, Trace,
 };
 
 use crate::{utils::wait_async, GlassError};
@@ -144,21 +144,20 @@ impl DeviceContext {
             force_fallback_adapter: false,
             compatible_surface: surface,
         })) {
-            Some(a) => a,
-            None => return Err(GlassError::AdapterError),
+            Ok(a) => a,
+            Err(e) => return Err(GlassError::AdapterError(e)),
         };
 
-        let path = config.trace_path.as_deref();
+        // Unavailable currently...
+        let _path = config.trace_path.as_deref();
         // Create the logical device and command queue
-        let (device, queue) = match wait_async(adapter.request_device(
-            &DeviceDescriptor {
-                label: None,
-                required_features: config.features,
-                required_limits: config.limits.clone(),
-                memory_hints: config.memory_hints.clone(),
-            },
-            path,
-        )) {
+        let (device, queue) = match wait_async(adapter.request_device(&DeviceDescriptor {
+            label: None,
+            required_features: config.features,
+            required_limits: config.limits.clone(),
+            memory_hints: config.memory_hints.clone(),
+            trace: Trace::Off,
+        })) {
             Ok(dq) => dq,
             Err(e) => return Err(GlassError::DeviceError(e)),
         };

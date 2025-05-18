@@ -3,8 +3,8 @@ use std::{fmt::Formatter, sync::Arc};
 use image::ImageError;
 use indexmap::IndexMap;
 use wgpu::{
-    Adapter, CreateSurfaceError, Device, Instance, PowerPreference, Queue, RequestDeviceError,
-    Sampler, SurfaceConfiguration,
+    Adapter, CreateSurfaceError, Device, Instance, PowerPreference, Queue, RequestAdapterError,
+    RequestDeviceError, Sampler, SurfaceConfiguration,
 };
 use winit::{
     application::ApplicationHandler,
@@ -327,7 +327,7 @@ impl Default for GlassConfig {
 pub enum GlassError {
     WindowError(OsError),
     SurfaceError(CreateSurfaceError),
-    AdapterError,
+    AdapterError(RequestAdapterError),
     DeviceError(RequestDeviceError),
     ImageError(ImageError),
     EventLoopError(EventLoopError),
@@ -338,7 +338,7 @@ impl std::fmt::Display for GlassError {
         let s = match self {
             GlassError::WindowError(e) => format!("WindowError: {}", e),
             GlassError::SurfaceError(e) => format!("SurfaceError: {}", e),
-            GlassError::AdapterError => "AdapterError".to_owned(),
+            GlassError::AdapterError(e) => format!("AdapterError: {}", e),
             GlassError::DeviceError(e) => format!("DeviceError: {}", e),
             GlassError::ImageError(e) => format!("ImageError: {}", e),
             GlassError::EventLoopError(e) => format!("EventLoopError: {}", e),
