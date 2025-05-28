@@ -12,9 +12,9 @@ use winit::{
 
 use crate::device_context::DeviceContext;
 
-#[derive(Debug, Copy, Clone)]
+#[derive(Debug, Clone)]
 pub struct WindowConfig {
-    pub title: &'static str,
+    pub title: String,
     pub width: u32,
     pub height: u32,
     pub pos: WindowPos,
@@ -30,7 +30,7 @@ pub struct WindowConfig {
 impl Default for WindowConfig {
     fn default() -> Self {
         Self {
-            title: "App",
+            title: "App".to_string(),
             width: 1920,
             height: 1080,
             pos: WindowPos::Centered,

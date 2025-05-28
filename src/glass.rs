@@ -84,9 +84,9 @@ impl ApplicationHandler for Glass {
         if !runner_state.is_init {
             // Create windows from initial configs
             let mut winit_windows = vec![];
-            for &window_config in config.window_configs.iter() {
+            for window_config in config.window_configs.iter() {
                 winit_windows.push((
-                    window_config,
+                    window_config.clone(),
                     GlassContext::create_winit_window(event_loop, &window_config).unwrap(),
                 ))
             }
@@ -485,7 +485,7 @@ impl GlassContext {
     ) -> Result<Arc<Window>, GlassError> {
         let mut window_attributes = Window::default_attributes()
             .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
-            .with_title(config.title);
+            .with_title(config.title.clone());
 
         // Min size
         if let Some(inner_size) = config.min_size {
