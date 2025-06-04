@@ -3,7 +3,7 @@ use glass::{
 };
 use wgpu::{Color, CommandBuffer, StoreOp};
 use winit::{
-    event::{DeviceEvent, DeviceId, ElementState},
+    event::{ElementState, WindowEvent},
     event_loop::ActiveEventLoop,
     keyboard::{KeyCode, PhysicalKey},
     window::WindowId,
@@ -47,18 +47,26 @@ impl GlassApp for MultiWindowApp {
         );
     }
 
-    fn device_input(
+    fn window_input(
         &mut self,
         context: &mut GlassContext,
         event_loop: &ActiveEventLoop,
-        _device_id: DeviceId,
-        event: &DeviceEvent,
+        _window_id: WindowId,
+        event: &WindowEvent,
     ) {
-        if let DeviceEvent::Key(input) = event {
-            if input.physical_key == PhysicalKey::Code(KeyCode::Space)
-                && input.state == ElementState::Pressed
+        // If you want to only match first window
+        // if _window_id != self.window_ids[0] {
+        //     return;
+        // }
+        if let WindowEvent::KeyboardInput {
+            event, ..
+        } = event
+        {
+            println!("Key: {:?}", event);
+            if event.physical_key == PhysicalKey::Code(KeyCode::Space)
+                && event.state == ElementState::Pressed
             {
-                // Create window
+                // Create window - this will work when your window has focus
                 self.window_ids.push(
                     context
                         .create_window(event_loop, WindowConfig {
@@ -69,7 +77,6 @@ impl GlassApp for MultiWindowApp {
                         })
                         .unwrap(),
                 );
-                println!("Window ids: {:#?}", self.window_ids);
             }
         }
     }

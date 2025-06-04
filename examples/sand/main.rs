@@ -236,12 +236,12 @@ fn config() -> GlassConfig {
                 max_push_constant_size: 128,
                 ..Default::default()
             },
-            ..DeviceConfig::performance()
+            ..DeviceConfig::default()
         },
         window_configs: vec![WindowConfig {
             width: CANVAS_SIZE * CANVAS_SCALE,
             height: CANVAS_SIZE * CANVAS_SCALE,
-            present_mode: PresentMode::Immediate,
+            present_mode: PresentMode::AutoNoVsync,
             exit_on_esc: true,
             ..WindowConfig::default()
         }],

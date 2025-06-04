@@ -2,10 +2,11 @@ use glass::{
     device_context::DeviceConfig,
     pipelines::QuadPipeline,
     texture::Texture,
+    utils::default_texture_format,
     window::{GlassWindow, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
-use wgpu::{BindGroup, CommandBuffer, Limits, StoreOp, TextureFormat, TextureUsages};
+use wgpu::{BindGroup, CommandBuffer, Limits, StoreOp, TextureUsages};
 use winit::event_loop::ActiveEventLoop;
 
 const WIDTH: u32 = 1920;
@@ -146,7 +147,7 @@ fn create_tree_texture(app: &GlassContext) -> Texture {
         app.queue(),
         diffuse_bytes,
         "tree.png",
-        TextureFormat::Rgba8UnormSrgb,
+        default_texture_format(),
         TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
     )
     .unwrap()

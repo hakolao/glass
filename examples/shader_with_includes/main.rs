@@ -2,21 +2,17 @@ use std::{borrow::Cow, path::PathBuf};
 
 use glass::{
     utils::{ShaderModule, WatchedShaderModule},
+    window::GlassWindow,
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
     CommandBuffer, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
-    RenderPipelineDescriptor, ShaderModuleDescriptor, StoreOp, TextureFormat,
+    RenderPipelineDescriptor, ShaderModuleDescriptor, StoreOp,
 };
 use winit::event_loop::ActiveEventLoop;
 
-const WIDTH: u32 = 1920;
-const HEIGHT: u32 = 1080;
-
 fn main() -> Result<(), GlassError> {
-    Glass::run(GlassConfig::performance(WIDTH, HEIGHT), |_| {
-        Box::new(TriangleApp::default())
-    })
+    Glass::run(GlassConfig::default(), |_| Box::new(TriangleApp::default()))
 }
 
 #[derive(Default)]
@@ -135,7 +131,7 @@ fn create_triangle_pipeline(context: &GlassContext, shader_module: ShaderModule)
                 module: &shader,
                 entry_point: Some("fs_main"),
                 compilation_options: Default::default(),
-                targets: &[Some(TextureFormat::Bgra8UnormSrgb.into())],
+                targets: &[Some(GlassWindow::default_surface_format().into())],
             }),
             primitive: PrimitiveState::default(),
             depth_stencil: None,

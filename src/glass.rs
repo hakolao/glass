@@ -87,7 +87,7 @@ impl ApplicationHandler for Glass {
             for window_config in config.window_configs.iter() {
                 winit_windows.push((
                     window_config.clone(),
-                    GlassContext::create_winit_window(event_loop, &window_config).unwrap(),
+                    GlassContext::create_winit_window(event_loop, window_config).unwrap(),
                 ))
             }
             for (window_config, window) in winit_windows {

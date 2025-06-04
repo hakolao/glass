@@ -23,7 +23,7 @@ fn config() -> GlassConfig {
                 ..Default::default()
             },
             features: Features::POLYGON_MODE_LINE,
-            ..DeviceConfig::performance()
+            ..DeviceConfig::default()
         },
         window_configs: vec![WindowConfig {
             width: WIDTH,

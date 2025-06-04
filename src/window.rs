@@ -203,6 +203,21 @@ impl GlassWindow {
 
     /// Return default [`TextureFormat`](wgpu::TextureFormat)s
     pub fn default_surface_format() -> TextureFormat {
+        #[cfg(target_os = "linux")]
+        {
+            let is_wayland = std::env::var("XDG_SESSION_TYPE")
+                .map(|s| s == "wayland")
+                .unwrap_or_else(|_| {
+                    std::env::var("WAYLAND_DISPLAY")
+                        .map(|s| !s.is_empty())
+                        .unwrap_or(false)
+                });
+
+            if is_wayland {
+                return TextureFormat::Bgra8Unorm;
+            }
+        }
+
         TextureFormat::Bgra8UnormSrgb
     }
 

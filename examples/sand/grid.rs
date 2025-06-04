@@ -1,9 +1,9 @@
 use glam::{IVec2, Vec2};
-use glass::{pipelines::QuadPipeline, texture::Texture};
+use glass::{pipelines::QuadPipeline, texture::Texture, utils::default_texture_format};
 use image::RgbaImage;
 use wgpu::{
     BindGroup, Device, Extent3d, Origin3d, Queue, Sampler, TexelCopyBufferLayout,
-    TexelCopyTextureInfo, TextureAspect, TextureFormat, TextureUsages,
+    TexelCopyTextureInfo, TextureAspect, TextureUsages,
 };
 
 use crate::sand::{Sand, SandType};
@@ -37,7 +37,7 @@ impl Grid {
                 depth_or_array_layers: 1,
             },
             1,
-            TextureFormat::Rgba8UnormSrgb,
+            default_texture_format(),
             TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
         );
         let grid_bind_group = quad.create_bind_group(device, &texture.views[0], sampler);
