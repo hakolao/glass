@@ -181,7 +181,7 @@ impl GlassWindow {
     }
 
     /// Return [`Surface`](wgpu::Surface) belonging to the window
-    pub fn surface(&self) -> &Surface {
+    pub fn surface(&self) -> &Surface<'_> {
         &self.surface
     }
 

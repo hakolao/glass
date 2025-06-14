@@ -47,18 +47,20 @@ fn config() -> GlassConfig {
             instance_flags: InstanceFlags::from_build_config(),
             trace_path: None,
         },
-        window_configs: vec![WindowConfig {
+    }
+}
+
+fn main() -> Result<(), GlassError> {
+    Glass::run(config(), |context| {
+        context.create_window(WindowConfig {
             width: WIDTH,
             height: HEIGHT,
             exit_on_esc: true,
             present_mode: PresentMode::AutoNoVsync,
             ..WindowConfig::default()
-        }],
-    }
-}
-
-fn main() -> Result<(), GlassError> {
-    Glass::run(config(), |_| Box::new(GameOfLifeApp::default()))
+        });
+        Box::new(GameOfLifeApp::default())
+    })
 }
 
 // Think of this like reading a "table of contents".

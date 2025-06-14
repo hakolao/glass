@@ -13,7 +13,7 @@ const WIDTH: u32 = 256;
 const HEIGHT: u32 = 256;
 
 fn main() -> Result<(), GlassError> {
-    Glass::run(GlassConfig::windowless(), |_| {
+    Glass::run(GlassConfig::default(), |_| {
         Box::new(MultiWindowApp::default())
     })
 }
@@ -28,29 +28,23 @@ const CLEAR_COLORS: [Color; 5] = [
 
 /// Example buffer data etc.
 #[derive(Default)]
-struct MultiWindowApp {
-    pub window_ids: Vec<WindowId>,
-}
+struct MultiWindowApp;
 
 impl GlassApp for MultiWindowApp {
-    fn start(&mut self, event_loop: &ActiveEventLoop, context: &mut GlassContext) {
+    fn start(&mut self, _event_loop: &ActiveEventLoop, context: &mut GlassContext) {
         println!("Press space to create windows, esc to close all but last");
-        self.window_ids.push(
-            context
-                .create_window(event_loop, WindowConfig {
-                    width: WIDTH,
-                    height: HEIGHT,
-                    exit_on_esc: true,
-                    ..WindowConfig::default()
-                })
-                .unwrap(),
-        );
+        context.create_window(WindowConfig {
+            width: WIDTH,
+            height: HEIGHT,
+            exit_on_esc: true,
+            ..WindowConfig::default()
+        });
     }
 
     fn window_input(
         &mut self,
         context: &mut GlassContext,
-        event_loop: &ActiveEventLoop,
+        _event_loop: &ActiveEventLoop,
         _window_id: WindowId,
         event: &WindowEvent,
     ) {
@@ -64,19 +58,15 @@ impl GlassApp for MultiWindowApp {
         {
             println!("Key: {:?}", event);
             if event.physical_key == PhysicalKey::Code(KeyCode::Space)
-                && event.state == ElementState::Pressed
+                && event.state == ElementState::Released
             {
                 // Create window - this will work when your window has focus
-                self.window_ids.push(
-                    context
-                        .create_window(event_loop, WindowConfig {
-                            width: WIDTH,
-                            height: HEIGHT,
-                            exit_on_esc: true,
-                            ..WindowConfig::default()
-                        })
-                        .unwrap(),
-                );
+                context.create_window(WindowConfig {
+                    width: WIDTH,
+                    height: HEIGHT,
+                    exit_on_esc: true,
+                    ..WindowConfig::default()
+                });
             }
         }
     }

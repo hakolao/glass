@@ -3,13 +3,20 @@ use egui_demo_lib::DemoWindows;
 use egui_wgpu::ScreenDescriptor;
 use egui_winit::EventResponse;
 use glass::{
-    window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+    window::{GlassWindow, WindowConfig},
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{CommandBuffer, CommandEncoder, StoreOp, TextureView};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::WindowId};
 
 fn main() -> Result<(), GlassError> {
-    Glass::run(GlassConfig::default(), |_| {
+    Glass::run(GlassConfig::default(), |context| {
+        context.create_window(WindowConfig {
+            width: 1920,
+            height: 1080,
+            exit_on_esc: true,
+            ..WindowConfig::default()
+        });
         Box::new(GuiApp {
             gui: None,
         })

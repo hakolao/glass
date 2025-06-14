@@ -28,7 +28,6 @@ use crate::{
 /// which render using wgpu. Just impl [`GlassApp`] for your application (of any type) and you
 /// are good to go.
 pub struct Glass {
-    config: GlassConfig,
     app: Box<dyn GlassApp>,
     context: GlassContext,
     runner_state: RunnerState,
@@ -40,16 +39,15 @@ impl Glass {
         app_create_fn: impl FnOnce(&mut GlassContext) -> Box<dyn GlassApp>,
     ) -> Result<(), GlassError> {
         let mut context = GlassContext::new(config.clone())?;
+        let event_loop = match EventLoop::new() {
+            Ok(e) => e,
+            Err(e) => return Err(GlassError::EventLoopError(e)),
+        };
         let app = app_create_fn(&mut context);
         let mut glass = Glass {
             app,
             context,
-            config,
             runner_state: RunnerState::default(),
-        };
-        let event_loop = match EventLoop::new() {
-            Ok(e) => e,
-            Err(e) => return Err(GlassError::EventLoopError(e)),
         };
         event_loop
             .run_app(&mut glass)
@@ -75,30 +73,13 @@ impl ApplicationHandler for Glass {
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
         let Glass {
             app,
-            config,
             context,
             runner_state,
             ..
         } = self;
         // Initial windows
         if !runner_state.is_init {
-            // Create windows from initial configs
-            let mut winit_windows = vec![];
-            for window_config in config.window_configs.iter() {
-                winit_windows.push((
-                    window_config.clone(),
-                    GlassContext::create_winit_window(event_loop, window_config).unwrap(),
-                ))
-            }
-            for (window_config, window) in winit_windows {
-                let id = context.add_window(window_config, window).unwrap();
-                // Configure window surface with size
-                let window = context.windows.get_mut(&id).unwrap();
-                window.configure_surface_with_size(
-                    context.device_context.device(),
-                    window.window().inner_size(),
-                );
-            }
+            add_new_windows(event_loop, context);
             app.start(event_loop, context);
             runner_state.is_init = true;
         }
@@ -194,6 +175,7 @@ impl ApplicationHandler for Glass {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
+        add_new_windows(event_loop, &mut self.context);
         let Glass {
             app,
             context,
@@ -210,6 +192,28 @@ impl ApplicationHandler for Glass {
             ..
         } = self;
         app.end(context);
+    }
+}
+
+fn add_new_windows(event_loop: &ActiveEventLoop, context: &mut GlassContext) {
+    // Add new windows
+    let winit_windows: Vec<_> = std::mem::take(&mut context.create_windows)
+        .into_iter()
+        .map(|w| {
+            (
+                w.clone(),
+                GlassContext::create_winit_window(event_loop, &w).unwrap(),
+            )
+        })
+        .collect();
+    for (window_config, window) in winit_windows {
+        let id = context.add_window(window_config, window).unwrap();
+        // Configure window surface with size
+        let window = context.windows.get_mut(&id).unwrap();
+        window.configure_surface_with_size(
+            context.device_context.device(),
+            window.window().inner_size(),
+        );
     }
 }
 
@@ -284,41 +288,18 @@ struct RunnerState {
 }
 
 /// Configuration of your windows and devices.
-#[derive(Debug, Clone)]
+#[derive(Default, Debug, Clone)]
 pub struct GlassConfig {
     pub device_config: DeviceConfig,
-    pub window_configs: Vec<WindowConfig>,
 }
 
 impl GlassConfig {
-    pub fn windowless() -> Self {
-        Self {
-            device_config: DeviceConfig::default(),
-            window_configs: vec![],
-        }
-    }
-
-    pub fn performance(width: u32, height: u32) -> Self {
+    pub fn performance() -> Self {
         Self {
             device_config: DeviceConfig {
                 power_preference: PowerPreference::HighPerformance,
                 ..Default::default()
             },
-            window_configs: vec![WindowConfig {
-                width,
-                height,
-                exit_on_esc: false,
-                ..WindowConfig::default()
-            }],
-        }
-    }
-}
-
-impl Default for GlassConfig {
-    fn default() -> Self {
-        Self {
-            device_config: DeviceConfig::default(),
-            window_configs: vec![WindowConfig::default()],
         }
     }
 }
@@ -352,6 +333,7 @@ impl std::fmt::Display for GlassError {
 /// needed for render or compute functionality.
 pub struct GlassContext {
     device_context: DeviceContext,
+    create_windows: Vec<WindowConfig>,
     windows: IndexMap<WindowId, GlassWindow>,
     exit: bool,
 }
@@ -369,6 +351,7 @@ impl GlassContext {
 
         Ok(Self {
             device_context,
+            create_windows: vec![],
             windows: IndexMap::default(),
             exit: false,
         })
@@ -443,26 +426,8 @@ impl GlassContext {
         self.windows.get_mut(&id)
     }
 
-    pub fn create_window(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        config: WindowConfig,
-    ) -> Result<WindowId, GlassError> {
-        let reconfigure_device = self.windows.is_empty();
-        let window = Self::create_winit_window(event_loop, &config)?;
-        let id = self.add_window(config, window)?;
-        // Reconfigure devices with surface so queue families are correct
-        let window = self.windows.get_mut(&id).unwrap();
-        if reconfigure_device {
-            let surface = window.surface();
-            self.device_context.reconfigure_with_surface(surface)?;
-        }
-        // Configure surface with size
-        window.configure_surface_with_size(
-            self.device_context.device(),
-            window.window().inner_size(),
-        );
-        Ok(id)
+    pub fn create_window(&mut self, config: WindowConfig) {
+        self.create_windows.push(config);
     }
 
     fn add_window(

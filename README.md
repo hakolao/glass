@@ -15,7 +15,16 @@ Example:
 
 ```rust
 fn main() {
-    Glass::run(GlassConfig::default(), |_| Box::new(YourApp))
+    Glass::run(GlassConfig::default(), |context| {
+        // Create window if relevant
+        // context.create_window(WindowConfig {
+        //     width: 1920,
+        //     height: 1080,
+        //     exit_on_esc: true,
+        //     ..WindowConfig::default()
+        // });
+        Box::new(YourApp)
+    })
 }
 
 // Organize your app in anyway you like

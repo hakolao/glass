@@ -26,6 +26,13 @@ const CANVAS_SCALE: u32 = 2;
 
 fn main() -> Result<(), GlassError> {
     Glass::run(config(), |context| {
+        context.create_window(WindowConfig {
+            width: CANVAS_SIZE * CANVAS_SCALE,
+            height: CANVAS_SIZE * CANVAS_SCALE,
+            present_mode: PresentMode::AutoNoVsync,
+            exit_on_esc: true,
+            ..WindowConfig::default()
+        });
         Box::new(SandSim::new(context)) as Box<dyn GlassApp>
     })
 }
@@ -238,12 +245,5 @@ fn config() -> GlassConfig {
             },
             ..DeviceConfig::default()
         },
-        window_configs: vec![WindowConfig {
-            width: CANVAS_SIZE * CANVAS_SCALE,
-            height: CANVAS_SIZE * CANVAS_SCALE,
-            present_mode: PresentMode::AutoNoVsync,
-            exit_on_esc: true,
-            ..WindowConfig::default()
-        }],
     }
 }

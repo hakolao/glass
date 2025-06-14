@@ -20,7 +20,15 @@ const OPENGL_TO_WGPU: glam::Mat4 = glam::Mat4::from_cols_array(&[
 ]);
 
 fn main() -> Result<(), GlassError> {
-    Glass::run(config(), |_| Box::new(TreeApp::default()))
+    Glass::run(config(), |context| {
+        context.create_window(WindowConfig {
+            width: WIDTH,
+            height: HEIGHT,
+            exit_on_esc: true,
+            ..WindowConfig::default()
+        });
+        Box::new(TreeApp::default())
+    })
 }
 
 fn config() -> GlassConfig {
@@ -33,12 +41,6 @@ fn config() -> GlassConfig {
             },
             ..DeviceConfig::performance()
         },
-        window_configs: vec![WindowConfig {
-            width: WIDTH,
-            height: HEIGHT,
-            exit_on_esc: true,
-            ..WindowConfig::default()
-        }],
     }
 }
 

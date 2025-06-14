@@ -1,7 +1,8 @@
 use std::borrow::Cow;
 
 use glass::{
-    window::GlassWindow, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+    window::{GlassWindow, WindowConfig},
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use wgpu::{
     CommandBuffer, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
@@ -10,7 +11,15 @@ use wgpu::{
 use winit::event_loop::ActiveEventLoop;
 
 fn main() -> Result<(), GlassError> {
-    Glass::run(GlassConfig::default(), |_| Box::new(TriangleApp::default()))
+    Glass::run(GlassConfig::default(), |context| {
+        context.create_window(WindowConfig {
+            width: 1920,
+            height: 1080,
+            exit_on_esc: true,
+            ..WindowConfig::default()
+        });
+        Box::new(TriangleApp::default())
+    })
 }
 
 #[derive(Default)]

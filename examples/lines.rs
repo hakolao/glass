@@ -6,7 +6,7 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
 };
 use rapier2d::prelude::*;
-use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, StoreOp};
+use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, PresentMode, StoreOp};
 use winit::event_loop::ActiveEventLoop;
 
 const WIDTH: u32 = 1920;
@@ -25,17 +25,20 @@ fn config() -> GlassConfig {
             features: Features::POLYGON_MODE_LINE,
             ..DeviceConfig::default()
         },
-        window_configs: vec![WindowConfig {
-            width: WIDTH,
-            height: HEIGHT,
-            exit_on_esc: true,
-            ..WindowConfig::default()
-        }],
     }
 }
 
 fn main() -> Result<(), GlassError> {
-    Glass::run(config(), |context| Box::new(LineApp::new(context)))
+    Glass::run(config(), |context| {
+        context.create_window(WindowConfig {
+            width: WIDTH,
+            height: HEIGHT,
+            present_mode: PresentMode::AutoVsync,
+            exit_on_esc: true,
+            ..WindowConfig::default()
+        });
+        Box::new(LineApp::new(context))
+    })
 }
 
 struct LineApp {
