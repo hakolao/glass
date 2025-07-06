@@ -6,8 +6,8 @@ use glass::{
     device_context::DeviceConfig,
     pipelines::QuadPipeline,
     texture::Texture,
-    window::{GlassWindow, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+    window::{GlassWindow, RenderData, WindowConfig},
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use wgpu::{
     Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder, ComputePassDescriptor,
@@ -106,14 +106,13 @@ impl GlassApp for GameOfLifeApp {
 
     fn update(&mut self, context: &mut GlassContext) {
         run_update(self, context);
-    }
 
-    fn render(
-        &mut self,
-        _context: &GlassContext,
-        render_data: RenderData,
-    ) -> Option<Vec<CommandBuffer>> {
-        render(self, render_data)
+        context.primary_render_window().render_default(
+            context.device(),
+            context.queue(),
+            self,
+            render,
+        );
     }
 }
 

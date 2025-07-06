@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use wgpu::{
-    CompositeAlphaMode, CreateSurfaceError, Device, PresentMode, Surface, SurfaceConfiguration,
-    TextureFormat,
+    CommandBuffer, CommandEncoder, CompositeAlphaMode, CreateSurfaceError, Device, PresentMode,
+    Queue, Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat,
 };
 use winit::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
@@ -10,7 +10,7 @@ use winit::{
     window::{Fullscreen, Window},
 };
 
-use crate::device_context::DeviceContext;
+use crate::{device_context::DeviceContext, GlassApp};
 
 #[derive(Debug, Clone)]
 pub struct WindowConfig {
@@ -190,6 +190,11 @@ impl GlassWindow {
         &self.window
     }
 
+    /// Return [`Window`](winit::window::Window) arc
+    pub fn window_arc(&self) -> &Arc<Window> {
+        &self.window
+    }
+
     /// Return [`PresentMode`](wgpu::PresentMode) belonging to the window
     pub fn present_mode(&self) -> PresentMode {
         self.present_mode
@@ -235,6 +240,37 @@ impl GlassWindow {
 
     pub fn surface_size(&self) -> [u32; 2] {
         self.last_surface_size
+    }
+
+    pub fn render_default<T: GlassApp>(
+        &self,
+        device: &Device,
+        queue: &Queue,
+        app: &mut T,
+        mut render_function: impl FnMut(&mut T, RenderData) -> Option<Vec<CommandBuffer>>,
+    ) {
+        match self.surface().get_current_texture() {
+            Ok(frame) => {
+                let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
+                    label: Some("Render Commands"),
+                });
+                let mut commands = render_function(app, RenderData {
+                    encoder: &mut encoder,
+                    window: self,
+                    frame: &frame,
+                })
+                .unwrap_or_default();
+                commands.push(encoder.finish());
+                queue.submit(commands);
+                frame.present();
+            }
+            Err(error) => {
+                if error == wgpu::SurfaceError::OutOfMemory {
+                    panic!("Swapchain error: {error}. Rendering cannot continue.")
+                }
+            }
+        }
+        self.window().request_redraw();
     }
 }
 
@@ -299,4 +335,11 @@ pub fn get_best_videomode(
     });
 
     modes.first().unwrap().clone()
+}
+
+/// Just a util struct to pass data required for rendering
+pub struct RenderData<'a> {
+    pub encoder: &'a mut CommandEncoder,
+    pub window: &'a GlassWindow,
+    pub frame: &'a SurfaceTexture,
 }

@@ -3,10 +3,10 @@ use egui_demo_lib::DemoWindows;
 use egui_wgpu::ScreenDescriptor;
 use egui_winit::EventResponse;
 use glass::{
-    window::{GlassWindow, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+    window::{GlassWindow, RenderData, WindowConfig},
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
-use wgpu::{CommandBuffer, CommandEncoder, StoreOp, TextureView};
+use wgpu::{CommandBuffer, Device, Queue, StoreOp};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::WindowId};
 
 fn main() -> Result<(), GlassError> {
@@ -38,12 +38,14 @@ impl GlassApp for GuiApp {
         update_egui_with_winit_event(self, context, window_id, event);
     }
 
-    fn render(
-        &mut self,
-        context: &GlassContext,
-        render_data: RenderData,
-    ) -> Option<Vec<CommandBuffer>> {
-        Some(render(self, context, render_data))
+    fn update(&mut self, context: &mut GlassContext) {
+        let device = context.device();
+        let queue = context.queue();
+        context
+            .primary_render_window()
+            .render_default(device, queue, self, |app, render_data| {
+                render_egui(app, device, queue, render_data)
+            });
     }
 }
 
@@ -97,7 +99,7 @@ fn update_egui_with_winit_event(
     let gui = &mut app.gui;
     if let Some(window) = context.render_window(window_id) {
         let EventResponse {
-            consumed,
+            consumed: _consumed,
             repaint,
         } = gui
             .as_mut()
@@ -106,32 +108,23 @@ fn update_egui_with_winit_event(
             .on_window_event(window.window(), event);
         gui.as_mut().unwrap().repaint = repaint;
         // Skip input if event was consumed by egui
-        if consumed {
-            return;
-        }
+        // if consumed {
+        //     return;
+        // }
     }
-}
-
-fn render(app: &mut GuiApp, context: &GlassContext, render_data: RenderData) -> Vec<CommandBuffer> {
-    let RenderData {
-        encoder,
-        frame,
-        ..
-    } = render_data;
-    let view = frame
-        .texture
-        .create_view(&wgpu::TextureViewDescriptor::default());
-
-    render_egui(app, context, encoder, &view)
 }
 
 fn render_egui(
     app: &mut GuiApp,
-    context: &GlassContext,
-    encoder: &mut CommandEncoder,
-    view: &TextureView,
-) -> Vec<CommandBuffer> {
-    let window = context.primary_render_window();
+    device: &Device,
+    queue: &Queue,
+    render_data: RenderData,
+) -> Option<Vec<CommandBuffer>> {
+    let window = render_data.window;
+    let view = render_data
+        .frame
+        .texture
+        .create_view(&wgpu::TextureViewDescriptor::default());
     let GuiState {
         egui_ctx,
         renderer,
@@ -161,14 +154,14 @@ fn render_egui(
     // Upload all resources for the GPU.
     let user_cmd_bufs = {
         for (id, image_delta) in &textures_delta.set {
-            renderer.update_texture(context.device(), context.queue(), *id, image_delta);
+            renderer.update_texture(device, queue, *id, image_delta);
         }
 
         // Update buffers
         renderer.update_buffers(
-            context.device(),
-            context.queue(),
-            encoder,
+            device,
+            queue,
+            render_data.encoder,
             &clipped_primitives,
             &screen_descriptor,
         )
@@ -176,25 +169,27 @@ fn render_egui(
 
     // Render
     {
-        let render_pass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None,
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                    store: StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
+        let render_pass = render_data
+            .encoder
+            .begin_render_pass(&wgpu::RenderPassDescriptor {
+                label: None,
+                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                    view: &view,
+                    resolve_target: None,
+                    ops: wgpu::Operations {
+                        load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                        store: StoreOp::Store,
+                    },
+                })],
+                depth_stencil_attachment: None,
+                timestamp_writes: None,
+                occlusion_query_set: None,
+            });
         // Here you would render your scene
         // Render Egui
         renderer.render(
             &mut render_pass.forget_lifetime(),
-            &*clipped_primitives,
+            &clipped_primitives,
             &screen_descriptor,
         );
     }
@@ -203,5 +198,5 @@ fn render_egui(
         renderer.free_texture(id);
     }
 
-    user_cmd_bufs
+    Some(user_cmd_bufs)
 }

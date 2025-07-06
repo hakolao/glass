@@ -1,20 +1,10 @@
-use wgpu::{CommandBuffer, CommandEncoder, StoreOp, SurfaceTexture};
 use winit::{
     event::{DeviceEvent, DeviceId, WindowEvent},
     event_loop::ActiveEventLoop,
     window::WindowId,
 };
 
-use crate::{window::GlassWindow, GlassContext};
-
-/// All necessary data required to render with wgpu. This data only lives for the duration of
-/// rendering.
-/// The command queue will be submitted each frame.
-pub struct RenderData<'a> {
-    pub encoder: &'a mut CommandEncoder,
-    pub window: &'a GlassWindow,
-    pub frame: &'a SurfaceTexture,
-}
+use crate::GlassContext;
 
 /// A trait to define all stages of your Glass app. Each function here is run at a specific stage
 /// within winit event loop. When you impl this for your app, think of this as the
@@ -44,41 +34,6 @@ pub trait GlassApp {
     }
     /// Run each frame, called within winit's `about_to_wait`.
     fn update(&mut self, _context: &mut GlassContext) {}
-    /// Run each frame for each window after update
-    fn render(
-        &mut self,
-        _context: &GlassContext,
-        _render_data: RenderData,
-    ) -> Option<Vec<CommandBuffer>> {
-        let RenderData {
-            encoder,
-            frame,
-            ..
-        } = _render_data;
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        {
-            let _r = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-        }
-
-        None
-    }
-    /// Run each frame last
-    fn end_of_frame(&mut self, _context: &mut GlassContext) {}
     /// Run at exit
     fn end(&mut self, _context: &mut GlassContext) {}
 }

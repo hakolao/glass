@@ -6,8 +6,8 @@ use glam::Vec2;
 use glass::{
     device_context::DeviceConfig,
     pipelines::QuadPipeline,
-    window::{GlassWindow, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+    window::{GlassWindow, RenderData, WindowConfig},
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use wgpu::{
     Color, CommandBuffer, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
@@ -141,71 +141,72 @@ impl GlassApp for SandSim {
         self.grid.simulate();
         self.grid.simulate();
         self.grid.update_texture(context.queue());
-    }
 
-    fn render(
-        &mut self,
-        _context: &GlassContext,
-        render_data: RenderData,
-    ) -> Option<Vec<CommandBuffer>> {
-        let SandSim {
-            grid,
-            quad_pipeline,
-            ..
-        } = self;
-        let RenderData {
-            encoder,
-            frame,
-            window,
-            ..
-        } = render_data;
-        let (width, height) = {
-            let scale_factor = window.window().scale_factor() as f32;
-            let size = window.window().inner_size();
-            (
-                size.width as f32 / scale_factor,
-                size.height as f32 / scale_factor,
-            )
-        };
-        let view = frame.texture.create_view(&TextureViewDescriptor::default());
+        context.primary_render_window().render_default(
+            context.device(),
+            context.queue(),
+            self,
+            render,
+        );
 
-        {
-            let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: Operations {
-                        load: LoadOp::Clear(Color::BLACK),
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
-            quad_pipeline.draw(
-                &mut rpass,
-                &grid.grid_bind_group,
-                [0.0; 4],
-                camera_projection([width, height]).to_cols_array_2d(),
-                [
-                    grid.texture.size[0] * CANVAS_SCALE as f32,
-                    grid.texture.size[1] * CANVAS_SCALE as f32,
-                ],
-                1.0,
-            );
-        }
-        None
-    }
-
-    fn end_of_frame(&mut self, context: &mut GlassContext) {
         self.timer.update();
         if let Some(w) = context.primary_render_window_maybe() {
             w.window()
                 .set_title(&format!("Sand Grid - FPS: {:.2}", self.timer.avg_fps()));
         }
     }
+}
+
+fn render(app: &mut SandSim, render_data: RenderData) -> Option<Vec<CommandBuffer>> {
+    let SandSim {
+        grid,
+        quad_pipeline,
+        ..
+    } = app;
+    let RenderData {
+        encoder,
+        frame,
+        window,
+        ..
+    } = render_data;
+    let (width, height) = {
+        let scale_factor = window.window().scale_factor() as f32;
+        let size = window.window().inner_size();
+        (
+            size.width as f32 / scale_factor,
+            size.height as f32 / scale_factor,
+        )
+    };
+    let view = frame.texture.create_view(&TextureViewDescriptor::default());
+
+    {
+        let mut rpass = encoder.begin_render_pass(&RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: Operations {
+                    load: LoadOp::Clear(Color::BLACK),
+                    store: StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+        quad_pipeline.draw(
+            &mut rpass,
+            &grid.grid_bind_group,
+            [0.0; 4],
+            camera_projection([width, height]).to_cols_array_2d(),
+            [
+                grid.texture.size[0] * CANVAS_SCALE as f32,
+                grid.texture.size[1] * CANVAS_SCALE as f32,
+            ],
+            1.0,
+        );
+    }
+    None
 }
 
 fn cursor_to_canvas(cursor: Vec2, screen_width: f32, screen_height: f32) -> Vec2 {

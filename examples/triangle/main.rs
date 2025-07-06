@@ -1,8 +1,8 @@
 use std::borrow::Cow;
 
 use glass::{
-    window::{GlassWindow, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+    window::{GlassWindow, RenderData, WindowConfig},
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use wgpu::{
     CommandBuffer, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
@@ -32,38 +32,42 @@ impl GlassApp for TriangleApp {
         self.triangle_pipeline = Some(create_triangle_pipeline(context));
     }
 
-    fn render(
-        &mut self,
-        _context: &GlassContext,
-        render_data: RenderData,
-    ) -> Option<Vec<CommandBuffer>> {
-        let RenderData {
-            encoder,
-            frame,
-            ..
-        } = render_data;
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None,
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
-                    store: StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
-        let triangle_pipeline = self.triangle_pipeline.as_ref().unwrap();
-        rpass.set_pipeline(triangle_pipeline);
-        rpass.draw(0..3, 0..1);
-        None
+    fn update(&mut self, context: &mut GlassContext) {
+        let device = context.device();
+        let queue = context.queue();
+        context
+            .primary_render_window()
+            .render_default(device, queue, self, render);
     }
+}
+
+fn render(app: &mut TriangleApp, render_data: RenderData) -> Option<Vec<CommandBuffer>> {
+    let RenderData {
+        encoder,
+        frame,
+        ..
+    } = render_data;
+    let view = frame
+        .texture
+        .create_view(&wgpu::TextureViewDescriptor::default());
+    let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        label: None,
+        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            view: &view,
+            resolve_target: None,
+            ops: wgpu::Operations {
+                load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),
+                store: StoreOp::Store,
+            },
+        })],
+        depth_stencil_attachment: None,
+        timestamp_writes: None,
+        occlusion_query_set: None,
+    });
+    let triangle_pipeline = app.triangle_pipeline.as_ref().unwrap();
+    rpass.set_pipeline(triangle_pipeline);
+    rpass.draw(0..3, 0..1);
+    None
 }
 
 fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {

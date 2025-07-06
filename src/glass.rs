@@ -21,7 +21,7 @@ use crate::{
         get_best_videomode, get_centered_window_position, get_fitting_videomode, GlassWindow,
         WindowConfig, WindowPos,
     },
-    GlassApp, RenderData,
+    GlassApp,
 };
 
 /// [`Glass`] is an application that exposes an easy to use API to organize your winit applications
@@ -241,43 +241,6 @@ fn run_update(
         }
     }
     app.update(context);
-
-    render(app, context);
-
-    app.end_of_frame(context);
-}
-
-fn render(app: &mut Box<dyn GlassApp>, context: &mut GlassContext) {
-    for (_, window) in context.windows.iter() {
-        match window.surface().get_current_texture() {
-            Ok(frame) => {
-                let mut encoder = context.device_context.device().create_command_encoder(
-                    &wgpu::CommandEncoderDescriptor {
-                        label: Some("Render Commands"),
-                    },
-                );
-
-                // Run render
-                let mut buffers = app
-                    .render(context, RenderData {
-                        encoder: &mut encoder,
-                        window,
-                        frame: &frame,
-                    })
-                    .unwrap_or_default();
-                buffers.push(encoder.finish());
-                context.device_context.queue().submit(buffers);
-
-                frame.present();
-            }
-            Err(error) => {
-                if error == wgpu::SurfaceError::OutOfMemory {
-                    panic!("Swapchain error: {error}. Rendering cannot continue.")
-                }
-            }
-        }
-        window.window().request_redraw();
-    }
 }
 
 #[derive(Default)]
@@ -416,6 +379,10 @@ impl GlassContext {
 
     pub fn primary_render_window_mut(&mut self) -> &mut GlassWindow {
         self.windows.first_mut().unwrap().1
+    }
+
+    pub fn windows(&mut self) -> &mut IndexMap<WindowId, GlassWindow> {
+        &mut self.windows
     }
 
     pub fn render_window(&self, id: WindowId) -> Option<&GlassWindow> {

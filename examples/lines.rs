@@ -2,8 +2,8 @@ use glam::{Mat4, Vec2, Vec3};
 use glass::{
     device_context::DeviceConfig,
     pipelines::{ColoredVertex, Line, LinePipeline},
-    window::{GlassWindow, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+    window::{GlassWindow, RenderData, WindowConfig},
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use rapier2d::prelude::*;
 use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, PresentMode, StoreOp};
@@ -223,54 +223,58 @@ impl GlassApp for LineApp {
             multibody_joint_set,
             narrow_phase,
         );
-    }
 
-    fn render(
-        &mut self,
-        _context: &GlassContext,
-        render_data: RenderData,
-    ) -> Option<Vec<CommandBuffer>> {
-        let LineApp {
-            line_pipeline,
-            view_proj,
-            lines,
-            another_line_buffer,
-            ..
-        } = self;
-        let RenderData {
-            encoder,
-            frame,
-            ..
-        } = render_data;
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-            label: None,
-            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                view: &view,
-                resolve_target: None,
-                ops: wgpu::Operations {
-                    load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
-                    store: StoreOp::Store,
-                },
-            })],
-            depth_stencil_attachment: None,
-            timestamp_writes: None,
-            occlusion_query_set: None,
-        });
-        for line in lines.lines.iter() {
-            line_pipeline.draw(&mut rpass, view_proj.to_cols_array_2d(), *line);
-        }
-        let another_line_buffer = another_line_buffer.as_ref().unwrap();
-        line_pipeline.draw_line_buffer(
-            &mut rpass,
-            view_proj.to_cols_array_2d(),
-            another_line_buffer,
-            0..6,
+        let window = _context.primary_render_window();
+        window.render_default(
+            _context.device(),
+            _context.queue(),
+            self,
+            add_render_commands,
         );
-        None
     }
+}
+
+fn add_render_commands(app: &mut LineApp, render_data: RenderData) -> Option<Vec<CommandBuffer>> {
+    let LineApp {
+        line_pipeline,
+        view_proj,
+        lines,
+        another_line_buffer,
+        ..
+    } = app;
+    let RenderData {
+        encoder,
+        frame,
+        ..
+    } = render_data;
+    let view = frame
+        .texture
+        .create_view(&wgpu::TextureViewDescriptor::default());
+    let mut rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+        label: None,
+        color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+            view: &view,
+            resolve_target: None,
+            ops: wgpu::Operations {
+                load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),
+                store: StoreOp::Store,
+            },
+        })],
+        depth_stencil_attachment: None,
+        timestamp_writes: None,
+        occlusion_query_set: None,
+    });
+    for line in lines.lines.iter() {
+        line_pipeline.draw(&mut rpass, view_proj.to_cols_array_2d(), *line);
+    }
+    let another_line_buffer = another_line_buffer.as_ref().unwrap();
+    line_pipeline.draw_line_buffer(
+        &mut rpass,
+        view_proj.to_cols_array_2d(),
+        another_line_buffer,
+        0..6,
+    );
+    None
 }
 
 pub struct DebugLines {

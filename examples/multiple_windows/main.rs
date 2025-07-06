@@ -1,5 +1,6 @@
 use glass::{
-    window::WindowConfig, Glass, GlassApp, GlassConfig, GlassContext, GlassError, RenderData,
+    window::{RenderData, WindowConfig},
+    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use wgpu::{Color, CommandBuffer, StoreOp};
 use winit::{
@@ -13,9 +14,7 @@ const WIDTH: u32 = 256;
 const HEIGHT: u32 = 256;
 
 fn main() -> Result<(), GlassError> {
-    Glass::run(GlassConfig::default(), |_| {
-        Box::new(MultiWindowApp::default())
-    })
+    Glass::run(GlassConfig::default(), |_| Box::new(MultiWindowApp))
 }
 
 const CLEAR_COLORS: [Color; 5] = [
@@ -26,8 +25,6 @@ const CLEAR_COLORS: [Color; 5] = [
     Color::BLUE,
 ];
 
-/// Example buffer data etc.
-#[derive(Default)]
 struct MultiWindowApp;
 
 impl GlassApp for MultiWindowApp {
@@ -71,39 +68,42 @@ impl GlassApp for MultiWindowApp {
         }
     }
 
-    fn render(
-        &mut self,
-        _context: &GlassContext,
-        render_data: RenderData,
-    ) -> Option<Vec<CommandBuffer>> {
-        let RenderData {
-            encoder,
-            frame,
-            window,
-            ..
-        } = render_data;
-        // Select clear color by window id
-        let clear_color =
-            CLEAR_COLORS[u64::from(window.window().id()) as usize % CLEAR_COLORS.len()];
-        let view = frame
-            .texture
-            .create_view(&wgpu::TextureViewDescriptor::default());
-        {
-            let _rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
-                label: None,
-                color_attachments: &[Some(wgpu::RenderPassColorAttachment {
-                    view: &view,
-                    resolve_target: None,
-                    ops: wgpu::Operations {
-                        load: wgpu::LoadOp::Clear(clear_color),
-                        store: StoreOp::Store,
-                    },
-                })],
-                depth_stencil_attachment: None,
-                timestamp_writes: None,
-                occlusion_query_set: None,
-            });
+    fn update(&mut self, context: &mut GlassContext) {
+        let device = context.device_arc();
+        let queue = context.queue_arc();
+        for (_, window) in context.windows().iter() {
+            window.render_default(&device, &queue, self, render);
         }
-        None
     }
+}
+
+fn render(_app: &mut MultiWindowApp, render_data: RenderData) -> Option<Vec<CommandBuffer>> {
+    let RenderData {
+        encoder,
+        frame,
+        window,
+        ..
+    } = render_data;
+    // Select clear color by window id
+    let clear_color = CLEAR_COLORS[u64::from(window.window().id()) as usize % CLEAR_COLORS.len()];
+    let view = frame
+        .texture
+        .create_view(&wgpu::TextureViewDescriptor::default());
+    {
+        let _rpass = encoder.begin_render_pass(&wgpu::RenderPassDescriptor {
+            label: None,
+            color_attachments: &[Some(wgpu::RenderPassColorAttachment {
+                view: &view,
+                resolve_target: None,
+                ops: wgpu::Operations {
+                    load: wgpu::LoadOp::Clear(clear_color),
+                    store: StoreOp::Store,
+                },
+            })],
+            depth_stencil_attachment: None,
+            timestamp_writes: None,
+            occlusion_query_set: None,
+        });
+    }
+    None
 }
