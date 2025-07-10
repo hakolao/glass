@@ -23,11 +23,11 @@ log = "0.4"
 
 [dev-dependencies]
 # ToDo: Update to 0.32 when can
-egui = { version = "0.31", git = "https://github.com/emilk/egui.git", rev = "81b7e7f05a6b03fa2cd5bdc6d4ce5f598e16c628" }
-egui-wgpu = { version = "0.31", git = "https://github.com/emilk/egui.git", rev = "81b7e7f05a6b03fa2cd5bdc6d4ce5f598e16c628" }
-egui-winit = { version = "0.31", git = "https://github.com/emilk/egui.git", rev = "81b7e7f05a6b03fa2cd5bdc6d4ce5f598e16c628" }
-egui_extras = { version = "0.31", git = "https://github.com/emilk/egui.git", rev = "81b7e7f05a6b03fa2cd5bdc6d4ce5f598e16c628" }
-egui_demo_lib = { version = "0.31", git = "https://github.com/emilk/egui.git", rev = "81b7e7f05a6b03fa2cd5bdc6d4ce5f598e16c628" }
+egui = { version = "0.32" }
+egui-wgpu = { version = "0.32" }
+egui-winit = { version = "0.32" }
+egui_extras = { version = "0.32" }
+egui_demo_lib = { version = "0.32" }
 rapier2d = { version = "0.26", features = ["default", "debug-render"] }
 rand = "0.9"
 glam = "0.30"

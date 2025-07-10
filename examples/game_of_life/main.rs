@@ -312,7 +312,7 @@ fn update_game_of_life(
     } = app;
     let data = data.as_ref().unwrap();
     let game_of_life_pipeline = game_of_life_pipeline.as_ref().unwrap();
-    let (canvas, data_in) = if app.count % 2 == 0 {
+    let (canvas, data_in) = if app.count.is_multiple_of(2) {
         (&data.canvas.views[0], &data.data_in.views[0])
     } else {
         (&data.data_in.views[0], &data.canvas.views[0])
