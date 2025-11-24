@@ -155,6 +155,7 @@ impl DeviceContext {
             label: None,
             required_features: config.features,
             required_limits: config.limits.clone(),
+            experimental_features: Default::default(),
             memory_hints: config.memory_hints.clone(),
             trace: Trace::Off,
         })) {

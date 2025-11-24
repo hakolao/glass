@@ -184,6 +184,7 @@ fn render(app: &mut SandSim, render_data: RenderData) -> Option<Vec<CommandBuffe
             label: None,
             color_attachments: &[Some(RenderPassColorAttachment {
                 view: &view,
+                depth_slice: None,
                 resolve_target: None,
                 ops: Operations {
                     load: LoadOp::Clear(Color::BLACK),

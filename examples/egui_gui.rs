@@ -1,6 +1,6 @@
 use egui::{FullOutput, ViewportId};
 use egui_demo_lib::DemoWindows;
-use egui_wgpu::ScreenDescriptor;
+use egui_wgpu::{RendererOptions, ScreenDescriptor};
 use egui_winit::EventResponse;
 use glass::{
     window::{GlassWindow, RenderData, WindowConfig},
@@ -76,9 +76,7 @@ impl GuiState {
         let renderer = egui_wgpu::Renderer::new(
             context.device(),
             GlassWindow::default_surface_format(),
-            None,
-            1,
-            true,
+            RendererOptions::default(),
         );
         GuiState {
             egui_ctx: ctx,
@@ -175,6 +173,7 @@ fn render_egui(
                 label: None,
                 color_attachments: &[Some(wgpu::RenderPassColorAttachment {
                     view: &view,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: wgpu::Operations {
                         load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),

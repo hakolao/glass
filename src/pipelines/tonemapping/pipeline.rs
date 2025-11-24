@@ -132,6 +132,7 @@ impl TonemappingPipeline {
                 label: Some("tonemapping_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &output.views[0],
+                    depth_slice: None,
                     resolve_target: None,
                     ops: Operations::default(),
                 })],

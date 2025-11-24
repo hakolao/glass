@@ -373,6 +373,7 @@ impl BloomPipeline {
                 color_attachments: &[Some(RenderPassColorAttachment {
                     // Write to bloom texture
                     view,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: Operations::default(),
                 })],
@@ -399,6 +400,7 @@ impl BloomPipeline {
                 label: Some("bloom_downsampling_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Load,
@@ -434,6 +436,7 @@ impl BloomPipeline {
                 label: Some("bloom_upsampling_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view,
+                    depth_slice: None,
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Load,
@@ -474,6 +477,7 @@ impl BloomPipeline {
                 label: Some("bloom_upsampling_final_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &bloom_target.views[0],
+                    depth_slice: None,
                     resolve_target: None,
                     ops: Operations {
                         load: LoadOp::Load,

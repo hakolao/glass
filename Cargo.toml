@@ -14,17 +14,16 @@ indexmap = "2.9"
 pollster = "0.4"
 image = "0.25"
 bytemuck = { version = "1.20", features = ["derive"] }
-wgpu = { version = "25.0", features = ["naga-ir"] }
+wgpu = { version = "27.0", features = ["naga-ir"] }
 winit = { version = "0.30" }
 
 [dev-dependencies]
-# ToDo: Update to 0.32 when can
-egui = { version = "0.32" }
-egui-wgpu = { version = "0.32" }
-egui-winit = { version = "0.32" }
-egui_extras = { version = "0.32" }
-egui_demo_lib = { version = "0.32" }
-rapier2d = { version = "0.26", features = ["default", "debug-render"] }
+egui = { version = "0.33" }
+egui-wgpu = { version = "0.33" }
+egui-winit = { version = "0.33" }
+egui_extras = { version = "0.33" }
+egui_demo_lib = { version = "0.33" }
+rapier2d = { version = "0.31.0", features = ["default", "debug-render"] }
 rand = "0.9"
 glam = "0.30"
 
@@ -34,6 +33,7 @@ field_reassign_with_default = "allow"
 self_named_constructors = "allow"
 too_long_first_doc_paragraph = "allow"
 uninlined_format_args = "allow"
+default_constructed_unit_structs = "allow"
 
 [profile.dev]
 opt-level = 3

@@ -54,6 +54,7 @@ fn render(app: &mut TriangleApp, render_data: RenderData) -> Option<Vec<CommandB
         label: None,
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
             view: &view,
+            depth_slice: None,
             resolve_target: None,
             ops: wgpu::Operations {
                 load: wgpu::LoadOp::Clear(wgpu::Color::GREEN),

@@ -209,7 +209,6 @@ impl GlassApp for LineApp {
             impulse_joint_set,
             multibody_joint_set,
             ccd_solver,
-            None,
             &(),
             &(),
         );
@@ -254,6 +253,7 @@ fn add_render_commands(app: &mut LineApp, render_data: RenderData) -> Option<Vec
         label: None,
         color_attachments: &[Some(wgpu::RenderPassColorAttachment {
             view: &view,
+            depth_slice: None,
             resolve_target: None,
             ops: wgpu::Operations {
                 load: wgpu::LoadOp::Clear(wgpu::Color::BLACK),

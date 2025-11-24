@@ -202,6 +202,7 @@ impl PastePipeline {
                 label: Some("paste_pass"),
                 color_attachments: &[Some(RenderPassColorAttachment {
                     view: &output.views[0],
+                    depth_slice: None,
                     resolve_target: None,
                     ops,
                 })],
