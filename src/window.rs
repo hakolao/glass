@@ -77,6 +77,7 @@ pub struct GlassWindow {
     exit_on_esc: bool,
     has_focus: bool,
     last_surface_size: [u32; 2],
+    allowed_formats: Vec<TextureFormat>,
 }
 
 impl GlassWindow {
@@ -88,13 +89,11 @@ impl GlassWindow {
     ) -> Result<GlassWindow, CreateSurfaceError> {
         let size = [window.inner_size().width, window.inner_size().height];
         let surface = context.instance().create_surface(window.clone())?;
-        let allowed_formats = GlassWindow::allowed_surface_formats();
-        if !(config.surface_format == allowed_formats[0]
-            || config.surface_format == allowed_formats[1])
-        {
+        let formats = surface.get_capabilities(&context.adapter()).formats;
+        if !formats.contains(&config.surface_format) {
             panic!(
-                "{:?} not allowed. Surface should be created with either: {:?} or {:?}",
-                config.surface_format, allowed_formats[0], allowed_formats[1]
+                "{:?} not allowed. Allowed formats: {:?}",
+                config.surface_format, formats
             );
         }
         Ok(GlassWindow {
@@ -107,6 +106,7 @@ impl GlassWindow {
             desired_maximum_frame_latency: config.desired_maximum_frame_latency,
             has_focus: false,
             last_surface_size: size,
+            allowed_formats: formats,
         })
     }
 
@@ -128,6 +128,12 @@ impl GlassWindow {
 
     /// Configure surface after window has changed. Use this to reconfigure the surface
     pub(crate) fn configure_surface(&mut self, device: &Device, config: &SurfaceConfiguration) {
+        if !self.allowed_formats.contains(&config.format) {
+            panic!(
+                "{:?} not allowed. Allowed formats: {:?}",
+                config.format, self.allowed_formats
+            );
+        }
         self.surface.configure(device, config);
         self.present_mode = config.present_mode;
         self.alpha_mode = config.alpha_mode;
@@ -180,6 +186,11 @@ impl GlassWindow {
         };
     }
 
+    /// Return allowed texture formats for this window [`Surface`](wgpu::Surface)
+    pub fn allowed_formats(&self) -> &Vec<TextureFormat> {
+        &self.allowed_formats
+    }
+
     /// Return [`Surface`](wgpu::Surface) belonging to the window
     pub fn surface(&self) -> &Surface<'_> {
         &self.surface
@@ -198,12 +209,6 @@ impl GlassWindow {
     /// Return [`PresentMode`](wgpu::PresentMode) belonging to the window
     pub fn present_mode(&self) -> PresentMode {
         self.present_mode
-    }
-
-    /// Return allowed [`TextureFormat`](wgpu::TextureFormat)s for the surface.
-    /// These are `Bgra8UnormSrgb` and `Bgra8Unorm`
-    pub fn allowed_surface_formats() -> [TextureFormat; 2] {
-        [TextureFormat::Bgra8UnormSrgb, TextureFormat::Bgra8Unorm]
     }
 
     /// Return default [`TextureFormat`](wgpu::TextureFormat)s
