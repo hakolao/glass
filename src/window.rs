@@ -89,7 +89,7 @@ impl GlassWindow {
     ) -> Result<GlassWindow, CreateSurfaceError> {
         let size = [window.inner_size().width, window.inner_size().height];
         let surface = context.instance().create_surface(window.clone())?;
-        let formats = surface.get_capabilities(&context.adapter()).formats;
+        let formats = surface.get_capabilities(context.adapter()).formats;
         if !formats.contains(&config.surface_format) {
             panic!(
                 "{:?} not allowed. Allowed formats: {:?}",
