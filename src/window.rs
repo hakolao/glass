@@ -267,6 +267,7 @@ impl GlassWindow {
                 .unwrap_or_default();
                 commands.push(encoder.finish());
                 queue.submit(commands);
+                self.window().pre_present_notify();
                 frame.present();
             }
             Err(error) => {

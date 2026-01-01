@@ -99,8 +99,6 @@ impl ApplicationHandler for Glass {
         } = self;
         app.window_input(context, event_loop, window_id, &event);
 
-        let mut is_extra_update = false;
-
         if let Some(window) = context.windows.get_mut(&window_id) {
             match event {
                 WindowEvent::Resized(physical_size) => {
@@ -110,7 +108,6 @@ impl ApplicationHandler for Glass {
                             context.device_context.device(),
                             physical_size,
                         );
-                        is_extra_update = true;
                     }
                 }
                 WindowEvent::ScaleFactorChanged {
@@ -118,7 +115,6 @@ impl ApplicationHandler for Glass {
                 } => {
                     let size = window.window().inner_size();
                     window.configure_surface_with_size(context.device_context.device(), size);
-                    is_extra_update = true;
                 }
                 WindowEvent::KeyboardInput {
                     event,
@@ -144,19 +140,6 @@ impl ApplicationHandler for Glass {
                 }
                 _ => (),
             }
-        }
-        // Update immediately, because about_to_wait isn't triggered during resize. If it did,
-        // this would not be needed.
-
-        // Winit recommends running rendering inside `RequestRedraw`, but that doesn't really
-        // seem good to me, because I want render to take place immediately after update, and
-        // running entire app's update within one window's `RequestRedraw` doesn't make sense
-        // to me.
-
-        // This ensures resizing's effect is instant. Kinda ugly on performance, but that doesn't
-        // matter, because resize is a rare event.
-        if is_extra_update {
-            run_update(event_loop, app, context, runner_state);
         }
     }
 
