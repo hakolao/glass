@@ -3,7 +3,7 @@ struct PushConstants {
     draw_end: vec2<f32>,
     draw_radius: f32,
 }
-var<push_constant> pc: PushConstants;
+var<immediate> pc: PushConstants;
 
 @group(0) @binding(0)
 var image: texture_storage_2d<rgba16float, read_write>;

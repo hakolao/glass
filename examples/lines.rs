@@ -19,7 +19,7 @@ fn config() -> GlassConfig {
     GlassConfig {
         device_config: DeviceConfig {
             limits: Limits {
-                max_push_constant_size: 128,
+                max_immediate_size: 128,
                 ..Default::default()
             },
             features: Features::POLYGON_MODE_LINE,
@@ -223,13 +223,8 @@ impl GlassApp for LineApp {
             narrow_phase,
         );
 
-        let window = _context.primary_render_window();
-        window.render_default(
-            _context.device(),
-            _context.queue(),
-            self,
-            add_render_commands,
-        );
+        let window = _context.primary_render_window_mut();
+        window.render_default(self, add_render_commands);
     }
 }
 
@@ -263,6 +258,7 @@ fn add_render_commands(app: &mut LineApp, render_data: RenderData) -> Option<Vec
         depth_stencil_attachment: None,
         timestamp_writes: None,
         occlusion_query_set: None,
+        multiview_mask: None,
     });
     for line in lines.lines.iter() {
         line_pipeline.draw(&mut rpass, view_proj.to_cols_array_2d(), *line);

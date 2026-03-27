@@ -6,7 +6,7 @@ use glass::{
     window::{GlassWindow, RenderData, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
-use wgpu::{CommandBuffer, Device, Queue, StoreOp};
+use wgpu::{CommandBuffer, StoreOp};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::WindowId};
 
 fn main() -> Result<(), GlassError> {
@@ -39,13 +39,9 @@ impl GlassApp for GuiApp {
     }
 
     fn update(&mut self, context: &mut GlassContext) {
-        let device = context.device();
-        let queue = context.queue();
         context
-            .primary_render_window()
-            .render_default(device, queue, self, |app, render_data| {
-                render_egui(app, device, queue, render_data)
-            });
+            .primary_render_window_mut()
+            .render_default(self, render_egui);
     }
 }
 
@@ -112,13 +108,10 @@ fn update_egui_with_winit_event(
     }
 }
 
-fn render_egui(
-    app: &mut GuiApp,
-    device: &Device,
-    queue: &Queue,
-    render_data: RenderData,
-) -> Option<Vec<CommandBuffer>> {
+fn render_egui(app: &mut GuiApp, render_data: RenderData) -> Option<Vec<CommandBuffer>> {
     let window = render_data.window;
+    let device = window.device_context().device();
+    let queue = window.device_context().queue();
     let view = render_data
         .frame
         .texture
@@ -136,7 +129,7 @@ fn render_egui(
         textures_delta,
         pixels_per_point,
         ..
-    } = egui_ctx.run(raw_input, |egui_ctx| {
+    } = egui_ctx.run_ui(raw_input, |egui_ctx| {
         // Ui content
         ui_app.ui(egui_ctx);
     });
@@ -183,6 +176,7 @@ fn render_egui(
                 depth_stencil_attachment: None,
                 timestamp_writes: None,
                 occlusion_query_set: None,
+                multiview_mask: None,
             });
         // Here you would render your scene
         // Render Egui

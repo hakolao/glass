@@ -33,11 +33,9 @@ impl GlassApp for TriangleApp {
     }
 
     fn update(&mut self, context: &mut GlassContext) {
-        let device = context.device();
-        let queue = context.queue();
         context
-            .primary_render_window()
-            .render_default(device, queue, self, render);
+            .primary_render_window_mut()
+            .render_default(self, render);
     }
 }
 
@@ -64,6 +62,7 @@ fn render(app: &mut TriangleApp, render_data: RenderData) -> Option<Vec<CommandB
         depth_stencil_attachment: None,
         timestamp_writes: None,
         occlusion_query_set: None,
+        multiview_mask: None,
     });
     let triangle_pipeline = app.triangle_pipeline.as_ref().unwrap();
     rpass.set_pipeline(triangle_pipeline);
@@ -83,7 +82,7 @@ fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {
         .create_pipeline_layout(&PipelineLayoutDescriptor {
             label: None,
             bind_group_layouts: &[],
-            push_constant_ranges: &[],
+            immediate_size: 0,
         });
     let pipeline = context
         .device()
@@ -105,8 +104,8 @@ fn create_triangle_pipeline(context: &GlassContext) -> RenderPipeline {
             primitive: PrimitiveState::default(),
             depth_stencil: None,
             multisample: MultisampleState::default(),
-            multiview: None,
             cache: None,
+            multiview_mask: None,
         });
     pipeline
 }

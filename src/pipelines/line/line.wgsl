@@ -4,7 +4,7 @@ struct PushConstants {
     end: vec4<f32>,
     color: vec4<f32>,
 }
-var<push_constant> pc: PushConstants;
+var<immediate> pc: PushConstants;
 
 struct VertexInput {
     @builtin(vertex_index) index: u32,

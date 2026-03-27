@@ -36,7 +36,7 @@ fn config() -> GlassConfig {
         device_config: DeviceConfig {
             limits: Limits {
                 // Needed for push constants
-                max_push_constant_size: 128,
+                max_immediate_size: 128,
                 ..Default::default()
             },
             ..DeviceConfig::performance()
@@ -66,12 +66,9 @@ impl GlassApp for TreeApp {
     }
 
     fn update(&mut self, context: &mut GlassContext) {
-        context.primary_render_window().render_default(
-            context.device(),
-            context.queue(),
-            self,
-            render,
-        );
+        context
+            .primary_render_window_mut()
+            .render_default(self, render);
     }
 }
 
@@ -116,6 +113,7 @@ fn render(app: &mut TreeApp, render_data: RenderData) -> Option<Vec<CommandBuffe
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
         quad_pipeline.draw(
             &mut rpass,

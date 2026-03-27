@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use wgpu::{
     CommandBuffer, CommandEncoder, CompositeAlphaMode, CreateSurfaceError, Device, PresentMode,
-    Queue, Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat,
+    Surface, SurfaceConfiguration, SurfaceTexture, TextureFormat,
 };
 use winit::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
@@ -68,6 +68,7 @@ pub enum SurfaceError {
 }
 
 pub struct GlassWindow {
+    device_context: Arc<DeviceContext>,
     window: Arc<Window>,
     surface: Surface<'static>,
     present_mode: PresentMode,
@@ -83,7 +84,7 @@ pub struct GlassWindow {
 impl GlassWindow {
     /// Creates a new [`GlassWindow`] that owns the winit [`Window`](winit::window::Window).
     pub fn new(
-        context: &DeviceContext,
+        context: &Arc<DeviceContext>,
         config: WindowConfig,
         window: Arc<Window>,
     ) -> Result<GlassWindow, CreateSurfaceError> {
@@ -97,6 +98,7 @@ impl GlassWindow {
             );
         }
         Ok(GlassWindow {
+            device_context: context.clone(),
             window,
             surface,
             present_mode: config.present_mode,
@@ -108,6 +110,14 @@ impl GlassWindow {
             last_surface_size: size,
             allowed_formats: formats,
         })
+    }
+
+    /// Configure surface after resize events
+    pub(crate) fn reconfigure_surface(&mut self, device: &Device) {
+        self.configure_surface_with_size(
+            device,
+            PhysicalSize::new(self.last_surface_size[0], self.last_surface_size[1]),
+        );
     }
 
     /// Configure surface after resize events
@@ -201,6 +211,11 @@ impl GlassWindow {
         &self.window
     }
 
+    /// Return [`DeviceContext`](glass::device_context::DeviceContext)
+    pub fn device_context(&self) -> &DeviceContext {
+        &self.device_context
+    }
+
     /// Return [`Window`](winit::window::Window) arc
     pub fn window_arc(&self) -> &Arc<Window> {
         &self.window
@@ -248,14 +263,14 @@ impl GlassWindow {
     }
 
     pub fn render_default<T: GlassApp>(
-        &self,
-        device: &Device,
-        queue: &Queue,
+        &mut self,
         app: &mut T,
         mut render_function: impl FnMut(&mut T, RenderData) -> Option<Vec<CommandBuffer>>,
     ) {
+        let device = self.device_context.device_arc();
+        let queue = self.device_context.queue_arc();
         match self.surface().get_current_texture() {
-            Ok(frame) => {
+            wgpu::CurrentSurfaceTexture::Success(frame) => {
                 let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Render Commands"),
                 });
@@ -270,12 +285,25 @@ impl GlassWindow {
                 self.window().pre_present_notify();
                 frame.present();
             }
-            Err(error) => {
-                if error == wgpu::SurfaceError::OutOfMemory {
-                    panic!("Swapchain error: {error}. Rendering cannot continue.")
-                }
+            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => return,
+            wgpu::CurrentSurfaceTexture::Suboptimal(_) | wgpu::CurrentSurfaceTexture::Outdated => {
+                self.reconfigure_surface(&device);
+                return;
+            }
+            wgpu::CurrentSurfaceTexture::Validation => {
+                unreachable!("No error scope registered, so validation errors will panic")
+            }
+            wgpu::CurrentSurfaceTexture::Lost => {
+                self.surface = self
+                    .device_context
+                    .instance()
+                    .create_surface(self.window.clone())
+                    .unwrap();
+                self.reconfigure_surface(&device);
+                return;
             }
         }
+
         self.window().request_redraw();
     }
 }

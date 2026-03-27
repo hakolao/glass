@@ -1,9 +1,7 @@
 use std::{borrow::Cow, ops::Range};
 
 use bytemuck::{Pod, Zeroable};
-use wgpu::{
-    util::DeviceExt, Buffer, Device, PushConstantRange, RenderPass, RenderPipeline, ShaderStages,
-};
+use wgpu::{util::DeviceExt, Buffer, Device, RenderPass, RenderPipeline};
 
 use crate::pipelines::ColoredVertex;
 
@@ -37,10 +35,7 @@ impl LinePipeline {
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Line Pipeline Layout"),
             bind_group_layouts: &[],
-            push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::VERTEX_FRAGMENT,
-                range: 0..std::mem::size_of::<LinePushConstants>() as u32,
-            }],
+            immediate_size: size_of::<LinePushConstants>() as u32,
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Line Render Pipeline"),
@@ -72,8 +67,8 @@ impl LinePipeline {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            multiview: None,
             cache: None,
+            multiview_mask: None,
         });
         pipeline
     }
@@ -81,8 +76,7 @@ impl LinePipeline {
     pub fn draw<'r>(&'r self, rpass: &mut RenderPass<'r>, view_proj: [[f32; 4]; 4], line: Line) {
         rpass.set_pipeline(&self.pipeline);
         rpass.set_vertex_buffer(0, self.vertices.slice(..));
-        rpass.set_push_constants(
-            ShaderStages::VERTEX_FRAGMENT,
+        rpass.set_immediates(
             0,
             bytemuck::cast_slice(&[LinePushConstants::new(view_proj, line)]),
         );
@@ -99,8 +93,7 @@ impl LinePipeline {
     ) {
         rpass.set_pipeline(&self.pipeline);
         rpass.set_vertex_buffer(0, buffer.slice(..));
-        rpass.set_push_constants(
-            ShaderStages::VERTEX_FRAGMENT,
+        rpass.set_immediates(
             0,
             bytemuck::cast_slice(&[LinePushConstants::buffer(view_proj)]),
         );
