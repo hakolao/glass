@@ -34,6 +34,7 @@ self_named_constructors = "allow"
 too_long_first_doc_paragraph = "allow"
 uninlined_format_args = "allow"
 default_constructed_unit_structs = "allow"
+collapsible_match = "allow"
 
 [profile.dev]
 opt-level = 3
