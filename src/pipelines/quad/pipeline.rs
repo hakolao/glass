@@ -2,8 +2,7 @@ use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
 use wgpu::{
-    util::DeviceExt, BindGroup, Buffer, Device, PushConstantRange, RenderPass, RenderPipeline,
-    Sampler, ShaderStages, TextureView,
+    util::DeviceExt, BindGroup, Buffer, Device, RenderPass, RenderPipeline, Sampler, TextureView,
 };
 
 use crate::pipelines::{vertex::TexturedVertex, QUAD_INDICES, TEXTURED_QUAD_VERTICES};
@@ -68,11 +67,8 @@ impl QuadPipeline {
         });
         let layout = device.create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Quad Pipeline Layout"),
-            bind_group_layouts: &[&texture_bind_group_layout],
-            push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::VERTEX_FRAGMENT,
-                range: 0..std::mem::size_of::<QuadPushConstants>() as u32,
-            }],
+            bind_group_layouts: &[Some(&texture_bind_group_layout)],
+            immediate_size: size_of::<QuadPushConstants>() as u32,
         });
         let pipeline = device.create_render_pipeline(&wgpu::RenderPipelineDescriptor {
             label: Some("Quad Render Pipeline"),
@@ -105,8 +101,8 @@ impl QuadPipeline {
                 mask: !0,
                 alpha_to_coverage_enabled: false,
             },
-            multiview: None,
             cache: None,
+            multiview_mask: None,
         });
         pipeline
     }
@@ -196,8 +192,7 @@ impl QuadPipeline {
         rpass.set_bind_group(0, bind_group, &[]);
         rpass.set_vertex_buffer(0, self.vertices.slice(..));
         rpass.set_index_buffer(self.indices.slice(..), wgpu::IndexFormat::Uint16);
-        rpass.set_push_constants(
-            ShaderStages::VERTEX_FRAGMENT,
+        rpass.set_immediates(
             0,
             bytemuck::cast_slice(&[QuadPipeline::push_constants(
                 quad_pos,

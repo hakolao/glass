@@ -278,7 +278,7 @@ impl std::fmt::Display for GlassError {
 /// You can use the context to create windows at runtime. Or access devices, which are often
 /// needed for render or compute functionality.
 pub struct GlassContext {
-    device_context: DeviceContext,
+    device_context: Arc<DeviceContext>,
     create_windows: Vec<WindowConfig>,
     windows: IndexMap<WindowId, GlassWindow>,
     exit: bool,
@@ -288,12 +288,12 @@ impl GlassContext {
     pub fn new(mut config: GlassConfig) -> Result<Self, GlassError> {
         // Modify features & limits needed for common pipelines
         // Add push constants feature for common pipelines
-        config.device_config.features |= wgpu::Features::PUSH_CONSTANTS
-            | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
+        config.device_config.features |=
+            wgpu::Features::IMMEDIATES | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
         config.device_config.limits = wgpu::Limits {
             ..config.device_config.limits
         };
-        let device_context = DeviceContext::new(&config.device_config)?;
+        let device_context = Arc::new(DeviceContext::new(&config.device_config)?);
 
         Ok(Self {
             device_context,

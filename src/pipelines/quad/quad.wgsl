@@ -6,7 +6,7 @@ struct PushConstants {
     uv_scale: vec2<f32>,
     aa_strength: f32,
 }
-var<push_constant> pc: PushConstants;
+var<immediate> pc: PushConstants;
 
 struct VertexInput {
     @location(0) position: vec4<f32>,

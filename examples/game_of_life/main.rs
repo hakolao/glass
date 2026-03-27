@@ -12,8 +12,7 @@ use glass::{
 use wgpu::{
     Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder, ComputePassDescriptor,
     ComputePipeline, ComputePipelineDescriptor, Extent3d, InstanceFlags, Limits, MemoryHints,
-    PowerPreference, PresentMode, PushConstantRange, ShaderStages, StorageTextureAccess, StoreOp,
-    TextureFormat, TextureUsages,
+    PowerPreference, PresentMode, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
 };
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
@@ -37,10 +36,10 @@ fn config() -> GlassConfig {
         device_config: DeviceConfig {
             power_preference: PowerPreference::HighPerformance,
             memory_hints: MemoryHints::Performance,
-            features: wgpu::Features::PUSH_CONSTANTS
+            features: wgpu::Features::IMMEDIATES
                 | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES,
             limits: Limits {
-                max_push_constant_size: 128,
+                max_immediate_size: 128,
                 ..Limits::default()
             },
             backends: Backends::all(),
@@ -107,12 +106,9 @@ impl GlassApp for GameOfLifeApp {
     fn update(&mut self, context: &mut GlassContext) {
         run_update(self, context);
 
-        context.primary_render_window().render_default(
-            context.device(),
-            context.queue(),
-            self,
-            render,
-        );
+        context
+            .primary_render_window_mut()
+            .render_default(self, render);
     }
 }
 
@@ -240,6 +236,7 @@ fn render(app: &mut GameOfLifeApp, render_data: RenderData) -> Option<Vec<Comman
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
         quad_pipeline.draw(
             &mut rpass,
@@ -297,7 +294,7 @@ fn draw_game_of_life(
     let pc = GameOfLifePushConstants::new(start, end, 10.0);
     cpass.set_pipeline(draw_pipeline);
     cpass.set_bind_group(0, &data.draw_bind_group, &[]);
-    cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
+    cpass.set_immediates(0, bytemuck::cast_slice(&[pc]));
     cpass.dispatch_workgroups(WIDTH / 8, HEIGHT / 8, 1);
 }
 
@@ -339,7 +336,7 @@ fn update_game_of_life(
     let pc = GameOfLifePushConstants::new(Vec2::ZERO, Vec2::ZERO, 0.0);
     cpass.set_pipeline(game_of_life_pipeline);
     cpass.set_bind_group(0, &update_bind_group, &[]);
-    cpass.set_push_constants(0, bytemuck::cast_slice(&[pc]));
+    cpass.set_immediates(0, bytemuck::cast_slice(&[pc]));
     cpass.dispatch_workgroups(WIDTH / 8, HEIGHT / 8, 1);
 
     app.count += 1;
@@ -366,7 +363,7 @@ fn init_game_of_life(app: &mut GameOfLifeApp, context: &GlassContext) {
         });
         cpass.set_pipeline(init_pipeline);
         cpass.set_bind_group(0, &data.init_bind_group, &[]);
-        cpass.set_push_constants(
+        cpass.set_immediates(
             0,
             bytemuck::cast_slice(&[GameOfLifePushConstants::new(Vec2::ZERO, Vec2::ZERO, 0.0)]),
         );
@@ -535,11 +532,8 @@ fn create_game_of_life_pipeline(
             .device()
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Game of Life Init Layout"),
-                bind_group_layouts: &[&bg_layout],
-                push_constant_ranges: &[PushConstantRange {
-                    stages: ShaderStages::COMPUTE,
-                    range: 0..std::mem::size_of::<GameOfLifePushConstants>() as u32,
-                }],
+                bind_group_layouts: &[Some(&bg_layout)],
+                immediate_size: size_of::<GameOfLifePushConstants>() as u32,
             });
     let init_pipeline = context
         .device()
@@ -557,11 +551,8 @@ fn create_game_of_life_pipeline(
             .device()
             .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
                 label: Some("Game of Life Layout"),
-                bind_group_layouts: &[&bg_layout],
-                push_constant_ranges: &[PushConstantRange {
-                    stages: ShaderStages::COMPUTE,
-                    range: 0..std::mem::size_of::<GameOfLifePushConstants>() as u32,
-                }],
+                bind_group_layouts: &[Some(&bg_layout)],
+                immediate_size: size_of::<GameOfLifePushConstants>() as u32,
             });
     let update_pipeline = context
         .device()
@@ -578,11 +569,8 @@ fn create_game_of_life_pipeline(
         .device()
         .create_pipeline_layout(&wgpu::PipelineLayoutDescriptor {
             label: Some("Draw Layout"),
-            bind_group_layouts: &[&dr_layout],
-            push_constant_ranges: &[PushConstantRange {
-                stages: ShaderStages::COMPUTE,
-                range: 0..std::mem::size_of::<GameOfLifePushConstants>() as u32,
-            }],
+            bind_group_layouts: &[Some(&dr_layout)],
+            immediate_size: size_of::<GameOfLifePushConstants>() as u32,
         });
     let draw_pipeline = context
         .device()

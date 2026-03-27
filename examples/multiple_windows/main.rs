@@ -69,10 +69,8 @@ impl GlassApp for MultiWindowApp {
     }
 
     fn update(&mut self, context: &mut GlassContext) {
-        let device = context.device_arc();
-        let queue = context.queue_arc();
-        for (_, window) in context.windows().iter() {
-            window.render_default(&device, &queue, self, render);
+        for (_, window) in context.windows().iter_mut() {
+            window.render_default(self, render);
         }
     }
 }
@@ -104,6 +102,7 @@ fn render(_app: &mut MultiWindowApp, render_data: RenderData) -> Option<Vec<Comm
             depth_stencil_attachment: None,
             timestamp_writes: None,
             occlusion_query_set: None,
+            multiview_mask: None,
         });
     }
     None

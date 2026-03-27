@@ -16,11 +16,8 @@ struct HelloWorld;
 
 impl GlassApp for HelloWorld {
     fn update(&mut self, _context: &mut GlassContext) {
-        _context.primary_render_window().render_default(
-            _context.device(),
-            _context.queue(),
-            self,
-            |_, _| None,
-        );
+        _context
+            .primary_render_window_mut()
+            .render_default(self, |_, _| None);
     }
 }
