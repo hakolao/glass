@@ -148,9 +148,33 @@ impl DeviceContext {
             Err(e) => return Err(GlassError::AdapterError(e)),
         };
 
-        // Unavailable currently...
+        // --- Capability check: error instead of downgrading ---
+        let missing_features = config.features.difference(adapter.features());
+        if !missing_features.is_empty() {
+            return Err(GlassError::InsufficientDevice(format!(
+                "adapter '{}' missing required features: {missing_features:?}",
+                adapter.get_info().name
+            )));
+        }
+
+        let mut violations = Vec::new();
+        config.limits.check_limits_with_fail_fn(
+            &adapter.limits(),
+            false, // report ALL shortfalls, not just the first
+            |name, required, allowed| {
+                violations.push(format!("{name} (need {required}, allowed {allowed})"));
+            },
+        );
+        if !violations.is_empty() {
+            return Err(GlassError::InsufficientDevice(format!(
+                "adapter '{}' limits insufficient: {}",
+                adapter.get_info().name,
+                violations.join(", ")
+            )));
+        }
+        // -------------------------------------------------------
+
         let _path = config.trace_path.as_deref();
-        // Create the logical device and command queue
         let (device, queue) = match wait_async(adapter.request_device(&DeviceDescriptor {
             label: None,
             required_features: config.features,

@@ -258,6 +258,7 @@ pub enum GlassError {
     DeviceError(RequestDeviceError),
     ImageError(ImageError),
     EventLoopError(EventLoopError),
+    InsufficientDevice(String),
 }
 
 impl std::fmt::Display for GlassError {
@@ -269,6 +270,7 @@ impl std::fmt::Display for GlassError {
             GlassError::DeviceError(e) => format!("DeviceError: {}", e),
             GlassError::ImageError(e) => format!("ImageError: {}", e),
             GlassError::EventLoopError(e) => format!("EventLoopError: {}", e),
+            GlassError::InsufficientDevice(e) => format!("InsufficientDevice: {}", e),
         };
         write!(f, "{}", s)
     }
