@@ -71,6 +71,17 @@ impl DeviceContext {
             flags: config.instance_flags,
             ..InstanceDescriptor::new_without_display_handle()
         });
+        if std::env::var("LIST_ADAPTERS").is_ok() {
+            println!("--- wgpu adapters ---");
+            for a in wait_async(instance.enumerate_adapters(config.backends)) {
+                let info = a.get_info();
+                println!(
+                    "  {} ({:?}, {:?})",
+                    info.name, info.device_type, info.backend
+                );
+            }
+            println!("----------------------------");
+        }
         let (adapter, device, queue) =
             Self::create_adapter_device_and_queue(config, &instance, None)?;
         let sampler_nearest_repeat = Arc::new(device.create_sampler(&SamplerDescriptor {
