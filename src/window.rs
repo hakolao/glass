@@ -68,9 +68,9 @@ pub enum SurfaceError {
 }
 
 pub struct GlassWindow {
-    device_context: Arc<DeviceContext>,
     window: Arc<Window>,
     surface: Surface<'static>,
+    device_context: Arc<DeviceContext>,
     present_mode: PresentMode,
     alpha_mode: CompositeAlphaMode,
     surface_format: TextureFormat,
@@ -110,6 +110,21 @@ impl GlassWindow {
             last_surface_size: size,
             allowed_formats: formats,
         })
+    }
+
+    /// Recreates surface after e.g device lost events
+    pub(crate) fn recreate_surface(&mut self, device: &Device) {
+        let window = self.window.clone();
+        let surface = self
+            .device_context
+            .instance()
+            .create_surface(window)
+            .unwrap();
+        self.surface = surface;
+        self.configure_surface_with_size(
+            device,
+            PhysicalSize::new(self.last_surface_size[0], self.last_surface_size[1]),
+        );
     }
 
     /// Configure surface after resize events

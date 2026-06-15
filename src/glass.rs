@@ -280,9 +280,9 @@ impl std::fmt::Display for GlassError {
 /// You can use the context to create windows at runtime. Or access devices, which are often
 /// needed for render or compute functionality.
 pub struct GlassContext {
-    device_context: Arc<DeviceContext>,
     create_windows: Vec<WindowConfig>,
     windows: IndexMap<WindowId, GlassWindow>,
+    device_context: Arc<DeviceContext>,
     exit: bool,
 }
 
@@ -349,6 +349,22 @@ impl GlassContext {
     pub fn configure_surface(&mut self, window_id: &WindowId, config: &SurfaceConfiguration) {
         if let Some(window) = self.windows.get_mut(window_id) {
             window.configure_surface(self.device_context.device(), config);
+        } else {
+            panic!("No window with id {:?}", window_id);
+        }
+    }
+
+    pub fn reconfigure_surface(&mut self, window_id: &WindowId) {
+        if let Some(window) = self.windows.get_mut(window_id) {
+            window.reconfigure_surface(self.device_context.device());
+        } else {
+            panic!("No window with id {:?}", window_id);
+        }
+    }
+
+    pub fn recreate_surface(&mut self, window_id: &WindowId) {
+        if let Some(window) = self.windows.get_mut(window_id) {
+            window.recreate_surface(self.device_context.device());
         } else {
             panic!("No window with id {:?}", window_id);
         }
