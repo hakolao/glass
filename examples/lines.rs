@@ -25,6 +25,7 @@ fn config() -> GlassConfig {
             features: Features::POLYGON_MODE_LINE,
             ..DeviceConfig::default()
         },
+        ..Default::default()
     }
 }
 

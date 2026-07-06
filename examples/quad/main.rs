@@ -41,6 +41,7 @@ fn config() -> GlassConfig {
             },
             ..DeviceConfig::performance()
         },
+        ..Default::default()
     }
 }
 

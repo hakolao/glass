@@ -47,7 +47,10 @@ impl Glass {
         let mut glass = Glass {
             app,
             context,
-            runner_state: RunnerState::default(),
+            runner_state: RunnerState {
+                run_extra_update_on_resize: config.run_extra_update_on_resize,
+                ..RunnerState::default()
+            },
         };
         event_loop
             .run_app(&mut glass)
@@ -108,6 +111,10 @@ impl ApplicationHandler for Glass {
                             context.device_context.device(),
                             physical_size,
                         );
+                        if runner_state.run_extra_update_on_resize {
+                            context.is_resize_extra_update = true;
+                            run_update(event_loop, app, context, runner_state);
+                        }
                     }
                 }
                 WindowEvent::ScaleFactorChanged {
@@ -165,6 +172,7 @@ impl ApplicationHandler for Glass {
             runner_state,
             ..
         } = self;
+        context.is_resize_extra_update = false;
         run_update(event_loop, app, context, runner_state);
     }
 
@@ -230,6 +238,7 @@ fn run_update(
 struct RunnerState {
     is_init: bool,
     request_window_close: bool,
+    run_extra_update_on_resize: bool,
     remove_windows: Vec<WindowId>,
 }
 
@@ -237,6 +246,7 @@ struct RunnerState {
 #[derive(Default, Debug, Clone)]
 pub struct GlassConfig {
     pub device_config: DeviceConfig,
+    pub run_extra_update_on_resize: bool,
 }
 
 impl GlassConfig {
@@ -246,6 +256,7 @@ impl GlassConfig {
                 power_preference: PowerPreference::HighPerformance,
                 ..Default::default()
             },
+            run_extra_update_on_resize: false,
         }
     }
 }
@@ -284,6 +295,7 @@ pub struct GlassContext {
     windows: IndexMap<WindowId, GlassWindow>,
     device_context: Arc<DeviceContext>,
     exit: bool,
+    is_resize_extra_update: bool,
 }
 
 impl GlassContext {
@@ -302,6 +314,7 @@ impl GlassContext {
             create_windows: vec![],
             windows: IndexMap::default(),
             exit: false,
+            is_resize_extra_update: false,
         })
     }
 
@@ -319,6 +332,10 @@ impl GlassContext {
 
     pub fn sampler_linear_clamp_to_edge(&self) -> &Arc<Sampler> {
         self.device_context.sampler_linear_clamp_to_edge()
+    }
+
+    pub fn is_resize_extra_update(&self) -> bool {
+        self.is_resize_extra_update
     }
 
     #[allow(unused)]

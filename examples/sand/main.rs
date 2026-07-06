@@ -245,5 +245,6 @@ fn config() -> GlassConfig {
             },
             ..DeviceConfig::default()
         },
+        ..Default::default()
     }
 }

@@ -46,6 +46,7 @@ fn config() -> GlassConfig {
             instance_flags: InstanceFlags::from_build_config(),
             trace_path: None,
         },
+        run_extra_update_on_resize: true,
     }
 }
 
