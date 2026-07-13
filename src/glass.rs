@@ -433,7 +433,10 @@ impl GlassContext {
         event_loop: &ActiveEventLoop,
         config: &WindowConfig,
     ) -> Result<Arc<Window>, GlassError> {
-        let mut window_attributes = Window::default_attributes()
+        let mut window_attributes = config
+            .other_attributes
+            .clone()
+            .unwrap_or_else(Window::default_attributes)
             .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
             .with_title(config.title.clone());
 

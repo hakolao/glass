@@ -7,7 +7,7 @@ use wgpu::{
 use winit::{
     dpi::{LogicalPosition, LogicalSize, PhysicalPosition, PhysicalSize},
     monitor::MonitorHandle,
-    window::{Fullscreen, Window},
+    window::{Fullscreen, Window, WindowAttributes},
 };
 
 use crate::{device_context::DeviceContext, GlassApp};
@@ -25,6 +25,7 @@ pub struct WindowConfig {
     pub max_size: Option<LogicalSize<u32>>,
     pub min_size: Option<LogicalSize<u32>>,
     pub exit_on_esc: bool,
+    pub other_attributes: Option<WindowAttributes>,
 }
 
 impl Default for WindowConfig {
@@ -41,6 +42,7 @@ impl Default for WindowConfig {
             exit_on_esc: false,
             max_size: None,
             min_size: None,
+            other_attributes: None,
         }
     }
 }
