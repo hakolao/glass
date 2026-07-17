@@ -3,8 +3,8 @@ use std::{fmt::Formatter, sync::Arc};
 use image::ImageError;
 use indexmap::IndexMap;
 use wgpu::{
-    Adapter, CreateSurfaceError, Device, Instance, PowerPreference, Queue, RequestAdapterError,
-    RequestDeviceError, Sampler, SurfaceConfiguration,
+    Adapter, AdapterInfo, Backends, CreateSurfaceError, Device, Instance, PowerPreference, Queue,
+    RequestAdapterError, RequestDeviceError, Sampler, SurfaceConfiguration,
 };
 use winit::{
     application::ApplicationHandler,
@@ -265,7 +265,11 @@ impl GlassConfig {
 pub enum GlassError {
     WindowError(OsError),
     SurfaceError(CreateSurfaceError),
-    AdapterError(RequestAdapterError),
+    AdapterNotFound {
+        source: RequestAdapterError,
+        requested_backends: Backends,
+        available: Vec<AdapterInfo>,
+    },
     DeviceError(RequestDeviceError),
     ImageError(ImageError),
     EventLoopError(EventLoopError),
@@ -277,7 +281,31 @@ impl std::fmt::Display for GlassError {
         let s = match self {
             GlassError::WindowError(e) => format!("WindowError: {}", e),
             GlassError::SurfaceError(e) => format!("SurfaceError: {}", e),
-            GlassError::AdapterError(e) => format!("AdapterError: {}", e),
+            GlassError::AdapterNotFound {
+                source,
+                requested_backends,
+                available,
+            } => {
+                let list = if available.is_empty() {
+                    "  (none)".to_string()
+                } else {
+                    available
+                        .iter()
+                        .map(|i| {
+                            format!(
+                                "  {} | {:?} | {:?} | driver: {} {}",
+                                i.name, i.backend, i.device_type, i.driver, i.driver_info
+                            )
+                        })
+                        .collect::<Vec<_>>()
+                        .join("\n")
+                };
+                format!(
+                    "AdapterNotFound: {source}\nRequested backends: \
+                     {requested_backends:?}\nAdapters visible on any backend ({}):\n{list}",
+                    available.len()
+                )
+            }
             GlassError::DeviceError(e) => format!("DeviceError: {}", e),
             GlassError::ImageError(e) => format!("ImageError: {}", e),
             GlassError::EventLoopError(e) => format!("EventLoopError: {}", e),

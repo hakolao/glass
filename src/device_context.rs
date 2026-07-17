@@ -71,17 +71,6 @@ impl DeviceContext {
             flags: config.instance_flags,
             ..InstanceDescriptor::new_without_display_handle()
         });
-        if std::env::var("LIST_ADAPTERS").is_ok() {
-            println!("--- wgpu adapters ---");
-            for a in wait_async(instance.enumerate_adapters(config.backends)) {
-                let info = a.get_info();
-                println!(
-                    "  {} ({:?}, {:?})",
-                    info.name, info.device_type, info.backend
-                );
-            }
-            println!("----------------------------");
-        }
         let (adapter, device, queue) =
             Self::create_adapter_device_and_queue(config, &instance, None)?;
         let sampler_nearest_repeat = Arc::new(device.create_sampler(&SamplerDescriptor {
@@ -156,7 +145,24 @@ impl DeviceContext {
             compatible_surface: surface,
         })) {
             Ok(a) => a,
-            Err(e) => return Err(GlassError::AdapterError(e)),
+            Err(e) => {
+                // Fresh instance: `instance` was built with only `config.backends`, so it
+                // can't see adapters on backends that were never initialized.
+                let probe = Instance::new(InstanceDescriptor {
+                    backends: Backends::all(),
+                    flags: config.instance_flags,
+                    ..InstanceDescriptor::new_without_display_handle()
+                });
+                let available = wait_async(probe.enumerate_adapters(Backends::all()))
+                    .iter()
+                    .map(|a| a.get_info())
+                    .collect();
+                return Err(GlassError::AdapterNotFound {
+                    source: e,
+                    requested_backends: config.backends,
+                    available,
+                });
+            }
         };
 
         // --- Capability check: error instead of downgrading ---
