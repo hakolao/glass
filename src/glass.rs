@@ -287,6 +287,8 @@ impl std::fmt::Display for GlassError {
     }
 }
 
+impl std::error::Error for GlassError {}
+
 /// The runtime context accessible through [`GlassApp`].
 /// You can use the context to create windows at runtime. Or access devices, which are often
 /// needed for render or compute functionality.
