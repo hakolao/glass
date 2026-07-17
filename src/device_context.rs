@@ -201,7 +201,12 @@ impl DeviceContext {
             trace: Trace::Off,
         })) {
             Ok(dq) => dq,
-            Err(e) => return Err(GlassError::DeviceError(e)),
+            Err(e) => {
+                return Err(GlassError::DeviceError {
+                    source: e,
+                    adapter: adapter.get_info(),
+                })
+            }
         };
 
         Ok((adapter, device, queue))

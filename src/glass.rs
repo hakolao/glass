@@ -270,7 +270,10 @@ pub enum GlassError {
         requested_backends: Backends,
         available: Vec<AdapterInfo>,
     },
-    DeviceError(RequestDeviceError),
+    DeviceError {
+        source: RequestDeviceError,
+        adapter: AdapterInfo,
+    },
     ImageError(ImageError),
     EventLoopError(EventLoopError),
     InsufficientDevice(String),
@@ -306,7 +309,17 @@ impl std::fmt::Display for GlassError {
                     available.len()
                 )
             }
-            GlassError::DeviceError(e) => format!("DeviceError: {}", e),
+            GlassError::DeviceError {
+                source,
+                adapter,
+            } => format!(
+                "DeviceError: {source}\nAdapter: {} | {:?} | {:?} | driver: {} {}",
+                adapter.name,
+                adapter.backend,
+                adapter.device_type,
+                adapter.driver,
+                adapter.driver_info
+            ),
             GlassError::ImageError(e) => format!("ImageError: {}", e),
             GlassError::EventLoopError(e) => format!("EventLoopError: {}", e),
             GlassError::InsufficientDevice(e) => format!("InsufficientDevice: {}", e),
