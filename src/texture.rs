@@ -15,6 +15,51 @@ pub struct Texture {
 }
 
 impl Texture {
+    /// Creates an empty 2D **array** texture. The view is always `D2Array`,
+    /// even for a single layer, so it binds correctly to `texture_2d_array`.
+    pub fn empty_array(
+        device: &Device,
+        label: &str,
+        width: u32,
+        height: u32,
+        layers: u32,
+        mip_count: u32,
+        format: TextureFormat,
+        usage: TextureUsages,
+    ) -> Self {
+        let size = Extent3d {
+            width,
+            height,
+            depth_or_array_layers: layers,
+        };
+        let texture = device.create_texture(&TextureDescriptor {
+            label: Some(label),
+            size,
+            mip_level_count: mip_count,
+            sample_count: 1,
+            dimension: TextureDimension::D2,
+            view_formats: &[],
+            format,
+            usage,
+        });
+        let mut views = vec![];
+        for mip_level in 0..mip_count {
+            let view = texture.create_view(&TextureViewDescriptor {
+                dimension: Some(wgpu::TextureViewDimension::D2Array),
+                base_mip_level: mip_level,
+                mip_level_count: Some(1),
+                ..Default::default()
+            });
+            views.push(view);
+        }
+
+        Self {
+            texture,
+            views,
+            size: [width as f32, height as f32],
+        }
+    }
+
     pub fn empty(
         device: &Device,
         label: &str,
