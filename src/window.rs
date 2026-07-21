@@ -156,7 +156,6 @@ impl GlassWindow {
             view_formats: vec![],
         };
         self.configure_surface(device, &config)?;
-        self.last_surface_size = [size.width, size.height];
         Ok(())
     }
 
