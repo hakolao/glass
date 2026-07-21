@@ -167,6 +167,11 @@ impl GlassWindow {
         self.surface_format = config.format;
         self.desired_maximum_frame_latency = config.desired_maximum_frame_latency;
         self.last_surface_size = [config.width, config.height];
+        let formats = self
+            .surface
+            .get_capabilities(self.device_context.adapter())
+            .formats;
+        self.allowed_formats = formats;
     }
 
     pub fn set_position(&self, window_position: WindowPos) {
