@@ -465,9 +465,13 @@ impl GlassContext {
         }
     }
 
-    pub fn recreate_surface(&mut self, window_id: &WindowId) -> Result<(), GlassError> {
+    pub fn recreate_surface(
+        &mut self,
+        window_id: &WindowId,
+        config: &SurfaceConfiguration,
+    ) -> Result<(), GlassError> {
         if let Some(window) = self.windows.get_mut(window_id) {
-            window.recreate_surface(self.device_context.device())?;
+            window.recreate_surface(self.device_context.device(), config)?;
             Ok(())
         } else {
             Err(GlassError::WindowNotFoundError {

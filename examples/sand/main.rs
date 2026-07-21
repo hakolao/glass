@@ -10,7 +10,7 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use wgpu::{
-    Color, CommandBuffer, Limits, LoadOp, Operations, PresentMode, RenderPassColorAttachment,
+    Color, CommandBuffer, Limits, LoadOp, Operations, RenderPassColorAttachment,
     RenderPassDescriptor, StoreOp, TextureViewDescriptor,
 };
 use winit::{
@@ -29,7 +29,6 @@ fn main() -> Result<(), GlassError> {
         context.create_window(WindowConfig {
             width: CANVAS_SIZE * CANVAS_SCALE,
             height: CANVAS_SIZE * CANVAS_SCALE,
-            present_mode: PresentMode::AutoNoVsync,
             exit_on_esc: true,
             ..WindowConfig::default()
         });

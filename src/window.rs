@@ -18,10 +18,7 @@ pub struct WindowConfig {
     pub width: u32,
     pub height: u32,
     pub pos: WindowPos,
-    pub present_mode: PresentMode,
-    pub alpha_mode: CompositeAlphaMode,
-    pub surface_format: TextureFormat,
-    pub desired_maximum_frame_latency: u32,
+    pub surface_config: wgpu::SurfaceConfiguration,
     pub max_size: Option<LogicalSize<u32>>,
     pub min_size: Option<LogicalSize<u32>>,
     pub exit_on_esc: bool,
@@ -35,10 +32,16 @@ impl Default for WindowConfig {
             width: 1920,
             height: 1080,
             pos: WindowPos::Centered,
-            present_mode: PresentMode::AutoVsync,
-            alpha_mode: CompositeAlphaMode::Auto,
-            surface_format: GlassWindow::default_surface_format(),
-            desired_maximum_frame_latency: 2,
+            surface_config: SurfaceConfiguration {
+                usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
+                format: GlassWindow::default_surface_format(),
+                width: 1920,
+                height: 1080,
+                present_mode: PresentMode::AutoVsync,
+                desired_maximum_frame_latency: 2,
+                alpha_mode: CompositeAlphaMode::Auto,
+                view_formats: vec![],
+            },
             exit_on_esc: false,
             max_size: None,
             min_size: None,
@@ -73,14 +76,10 @@ pub struct GlassWindow {
     window: Arc<Window>,
     surface: Surface<'static>,
     device_context: Arc<DeviceContext>,
-    present_mode: PresentMode,
-    alpha_mode: CompositeAlphaMode,
-    surface_format: TextureFormat,
-    desired_maximum_frame_latency: u32,
+    surface_config: wgpu::SurfaceConfiguration,
     exit_on_esc: bool,
     has_focus: bool,
     last_surface_size: [u32; 2],
-    allowed_formats: Vec<TextureFormat>,
 }
 
 impl GlassWindow {
@@ -93,29 +92,33 @@ impl GlassWindow {
         let size = [window.inner_size().width, window.inner_size().height];
         let surface = context.instance().create_surface(window.clone())?;
         let formats = surface.get_capabilities(context.adapter()).formats;
-        if !formats.contains(&config.surface_format) {
+        if !formats.contains(&config.surface_config.format) {
             panic!(
                 "{:?} not allowed. Allowed formats: {:?}",
-                config.surface_format, formats
+                config.surface_config.format, formats
             );
         }
         Ok(GlassWindow {
             device_context: context.clone(),
             window,
             surface,
-            present_mode: config.present_mode,
-            alpha_mode: config.alpha_mode,
-            surface_format: config.surface_format,
+            surface_config: config.surface_config,
             exit_on_esc: config.exit_on_esc,
-            desired_maximum_frame_latency: config.desired_maximum_frame_latency,
             has_focus: false,
             last_surface_size: size,
-            allowed_formats: formats,
         })
     }
 
+    pub fn surface_config(&self) -> &SurfaceConfiguration {
+        &self.surface_config
+    }
+
     /// Recreates surface after e.g device lost events
-    pub(crate) fn recreate_surface(&mut self, device: &Device) -> Result<(), GlassError> {
+    pub(crate) fn recreate_surface(
+        &mut self,
+        device: &Device,
+        config: &SurfaceConfiguration,
+    ) -> Result<(), GlassError> {
         let window = self.window.clone();
         let surface = self
             .device_context
@@ -123,10 +126,7 @@ impl GlassWindow {
             .create_surface(window)
             .unwrap();
         self.surface = surface;
-        self.configure_surface_with_size(
-            device,
-            PhysicalSize::new(self.last_surface_size[0], self.last_surface_size[1]),
-        )?;
+        self.configure_surface(device, config)?;
         Ok(())
     }
 
@@ -147,13 +147,13 @@ impl GlassWindow {
     ) -> Result<(), GlassError> {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
-            format: self.surface_format,
+            format: self.surface_config.format,
             width: size.width,
             height: size.height,
-            present_mode: self.present_mode,
-            alpha_mode: self.alpha_mode,
+            present_mode: self.surface_config.present_mode,
+            alpha_mode: self.surface_config.alpha_mode,
+            desired_maximum_frame_latency: self.surface_config.desired_maximum_frame_latency,
             view_formats: vec![],
-            desired_maximum_frame_latency: self.desired_maximum_frame_latency,
         };
         self.configure_surface(device, &config)?;
         self.last_surface_size = [size.width, size.height];
@@ -166,22 +166,17 @@ impl GlassWindow {
         device: &Device,
         config: &SurfaceConfiguration,
     ) -> Result<(), GlassError> {
-        let formats = self
+        let allowed_formats = self
             .surface
             .get_capabilities(self.device_context.adapter())
             .formats;
-        self.allowed_formats = formats;
-        if !self.allowed_formats.contains(&config.format) {
+        if !allowed_formats.contains(&config.format) {
             return Err(GlassError::SurfaceConfigurationError(format!(
                 "{:?} not allowed. Allowed formats: {:?}",
-                config.format, self.allowed_formats
+                config.format, allowed_formats
             )));
         }
         self.surface.configure(device, config);
-        self.present_mode = config.present_mode;
-        self.alpha_mode = config.alpha_mode;
-        self.surface_format = config.format;
-        self.desired_maximum_frame_latency = config.desired_maximum_frame_latency;
         self.last_surface_size = [config.width, config.height];
         Ok(())
     }
@@ -231,8 +226,10 @@ impl GlassWindow {
     }
 
     /// Return allowed texture formats for this window [`Surface`](wgpu::Surface)
-    pub fn allowed_formats(&self) -> &Vec<TextureFormat> {
-        &self.allowed_formats
+    pub fn allowed_formats(&self) -> Vec<TextureFormat> {
+        self.surface
+            .get_capabilities(self.device_context.adapter())
+            .formats
     }
 
     /// Return [`Surface`](wgpu::Surface) belonging to the window
@@ -253,11 +250,6 @@ impl GlassWindow {
     /// Return [`Window`](winit::window::Window) arc
     pub fn window_arc(&self) -> &Arc<Window> {
         &self.window
-    }
-
-    /// Return [`PresentMode`](wgpu::PresentMode) belonging to the window
-    pub fn present_mode(&self) -> PresentMode {
-        self.present_mode
     }
 
     /// Return default [`TextureFormat`](wgpu::TextureFormat)s

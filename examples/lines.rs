@@ -6,7 +6,7 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use rapier2d::prelude::*;
-use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, PresentMode, StoreOp};
+use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, StoreOp};
 use winit::event_loop::ActiveEventLoop;
 
 const WIDTH: u32 = 1920;
@@ -34,7 +34,6 @@ fn main() -> Result<(), GlassError> {
         context.create_window(WindowConfig {
             width: WIDTH,
             height: HEIGHT,
-            present_mode: PresentMode::AutoVsync,
             exit_on_esc: true,
             ..WindowConfig::default()
         });

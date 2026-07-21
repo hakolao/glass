@@ -12,7 +12,7 @@ use glass::{
 use wgpu::{
     Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder, ComputePassDescriptor,
     ComputePipeline, ComputePipelineDescriptor, Extent3d, InstanceFlags, Limits, MemoryHints,
-    PowerPreference, PresentMode, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
+    PowerPreference, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
 };
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
@@ -57,7 +57,6 @@ fn main() -> Result<(), GlassError> {
             width: WIDTH,
             height: HEIGHT,
             exit_on_esc: true,
-            present_mode: PresentMode::AutoNoVsync,
             ..WindowConfig::default()
         });
         Box::new(GameOfLifeApp::default())
