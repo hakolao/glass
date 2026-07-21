@@ -8,6 +8,7 @@ use wgpu::{
 };
 use winit::{
     application::ApplicationHandler,
+    dpi::PhysicalSize,
     error::{EventLoopError, OsError},
     event::{DeviceEvent, DeviceId, ElementState, StartCause, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
@@ -430,6 +431,21 @@ impl GlassContext {
     ) -> Result<(), GlassError> {
         if let Some(window) = self.windows.get_mut(window_id) {
             window.configure_surface(self.device_context.device(), config)?;
+            Ok(())
+        } else {
+            Err(GlassError::WindowNotFoundError {
+                window_id: *window_id,
+            })
+        }
+    }
+
+    pub fn reconfigure_surface_with_size(
+        &mut self,
+        window_id: &WindowId,
+        size: PhysicalSize<u32>,
+    ) -> Result<(), GlassError> {
+        if let Some(window) = self.windows.get_mut(window_id) {
+            window.configure_surface_with_size(self.device_context.device(), size)?;
             Ok(())
         } else {
             Err(GlassError::WindowNotFoundError {
