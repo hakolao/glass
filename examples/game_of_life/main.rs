@@ -47,6 +47,7 @@ fn config() -> GlassConfig {
             trace_path: None,
         },
         run_extra_update_on_resize: true,
+        is_surface_auto_resize: true,
     }
 }
 

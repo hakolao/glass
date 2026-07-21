@@ -49,6 +49,7 @@ impl Glass {
             context,
             runner_state: RunnerState {
                 run_extra_update_on_resize: config.run_extra_update_on_resize,
+                is_surface_auto_resize: config.is_surface_auto_resize,
                 ..RunnerState::default()
             },
         };
@@ -105,23 +106,28 @@ impl ApplicationHandler for Glass {
         if let Some(window) = context.windows.get_mut(&window_id) {
             match event {
                 WindowEvent::Resized(physical_size) => {
-                    // On windows, minimized app can have 0,0 size
-                    if physical_size.width > 0 && physical_size.height > 0 {
-                        window.configure_surface_with_size(
-                            context.device_context.device(),
-                            physical_size,
-                        );
-                        if runner_state.run_extra_update_on_resize {
-                            context.is_resize_extra_update = true;
-                            run_update(event_loop, app, context, runner_state);
+                    if runner_state.is_surface_auto_resize {
+                        // On windows, minimized app can have 0,0 size
+                        if physical_size.width > 0 && physical_size.height > 0 {
+                            let _ = window.configure_surface_with_size(
+                                context.device_context.device(),
+                                physical_size,
+                            );
+                            if runner_state.run_extra_update_on_resize {
+                                context.is_resize_extra_update = true;
+                                run_update(event_loop, app, context, runner_state);
+                            }
                         }
                     }
                 }
                 WindowEvent::ScaleFactorChanged {
                     ..
                 } => {
-                    let size = window.window().inner_size();
-                    window.configure_surface_with_size(context.device_context.device(), size);
+                    if runner_state.is_surface_auto_resize {
+                        let size = window.window().inner_size();
+                        let _ = window
+                            .configure_surface_with_size(context.device_context.device(), size);
+                    }
                 }
                 WindowEvent::KeyboardInput {
                     event,
@@ -201,7 +207,7 @@ fn add_new_windows(event_loop: &ActiveEventLoop, context: &mut GlassContext) {
         let id = context.add_window(window_config, window).unwrap();
         // Configure window surface with size
         let window = context.windows.get_mut(&id).unwrap();
-        window.configure_surface_with_size(
+        let _ = window.configure_surface_with_size(
             context.device_context.device(),
             window.window().inner_size(),
         );
@@ -239,6 +245,7 @@ struct RunnerState {
     is_init: bool,
     request_window_close: bool,
     run_extra_update_on_resize: bool,
+    is_surface_auto_resize: bool,
     remove_windows: Vec<WindowId>,
 }
 
@@ -247,6 +254,7 @@ struct RunnerState {
 pub struct GlassConfig {
     pub device_config: DeviceConfig,
     pub run_extra_update_on_resize: bool,
+    pub is_surface_auto_resize: bool,
 }
 
 impl GlassConfig {
@@ -256,7 +264,8 @@ impl GlassConfig {
                 power_preference: PowerPreference::HighPerformance,
                 ..Default::default()
             },
-            run_extra_update_on_resize: false,
+            run_extra_update_on_resize: true,
+            is_surface_auto_resize: true,
         }
     }
 }
@@ -264,7 +273,11 @@ impl GlassConfig {
 #[derive(Debug)]
 pub enum GlassError {
     WindowError(OsError),
+    WindowNotFoundError {
+        window_id: WindowId,
+    },
     SurfaceError(CreateSurfaceError),
+    SurfaceConfigurationError(String),
     AdapterNotFound {
         source: RequestAdapterError,
         requested_backends: Backends,
@@ -283,7 +296,11 @@ impl std::fmt::Display for GlassError {
     fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
         let s = match self {
             GlassError::WindowError(e) => format!("WindowError: {}", e),
+            GlassError::WindowNotFoundError {
+                window_id,
+            } => format!("WindowNotFoundError: {:?}", window_id),
             GlassError::SurfaceError(e) => format!("SurfaceError: {}", e),
+            GlassError::SurfaceConfigurationError(e) => format!("SurfaceConfigurationError: {}", e),
             GlassError::AdapterNotFound {
                 source,
                 requested_backends,
@@ -406,27 +423,40 @@ impl GlassContext {
         self.device_context.queue_arc()
     }
 
-    pub fn configure_surface(&mut self, window_id: &WindowId, config: &SurfaceConfiguration) {
+    pub fn configure_surface(
+        &mut self,
+        window_id: &WindowId,
+        config: &SurfaceConfiguration,
+    ) -> Result<(), GlassError> {
         if let Some(window) = self.windows.get_mut(window_id) {
-            window.configure_surface(self.device_context.device(), config);
+            window.configure_surface(self.device_context.device(), config)?;
+            Ok(())
         } else {
-            panic!("No window with id {:?}", window_id);
+            Err(GlassError::WindowNotFoundError {
+                window_id: *window_id,
+            })
         }
     }
 
-    pub fn reconfigure_surface(&mut self, window_id: &WindowId) {
+    pub fn reconfigure_surface(&mut self, window_id: &WindowId) -> Result<(), GlassError> {
         if let Some(window) = self.windows.get_mut(window_id) {
-            window.reconfigure_surface(self.device_context.device());
+            window.reconfigure_surface(self.device_context.device())?;
+            Ok(())
         } else {
-            panic!("No window with id {:?}", window_id);
+            Err(GlassError::WindowNotFoundError {
+                window_id: *window_id,
+            })
         }
     }
 
-    pub fn recreate_surface(&mut self, window_id: &WindowId) {
+    pub fn recreate_surface(&mut self, window_id: &WindowId) -> Result<(), GlassError> {
         if let Some(window) = self.windows.get_mut(window_id) {
-            window.recreate_surface(self.device_context.device());
+            window.recreate_surface(self.device_context.device())?;
+            Ok(())
         } else {
-            panic!("No window with id {:?}", window_id);
+            Err(GlassError::WindowNotFoundError {
+                window_id: *window_id,
+            })
         }
     }
 

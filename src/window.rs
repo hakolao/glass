@@ -10,7 +10,7 @@ use winit::{
     window::{Fullscreen, Window, WindowAttributes},
 };
 
-use crate::{device_context::DeviceContext, GlassApp};
+use crate::{device_context::DeviceContext, GlassApp, GlassError};
 
 #[derive(Debug, Clone)]
 pub struct WindowConfig {
@@ -115,7 +115,7 @@ impl GlassWindow {
     }
 
     /// Recreates surface after e.g device lost events
-    pub(crate) fn recreate_surface(&mut self, device: &Device) {
+    pub(crate) fn recreate_surface(&mut self, device: &Device) -> Result<(), GlassError> {
         let window = self.window.clone();
         let surface = self
             .device_context
@@ -126,19 +126,25 @@ impl GlassWindow {
         self.configure_surface_with_size(
             device,
             PhysicalSize::new(self.last_surface_size[0], self.last_surface_size[1]),
-        );
+        )?;
+        Ok(())
     }
 
     /// Configure surface after resize events
-    pub(crate) fn reconfigure_surface(&mut self, device: &Device) {
+    pub(crate) fn reconfigure_surface(&mut self, device: &Device) -> Result<(), GlassError> {
         self.configure_surface_with_size(
             device,
             PhysicalSize::new(self.last_surface_size[0], self.last_surface_size[1]),
-        );
+        )?;
+        Ok(())
     }
 
     /// Configure surface after resize events
-    pub(crate) fn configure_surface_with_size(&mut self, device: &Device, size: PhysicalSize<u32>) {
+    pub(crate) fn configure_surface_with_size(
+        &mut self,
+        device: &Device,
+        size: PhysicalSize<u32>,
+    ) -> Result<(), GlassError> {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: self.surface_format,
@@ -149,17 +155,27 @@ impl GlassWindow {
             view_formats: vec![],
             desired_maximum_frame_latency: self.desired_maximum_frame_latency,
         };
-        self.configure_surface(device, &config);
+        self.configure_surface(device, &config)?;
         self.last_surface_size = [size.width, size.height];
+        Ok(())
     }
 
     /// Configure surface after window has changed. Use this to reconfigure the surface
-    pub(crate) fn configure_surface(&mut self, device: &Device, config: &SurfaceConfiguration) {
+    pub(crate) fn configure_surface(
+        &mut self,
+        device: &Device,
+        config: &SurfaceConfiguration,
+    ) -> Result<(), GlassError> {
+        let formats = self
+            .surface
+            .get_capabilities(self.device_context.adapter())
+            .formats;
+        self.allowed_formats = formats;
         if !self.allowed_formats.contains(&config.format) {
-            panic!(
+            return Err(GlassError::SurfaceConfigurationError(format!(
                 "{:?} not allowed. Allowed formats: {:?}",
                 config.format, self.allowed_formats
-            );
+            )));
         }
         self.surface.configure(device, config);
         self.present_mode = config.present_mode;
@@ -167,11 +183,7 @@ impl GlassWindow {
         self.surface_format = config.format;
         self.desired_maximum_frame_latency = config.desired_maximum_frame_latency;
         self.last_surface_size = [config.width, config.height];
-        let formats = self
-            .surface
-            .get_capabilities(self.device_context.adapter())
-            .formats;
-        self.allowed_formats = formats;
+        Ok(())
     }
 
     pub fn set_position(&self, window_position: WindowPos) {
@@ -309,7 +321,7 @@ impl GlassWindow {
             }
             wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => return,
             wgpu::CurrentSurfaceTexture::Suboptimal(_) | wgpu::CurrentSurfaceTexture::Outdated => {
-                self.reconfigure_surface(&device);
+                let _ = self.reconfigure_surface(&device);
                 return;
             }
             wgpu::CurrentSurfaceTexture::Validation => {
@@ -321,7 +333,7 @@ impl GlassWindow {
                     .instance()
                     .create_surface(self.window.clone())
                     .unwrap();
-                self.reconfigure_surface(&device);
+                let _ = self.reconfigure_surface(&device);
                 return;
             }
         }
