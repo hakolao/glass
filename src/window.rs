@@ -176,6 +176,7 @@ impl GlassWindow {
             )));
         }
         self.surface.configure(device, config);
+        self.surface_config = config.clone();
         self.last_surface_size = [config.width, config.height];
         Ok(())
     }
