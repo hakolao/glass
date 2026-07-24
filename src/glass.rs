@@ -3,8 +3,8 @@ use std::{fmt::Formatter, sync::Arc};
 use image::ImageError;
 use indexmap::IndexMap;
 use wgpu::{
-    Adapter, AdapterInfo, Backends, CreateSurfaceError, Device, Instance, PowerPreference, Queue,
-    RequestAdapterError, RequestDeviceError, Sampler, SurfaceConfiguration,
+    Adapter, AdapterInfo, Backends, CreateSurfaceError, Device, Features, Instance,
+    PowerPreference, Queue, RequestAdapterError, RequestDeviceError, Sampler, SurfaceConfiguration,
 };
 use winit::{
     application::ApplicationHandler,
@@ -290,7 +290,11 @@ pub enum GlassError {
     },
     ImageError(ImageError),
     EventLoopError(EventLoopError),
-    InsufficientDevice(String),
+    InsufficientDevice {
+        adapter: AdapterInfo,
+        missing_features: Features,
+        violations: Vec<String>,
+    },
 }
 
 impl std::fmt::Display for GlassError {
@@ -340,7 +344,22 @@ impl std::fmt::Display for GlassError {
             ),
             GlassError::ImageError(e) => format!("ImageError: {}", e),
             GlassError::EventLoopError(e) => format!("EventLoopError: {}", e),
-            GlassError::InsufficientDevice(e) => format!("InsufficientDevice: {}", e),
+            GlassError::InsufficientDevice {
+                adapter,
+                missing_features,
+                violations,
+            } => {
+                let mut parts = Vec::new();
+                if !missing_features.is_empty() {
+                    parts.push(format!("missing features: {missing_features:?}"));
+                }
+                parts.extend(violations.iter().cloned());
+                format!(
+                    "InsufficientDevice: adapter '{}' does not meet requirements: {}",
+                    adapter.name,
+                    parts.join(", ")
+                )
+            }
         };
         write!(f, "{}", s)
     }

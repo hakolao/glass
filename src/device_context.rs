@@ -1,7 +1,7 @@
 use std::{path::PathBuf, sync::Arc};
 
 use wgpu::{
-    Adapter, AddressMode, Backends, Device, DeviceDescriptor, FilterMode, Instance,
+    Adapter, AddressMode, Backends, Device, DeviceDescriptor, Features, FilterMode, Instance,
     InstanceDescriptor, InstanceFlags, Limits, MemoryHints, MipmapFilterMode, PowerPreference,
     Queue, RequestAdapterOptions, Sampler, SamplerDescriptor, Surface, Trace,
 };
@@ -168,10 +168,11 @@ impl DeviceContext {
         // --- Capability check: error instead of downgrading ---
         let missing_features = config.features.difference(adapter.features());
         if !missing_features.is_empty() {
-            return Err(GlassError::InsufficientDevice(format!(
-                "adapter '{}' missing required features: {missing_features:?}",
-                adapter.get_info().name
-            )));
+            return Err(GlassError::InsufficientDevice {
+                adapter: adapter.get_info(),
+                missing_features,
+                violations: Vec::new(),
+            });
         }
 
         let mut violations = Vec::new();
@@ -183,11 +184,11 @@ impl DeviceContext {
             },
         );
         if !violations.is_empty() {
-            return Err(GlassError::InsufficientDevice(format!(
-                "adapter '{}' limits insufficient: {}",
-                adapter.get_info().name,
-                violations.join(", ")
-            )));
+            return Err(GlassError::InsufficientDevice {
+                adapter: adapter.get_info(),
+                missing_features: Features::empty(),
+                violations,
+            });
         }
         // -------------------------------------------------------
 
