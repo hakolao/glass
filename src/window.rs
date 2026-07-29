@@ -61,18 +61,6 @@ pub enum WindowPos {
     Pos(PhysicalPosition<u32>),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum SurfaceError {
-    /// A timeout was encountered while trying to acquire the next frame.
-    Timeout,
-    /// The underlying surface has changed, and therefore the swap chain must be updated.
-    Outdated,
-    /// The swap chain has been lost and needs to be recreated.
-    Lost,
-    /// There is no more memory left to allocate a new frame.
-    OutOfMemory,
-}
-
 pub struct GlassWindow {
     window: Arc<Window>,
     surface: Surface<'static>,
