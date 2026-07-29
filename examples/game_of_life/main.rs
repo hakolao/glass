@@ -5,7 +5,7 @@ use glam::Vec2;
 use glass::{
     device_context::DeviceConfig,
     pipelines::QuadPipeline,
-    texture::Texture,
+    texture::{Texture, TextureDesc},
     window::{GlassWindow, RenderData, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
@@ -53,7 +53,7 @@ fn config() -> GlassConfig {
 
 fn main() -> Result<(), GlassError> {
     Glass::run(config(), |context| {
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: WIDTH,
             height: HEIGHT,
             exit_on_esc: true,
@@ -407,27 +407,31 @@ fn create_canvas_data(
 ) -> CanvasData {
     let canvas = Texture::empty(
         context.device(),
-        "canvas.png",
         Extent3d {
             width: WIDTH,
             height: HEIGHT,
             depth_or_array_layers: 1,
         },
-        1,
-        TextureFormat::Rgba16Float,
-        TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+        &TextureDesc {
+            label: "canvas.png",
+            format: TextureFormat::Rgba16Float,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+            mip_count: 1,
+        },
     );
     let data_in = Texture::empty(
         context.device(),
-        "data_in.png",
         Extent3d {
             width: WIDTH,
             height: HEIGHT,
             depth_or_array_layers: 1,
         },
-        1,
-        TextureFormat::Rgba16Float,
-        TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+        &TextureDesc {
+            label: "data_in.png",
+            format: TextureFormat::Rgba16Float,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+            mip_count: 1,
+        },
     );
     // Create bind groups to match pipeline layouts (except update, create that dynamically each frame)
     let canvas_bind_group = quad_pipeline.create_bind_group(

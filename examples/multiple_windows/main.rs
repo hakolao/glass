@@ -30,7 +30,7 @@ struct MultiWindowApp;
 impl GlassApp for MultiWindowApp {
     fn start(&mut self, _event_loop: &ActiveEventLoop, context: &mut GlassContext) {
         println!("Press space to create windows, esc to close all but last");
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: WIDTH,
             height: HEIGHT,
             exit_on_esc: true,
@@ -58,7 +58,7 @@ impl GlassApp for MultiWindowApp {
                 && event.state == ElementState::Released
             {
                 // Create window - this will work when your window has focus
-                context.create_window(WindowConfig {
+                context.create_window(context.windows().len().to_string(), WindowConfig {
                     width: WIDTH,
                     height: HEIGHT,
                     exit_on_esc: true,
@@ -69,7 +69,7 @@ impl GlassApp for MultiWindowApp {
     }
 
     fn update(&mut self, context: &mut GlassContext) {
-        for (_, window) in context.windows().iter_mut() {
+        for (_, window) in context.windows_mut().iter_mut() {
             window.render_default(|data| render(self, data));
         }
     }

@@ -62,6 +62,7 @@ pub enum WindowPos {
 }
 
 pub struct GlassWindow {
+    name: String,
     window: Arc<Window>,
     surface: Surface<'static>,
     device_context: Arc<DeviceContext>,
@@ -75,6 +76,7 @@ impl GlassWindow {
     /// Creates a new [`GlassWindow`] that owns the winit [`Window`](winit::window::Window).
     pub fn new(
         context: &Arc<DeviceContext>,
+        name: String,
         config: WindowConfig,
         window: Arc<Window>,
     ) -> Result<GlassWindow, CreateSurfaceError> {
@@ -88,6 +90,7 @@ impl GlassWindow {
             );
         }
         Ok(GlassWindow {
+            name,
             device_context: context.clone(),
             window,
             surface,
@@ -96,6 +99,11 @@ impl GlassWindow {
             has_focus: false,
             last_surface_size: size,
         })
+    }
+
+    /// Name this window was created under via [`GlassContext::create_window`].
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn surface_config(&self) -> &SurfaceConfiguration {

@@ -1,7 +1,7 @@
 use glass::{
     device_context::DeviceConfig,
     pipelines::QuadPipeline,
-    texture::Texture,
+    texture::{Texture, TextureDesc},
     utils::default_texture_format,
     window::{GlassWindow, RenderData, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
@@ -21,7 +21,7 @@ const OPENGL_TO_WGPU: glam::Mat4 = glam::Mat4::from_cols_array(&[
 
 fn main() -> Result<(), GlassError> {
     Glass::run(config(), |context| {
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: WIDTH,
             height: HEIGHT,
             exit_on_esc: true,
@@ -149,14 +149,12 @@ fn create_example_data(context: &GlassContext, quad_pipeline: &QuadPipeline) -> 
 
 fn create_tree_texture(app: &GlassContext) -> Texture {
     let diffuse_bytes = include_bytes!("tree.png");
-    Texture::from_bytes(
-        app.device(),
-        app.queue(),
-        diffuse_bytes,
-        "tree.png",
-        default_texture_format(),
-        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-    )
+    Texture::from_bytes(app.device(), app.queue(), diffuse_bytes, &TextureDesc {
+        label: "tree.png",
+        format: default_texture_format(),
+        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+        mip_count: 1,
+    })
     .unwrap()
 }
 

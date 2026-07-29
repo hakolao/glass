@@ -26,7 +26,7 @@ const CANVAS_SCALE: u32 = 2;
 
 fn main() -> Result<(), GlassError> {
     Glass::run(config(), |context| {
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: CANVAS_SIZE * CANVAS_SCALE,
             height: CANVAS_SIZE * CANVAS_SCALE,
             exit_on_esc: true,

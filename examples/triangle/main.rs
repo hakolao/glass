@@ -12,7 +12,7 @@ use winit::event_loop::ActiveEventLoop;
 
 fn main() -> Result<(), GlassError> {
     Glass::run(GlassConfig::default(), |context| {
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: 1920,
             height: 1080,
             exit_on_esc: true,

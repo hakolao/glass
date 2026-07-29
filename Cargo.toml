@@ -36,7 +36,6 @@ uninlined_format_args = "allow"
 default_constructed_unit_structs = "allow"
 collapsible_match = "allow"
 result_large_err = "allow"
-too_many_arguments = "allow"
 
 [profile.dev]
 opt-level = 3
