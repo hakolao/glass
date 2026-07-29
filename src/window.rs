@@ -35,6 +35,7 @@ impl Default for WindowConfig {
             surface_config: SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 format: GlassWindow::default_surface_format(),
+                color_space: Default::default(),
                 width: 1920,
                 height: 1080,
                 present_mode: PresentMode::AutoVsync,
@@ -148,6 +149,7 @@ impl GlassWindow {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: self.surface_config.format,
+            color_space: self.surface_config.color_space,
             width: size.width,
             height: size.height,
             present_mode: self.surface_config.present_mode,
@@ -309,7 +311,7 @@ impl GlassWindow {
                 commands.push(encoder.finish());
                 queue.submit(commands);
                 self.window().pre_present_notify();
-                frame.present();
+                queue.present(frame);
             }
             wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => return,
             wgpu::CurrentSurfaceTexture::Suboptimal(_) | wgpu::CurrentSurfaceTexture::Outdated => {

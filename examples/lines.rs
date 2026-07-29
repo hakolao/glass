@@ -74,7 +74,7 @@ impl GlassApp for LineApp {
         let ground = self
             .physics_world
             .rigid_body_set
-            .insert(RigidBodyBuilder::fixed().translation(vector![0.0, y_pos]));
+            .insert(RigidBodyBuilder::fixed().translation(Vec2::new(0.0, y_pos)));
 
         // Add bridge
         let density = 20.0;
@@ -89,10 +89,10 @@ impl GlassApp for LineApp {
             let rigid_body = RigidBodyBuilder::dynamic()
                 .linear_damping(0.1)
                 .angular_damping(0.1)
-                .translation(vector![
+                .translation(Vec2::new(
                     x_base + part_half_width + part_width * i as f32,
-                    y_pos
-                ]);
+                    y_pos,
+                ));
             let handle = self.physics_world.rigid_body_set.insert(rigid_body);
             let collider =
                 ColliderBuilder::cuboid(part_half_width, part_half_height).density(density);
@@ -102,17 +102,17 @@ impl GlassApp for LineApp {
                 &mut self.physics_world.rigid_body_set,
             );
 
-            let pivot = point![x_base + part_width * i as f32, y_pos];
+            let pivot = Vec2::new(x_base + part_width * i as f32, y_pos);
             let joint = RevoluteJointBuilder::new()
                 .local_anchor1(
                     self.physics_world.rigid_body_set[prev]
                         .position()
-                        .inverse_transform_point(&pivot),
+                        .inverse_transform_point(pivot),
                 )
                 .local_anchor2(
                     self.physics_world.rigid_body_set[handle]
                         .position()
-                        .inverse_transform_point(&pivot),
+                        .inverse_transform_point(pivot),
                 )
                 .contacts_enabled(false);
             self.physics_world
@@ -121,17 +121,17 @@ impl GlassApp for LineApp {
             prev = handle;
         }
 
-        let pivot = point![x_base + part_width * count as f32, y_pos];
+        let pivot = Vec2::new(x_base + part_width * count as f32, y_pos);
         let joint = RevoluteJointBuilder::new()
             .local_anchor1(
                 self.physics_world.rigid_body_set[prev]
                     .position()
-                    .inverse_transform_point(&pivot),
+                    .inverse_transform_point(pivot),
             )
             .local_anchor2(
                 self.physics_world.rigid_body_set[ground]
                     .position()
-                    .inverse_transform_point(&pivot),
+                    .inverse_transform_point(pivot),
             )
             .contacts_enabled(false);
         self.physics_world
@@ -140,7 +140,7 @@ impl GlassApp for LineApp {
 
         // Add ball
         let rigid_body = RigidBodyBuilder::dynamic()
-            .translation(vector![0.0, 10.0])
+            .translation(Vec2::new(0.0, 10.0))
             .build();
         let collider = ColliderBuilder::ball(0.5).restitution(1.2).build();
         let ball_body_handle = self.physics_world.rigid_body_set.insert(rigid_body);
@@ -199,7 +199,7 @@ impl GlassApp for LineApp {
             ..
         } = physics_world;
         physics_pipeline.step(
-            &vector![gravity.x, gravity.y],
+            Vec2::new(gravity.x, gravity.y),
             integration_parameters,
             island_manager,
             broad_phase,
@@ -294,13 +294,7 @@ impl DebugLines {
 }
 
 impl DebugRenderBackend for DebugLines {
-    fn draw_line(
-        &mut self,
-        _object: DebugRenderObject,
-        a: Point<Real>,
-        b: Point<Real>,
-        color: [f32; 4],
-    ) {
+    fn draw_line(&mut self, _object: DebugRenderObject, a: Vec2, b: Vec2, color: [f32; 4]) {
         let line = Line::new(
             (Vec3::new(a.x, a.y, 0.0) * PHYSICS_TO_PIXELS).into(),
             (Vec3::new(b.x, b.y, 0.0) * PHYSICS_TO_PIXELS).into(),
@@ -357,7 +351,7 @@ fn camera_projection(screen_size: [f32; 2]) -> glam::Mat4 {
     let half_width = screen_size[0] / 2.0;
     let half_height = screen_size[1] / 2.0;
     OPENGL_TO_WGPU
-        * Mat4::orthographic_rh(
+        * glam::camera::rh::proj::directx::orthographic(
             -half_width,
             half_width,
             -half_height,

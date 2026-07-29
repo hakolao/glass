@@ -143,6 +143,7 @@ impl DeviceContext {
             power_preference: config.power_preference,
             force_fallback_adapter: false,
             compatible_surface: surface,
+            apply_limit_buckets: false,
         })) {
             Ok(a) => a,
             Err(e) => {

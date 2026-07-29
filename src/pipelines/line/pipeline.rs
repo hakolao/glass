@@ -44,7 +44,7 @@ impl LinePipeline {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
-                buffers: &[ColoredVertex::desc()],
+                buffers: &[ColoredVertex::desc().into()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,

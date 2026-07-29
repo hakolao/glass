@@ -164,7 +164,7 @@ fn camera_projection(screen_size: [f32; 2]) -> glam::Mat4 {
     let half_width = screen_size[0] / 2.0;
     let half_height = screen_size[1] / 2.0;
     OPENGL_TO_WGPU
-        * glam::Mat4::orthographic_rh(
+        * glam::camera::rh::proj::directx::orthographic(
             -half_width,
             half_width,
             -half_height,
