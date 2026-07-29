@@ -41,7 +41,7 @@ impl GlassApp for GuiApp {
     fn update(&mut self, context: &mut GlassContext) {
         context
             .primary_render_window_mut()
-            .render_default(self, render_egui);
+            .render_default(|data| render_egui(self, data));
     }
 }
 

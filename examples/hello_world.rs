@@ -18,6 +18,6 @@ impl GlassApp for HelloWorld {
     fn update(&mut self, _context: &mut GlassContext) {
         _context
             .primary_render_window_mut()
-            .render_default(self, |_, _| None);
+            .render_default(|_| None);
     }
 }

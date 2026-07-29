@@ -224,7 +224,7 @@ impl GlassApp for LineApp {
         );
 
         let window = _context.primary_render_window_mut();
-        window.render_default(self, add_render_commands);
+        window.render_default(|data| add_render_commands(self, data));
     }
 }
 

@@ -70,7 +70,7 @@ impl GlassApp for MultiWindowApp {
 
     fn update(&mut self, context: &mut GlassContext) {
         for (_, window) in context.windows().iter_mut() {
-            window.render_default(self, render);
+            window.render_default(|data| render(self, data));
         }
     }
 }

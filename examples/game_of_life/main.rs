@@ -109,7 +109,7 @@ impl GlassApp for GameOfLifeApp {
 
         context
             .primary_render_window_mut()
-            .render_default(self, render);
+            .render_default(|data| render(self, data));
     }
 }
 

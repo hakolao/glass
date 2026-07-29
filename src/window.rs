@@ -10,7 +10,7 @@ use winit::{
     window::{Fullscreen, Window, WindowAttributes},
 };
 
-use crate::{device_context::DeviceContext, GlassApp, GlassError};
+use crate::{device_context::DeviceContext, GlassError};
 
 #[derive(Debug, Clone)]
 pub struct WindowConfig {
@@ -278,10 +278,9 @@ impl GlassWindow {
         self.last_surface_size
     }
 
-    pub fn render_default<T: GlassApp>(
+    pub fn render_default(
         &mut self,
-        app: &mut T,
-        mut render_function: impl FnMut(&mut T, RenderData) -> Option<Vec<CommandBuffer>>,
+        mut render_function: impl FnMut(RenderData) -> Option<Vec<CommandBuffer>>,
     ) {
         let device = self.device_context.device_arc();
         let queue = self.device_context.queue_arc();
@@ -290,7 +289,7 @@ impl GlassWindow {
                 let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Render Commands"),
                 });
-                let mut commands = render_function(app, RenderData {
+                let mut commands = render_function(RenderData {
                     encoder: &mut encoder,
                     window: self,
                     frame: &frame,
