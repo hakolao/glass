@@ -10,9 +10,10 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use wgpu::{
-    Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder, ComputePassDescriptor,
-    ComputePipeline, ComputePipelineDescriptor, Extent3d, InstanceFlags, Limits, MemoryHints,
-    PowerPreference, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
+    AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder,
+    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode,
+    InstanceFlags, Limits, MemoryHints, MipmapFilterMode, PowerPreference, SamplerDescriptor,
+    StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
 };
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
@@ -433,11 +434,20 @@ fn create_canvas_data(
             mip_count: 1,
         },
     );
+    let sampler_linear_clamp_to_edge = context.device().create_sampler(&SamplerDescriptor {
+        label: None,
+        address_mode_u: AddressMode::ClampToEdge,
+        address_mode_v: AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Linear,
+        min_filter: FilterMode::Linear,
+        mipmap_filter: MipmapFilterMode::Linear,
+        ..Default::default()
+    });
     // Create bind groups to match pipeline layouts (except update, create that dynamically each frame)
     let canvas_bind_group = quad_pipeline.create_bind_group(
         context.device(),
         &canvas.views[0],
-        context.sampler_linear_clamp_to_edge(),
+        &sampler_linear_clamp_to_edge,
     );
     // These must match the bind group layout of our pipeline
     let init_bind_group_layout = init_pipeline.get_bind_group_layout(0);

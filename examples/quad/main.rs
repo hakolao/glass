@@ -6,7 +6,10 @@ use glass::{
     window::{GlassWindow, RenderData, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
-use wgpu::{BindGroup, CommandBuffer, Limits, StoreOp, TextureUsages};
+use wgpu::{
+    AddressMode, BindGroup, CommandBuffer, FilterMode, Limits, MipmapFilterMode, SamplerDescriptor,
+    StoreOp, TextureUsages,
+};
 use winit::event_loop::ActiveEventLoop;
 
 const WIDTH: u32 = 1920;
@@ -135,11 +138,19 @@ struct ExampleData {
 
 fn create_example_data(context: &GlassContext, quad_pipeline: &QuadPipeline) -> ExampleData {
     let tree = create_tree_texture(context);
-    // Create bind group
+    let sampler_linear_clamp_to_edge = context.device().create_sampler(&SamplerDescriptor {
+        label: None,
+        address_mode_u: AddressMode::ClampToEdge,
+        address_mode_v: AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Linear,
+        min_filter: FilterMode::Linear,
+        mipmap_filter: MipmapFilterMode::Linear,
+        ..Default::default()
+    });
     let tree_bind_group = quad_pipeline.create_bind_group(
         context.device(),
         &tree.views[0],
-        context.sampler_linear_clamp_to_edge(),
+        &sampler_linear_clamp_to_edge,
     );
     ExampleData {
         tree,

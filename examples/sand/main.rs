@@ -10,8 +10,9 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use wgpu::{
-    Color, CommandBuffer, Limits, LoadOp, Operations, RenderPassColorAttachment,
-    RenderPassDescriptor, StoreOp, TextureViewDescriptor,
+    AddressMode, Color, CommandBuffer, FilterMode, Limits, LoadOp, MipmapFilterMode, Operations,
+    RenderPassColorAttachment, RenderPassDescriptor, SamplerDescriptor, StoreOp,
+    TextureViewDescriptor,
 };
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
@@ -56,10 +57,19 @@ impl SandSim {
             }),
             write_mask: wgpu::ColorWrites::ALL,
         });
+        let sampler_nearest_clamp_to_edge = context.device().create_sampler(&SamplerDescriptor {
+            label: None,
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            mag_filter: FilterMode::Nearest,
+            min_filter: FilterMode::Nearest,
+            mipmap_filter: MipmapFilterMode::Nearest,
+            ..Default::default()
+        });
         let grid = Grid::new(
             context.device(),
             &quad_pipeline,
-            context.sampler_nearest_clamp_to_edge(),
+            &sampler_nearest_clamp_to_edge,
             CANVAS_SIZE,
             CANVAS_SIZE,
         );

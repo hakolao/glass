@@ -4,7 +4,7 @@ use image::ImageError;
 use indexmap::IndexMap;
 use wgpu::{
     Adapter, AdapterInfo, Backends, CreateSurfaceError, Device, Features, Instance,
-    PowerPreference, Queue, RequestAdapterError, RequestDeviceError, Sampler, SurfaceConfiguration,
+    PowerPreference, Queue, RequestAdapterError, RequestDeviceError, SurfaceConfiguration,
 };
 use winit::{
     application::ApplicationHandler,
@@ -418,22 +418,6 @@ impl GlassContext {
             exit: false,
             is_resize_extra_update: false,
         })
-    }
-
-    pub fn sampler_nearest_repeat(&self) -> &Arc<Sampler> {
-        self.device_context.sampler_nearest_repeat()
-    }
-
-    pub fn sampler_linear_repeat(&self) -> &Arc<Sampler> {
-        self.device_context.sampler_linear_repeat()
-    }
-
-    pub fn sampler_nearest_clamp_to_edge(&self) -> &Arc<Sampler> {
-        self.device_context.sampler_nearest_clamp_to_edge()
-    }
-
-    pub fn sampler_linear_clamp_to_edge(&self) -> &Arc<Sampler> {
-        self.device_context.sampler_linear_clamp_to_edge()
     }
 
     pub fn is_resize_extra_update(&self) -> bool {

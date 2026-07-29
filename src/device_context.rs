@@ -1,9 +1,9 @@
 use std::{path::PathBuf, sync::Arc};
 
 use wgpu::{
-    Adapter, AddressMode, Backends, Device, DeviceDescriptor, Features, FilterMode, Instance,
-    InstanceDescriptor, InstanceFlags, Limits, MemoryHints, MipmapFilterMode, PowerPreference,
-    Queue, RequestAdapterOptions, Sampler, SamplerDescriptor, Surface, Trace,
+    Adapter, Backends, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor,
+    InstanceFlags, Limits, MemoryHints, PowerPreference, Queue, RequestAdapterOptions, Surface,
+    Trace,
 };
 
 use crate::{utils::wait_async, GlassError};
@@ -54,15 +54,7 @@ pub struct DeviceContext {
     adapter: Adapter,
     device: Arc<Device>,
     queue: Arc<Queue>,
-    sampler_nearest_repeat: Arc<Sampler>,
-    sampler_linear_repeat: Arc<Sampler>,
-    sampler_nearest_clamp_to_edge: Arc<Sampler>,
-    sampler_linear_clamp_to_edge: Arc<Sampler>,
 }
-
-unsafe impl Send for DeviceContext {}
-
-unsafe impl Sync for DeviceContext {}
 
 impl DeviceContext {
     pub fn new(config: &DeviceConfig) -> Result<DeviceContext, GlassError> {
@@ -73,53 +65,12 @@ impl DeviceContext {
         });
         let (adapter, device, queue) =
             Self::create_adapter_device_and_queue(config, &instance, None)?;
-        let sampler_nearest_repeat = Arc::new(device.create_sampler(&SamplerDescriptor {
-            label: None,
-            address_mode_u: AddressMode::Repeat,
-            address_mode_v: AddressMode::Repeat,
-            mag_filter: FilterMode::Nearest,
-            min_filter: FilterMode::Nearest,
-            mipmap_filter: MipmapFilterMode::Nearest,
-            ..Default::default()
-        }));
-        let sampler_linear_repeat = Arc::new(device.create_sampler(&SamplerDescriptor {
-            label: None,
-            address_mode_u: AddressMode::Repeat,
-            address_mode_v: AddressMode::Repeat,
-            mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Linear,
-            mipmap_filter: MipmapFilterMode::Linear,
-            ..Default::default()
-        }));
-        let sampler_nearest_clamp_to_edge = Arc::new(device.create_sampler(&SamplerDescriptor {
-            label: None,
-            address_mode_u: AddressMode::ClampToEdge,
-            address_mode_v: AddressMode::ClampToEdge,
-            mag_filter: FilterMode::Nearest,
-            min_filter: FilterMode::Nearest,
-            mipmap_filter: MipmapFilterMode::Nearest,
-            ..Default::default()
-        }));
-        let sampler_linear_clamp_to_edge = Arc::new(device.create_sampler(&SamplerDescriptor {
-            label: None,
-            address_mode_u: AddressMode::ClampToEdge,
-            address_mode_v: AddressMode::ClampToEdge,
-            mag_filter: FilterMode::Linear,
-            min_filter: FilterMode::Linear,
-            mipmap_filter: MipmapFilterMode::Linear,
-            ..Default::default()
-        }));
-
         Ok(Self {
             config: config.clone(),
             instance,
             adapter,
             device: Arc::new(device),
             queue: Arc::new(queue),
-            sampler_nearest_repeat,
-            sampler_linear_repeat,
-            sampler_nearest_clamp_to_edge,
-            sampler_linear_clamp_to_edge,
         })
     }
 
@@ -212,22 +163,6 @@ impl DeviceContext {
         };
 
         Ok((adapter, device, queue))
-    }
-
-    pub fn sampler_nearest_repeat(&self) -> &Arc<Sampler> {
-        &self.sampler_nearest_repeat
-    }
-
-    pub fn sampler_linear_repeat(&self) -> &Arc<Sampler> {
-        &self.sampler_linear_repeat
-    }
-
-    pub fn sampler_nearest_clamp_to_edge(&self) -> &Arc<Sampler> {
-        &self.sampler_nearest_clamp_to_edge
-    }
-
-    pub fn sampler_linear_clamp_to_edge(&self) -> &Arc<Sampler> {
-        &self.sampler_linear_clamp_to_edge
     }
 
     pub fn instance(&self) -> &Instance {
