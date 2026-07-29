@@ -22,6 +22,7 @@ pub struct WindowConfig {
     pub max_size: Option<LogicalSize<u32>>,
     pub min_size: Option<LogicalSize<u32>>,
     pub exit_on_esc: bool,
+    pub hide_until_first_frame: bool,
     pub other_attributes: Option<WindowAttributes>,
 }
 
@@ -44,6 +45,7 @@ impl Default for WindowConfig {
                 view_formats: vec![],
             },
             exit_on_esc: false,
+            hide_until_first_frame: true,
             max_size: None,
             min_size: None,
             other_attributes: None,
@@ -69,6 +71,8 @@ pub struct GlassWindow {
     surface_config: wgpu::SurfaceConfiguration,
     exit_on_esc: bool,
     has_focus: bool,
+    hide_until_first_frame: bool,
+    first_frame_presented: bool,
     last_surface_size: [u32; 2],
 }
 
@@ -97,6 +101,8 @@ impl GlassWindow {
             surface_config: config.surface_config,
             exit_on_esc: config.exit_on_esc,
             has_focus: false,
+            hide_until_first_frame: config.hide_until_first_frame,
+            first_frame_presented: false,
             last_surface_size: size,
         })
     }
@@ -307,6 +313,7 @@ impl GlassWindow {
                 queue.submit(commands);
                 self.window().pre_present_notify();
                 queue.present(frame);
+                self.mark_first_frame_presented();
             }
             wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => return,
             wgpu::CurrentSurfaceTexture::Suboptimal(_) | wgpu::CurrentSurfaceTexture::Outdated => {
@@ -328,6 +335,20 @@ impl GlassWindow {
         }
 
         self.window().request_redraw();
+    }
+
+    /// Reveal the window on its first presented frame, if `hide_until_first_frame` was set.
+    /// Call once per frame after you present. No-op after the first call and when the flag is off.
+    pub fn mark_first_frame_presented(&mut self) {
+        if self.hide_until_first_frame && !self.first_frame_presented {
+            self.window.set_visible(true);
+        }
+        self.first_frame_presented = true;
+    }
+
+    /// Once first frame has been marked as presented this returns `true`, otherwise `false`
+    pub fn is_first_frame_presented(&self) -> bool {
+        self.first_frame_presented
     }
 }
 

@@ -629,6 +629,11 @@ impl GlassContext {
             window_attributes = window_attributes.with_max_inner_size(inner_size);
         }
 
+        // Hidre first frame
+        if config.hide_until_first_frame {
+            window_attributes = window_attributes.with_visible(false);
+        }
+
         window_attributes = match &config.pos {
             WindowPos::Maximized => window_attributes.with_maximized(true),
             WindowPos::FullScreen => {
