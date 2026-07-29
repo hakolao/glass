@@ -190,22 +190,8 @@ impl ApplicationHandler for Glass {
 }
 
 fn add_new_windows(event_loop: &ActiveEventLoop, context: &mut GlassContext) {
-    // Add new windows
-    let winit_windows: Vec<_> = std::mem::take(&mut context.create_windows)
-        .into_iter()
-        .map(|(name, config)| {
-            let window = GlassContext::create_winit_window(event_loop, &config).unwrap();
-            (name, config, window)
-        })
-        .collect();
-    for (name, config, window) in winit_windows {
-        let id = context.add_window(name, config, window).unwrap();
-        // Configure window surface with size
-        let window = context.windows.get_mut(&id).unwrap();
-        let _ = window.configure_surface_with_size(
-            context.device_context.device(),
-            window.window().inner_size(),
-        );
+    for (name, config) in std::mem::take(&mut context.create_windows) {
+        context.spawn_window(event_loop, name, config).unwrap();
     }
 }
 
@@ -575,9 +561,39 @@ impl GlassContext {
     }
 
     /// Queues a window for creation. The window is created on the next event loop iteration and
-    /// can then be retrieved with [`GlassContext::window`] using `name`.
+    /// can then be retrieved with [`GlassContext::window`] using `name`. Use this when no
+    /// [`ActiveEventLoop`] is available (e.g. from [`GlassApp::update`]).
     pub fn create_window(&mut self, name: impl Into<String>, config: WindowConfig) {
         self.create_windows.push((name.into(), config));
+    }
+
+    /// Creates a window right away and returns its [`WindowId`]. Requires an [`ActiveEventLoop`],
+    /// so call this from [`GlassApp::start`] or an input handler. The window is retrievable in the
+    /// same call via [`GlassContext::window`] / [`GlassContext::render_window`] using the returned
+    /// name or id.
+    pub fn create_window_immediately(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        name: impl Into<String>,
+        config: WindowConfig,
+    ) -> Result<WindowId, GlassError> {
+        self.spawn_window(event_loop, name.into(), config)
+    }
+
+    fn spawn_window(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        name: String,
+        config: WindowConfig,
+    ) -> Result<WindowId, GlassError> {
+        let window = Self::create_winit_window(event_loop, &config)?;
+        let id = self.add_window(name, config, window)?;
+        let window = self.windows.get_mut(&id).unwrap();
+        window.configure_surface_with_size(
+            self.device_context.device(),
+            window.window().inner_size(),
+        )?;
+        Ok(id)
     }
 
     fn add_window(

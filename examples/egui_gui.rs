@@ -10,13 +10,7 @@ use wgpu::{CommandBuffer, StoreOp};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::WindowId};
 
 fn main() -> Result<(), GlassError> {
-    Glass::run(GlassConfig::performance(), |context| {
-        context.create_window("main", WindowConfig {
-            width: 1920,
-            height: 1080,
-            exit_on_esc: true,
-            ..WindowConfig::default()
-        });
+    Glass::run(GlassConfig::performance(), |_| {
         Box::new(GuiApp {
             gui: None,
         })
@@ -25,6 +19,12 @@ fn main() -> Result<(), GlassError> {
 
 impl GlassApp for GuiApp {
     fn start(&mut self, event_loop: &ActiveEventLoop, context: &mut GlassContext) {
+        let _ = context.create_window_immediately(event_loop, "main", WindowConfig {
+            width: 1920,
+            height: 1080,
+            exit_on_esc: true,
+            ..WindowConfig::default()
+        });
         self.gui = Some(GuiState::new(event_loop, context));
     }
 
