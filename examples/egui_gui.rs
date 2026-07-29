@@ -10,7 +10,7 @@ use wgpu::{CommandBuffer, StoreOp};
 use winit::{event::WindowEvent, event_loop::ActiveEventLoop, window::WindowId};
 
 fn main() -> Result<(), GlassError> {
-    Glass::run(GlassConfig::default(), |context| {
+    Glass::run(GlassConfig::performance(), |context| {
         context.create_window(WindowConfig {
             width: 1920,
             height: 1080,
@@ -126,7 +126,7 @@ fn render_egui(app: &mut GuiApp, render_data: RenderData) -> Option<Vec<CommandB
     let raw_input = egui_winit.take_egui_input(window.window());
     let FullOutput {
         shapes,
-        textures_delta,
+        mut textures_delta,
         pixels_per_point,
         ..
     } = egui_ctx.run_ui(raw_input, |egui_ctx| {
@@ -144,8 +144,10 @@ fn render_egui(app: &mut GuiApp, render_data: RenderData) -> Option<Vec<CommandB
 
     // Upload all resources for the GPU.
     let user_cmd_bufs = {
-        for (id, image_delta) in &textures_delta.set {
-            renderer.update_texture(device, queue, *id, image_delta);
+        for (id, image_delta) in textures_delta.set.drain() {
+            for delta in image_delta.iter() {
+                renderer.update_texture(device, queue, id, delta);
+            }
         }
 
         // Update buffers
@@ -187,8 +189,8 @@ fn render_egui(app: &mut GuiApp, render_data: RenderData) -> Option<Vec<CommandB
         );
     }
 
-    for id in &textures_delta.free {
-        renderer.free_texture(id);
+    for id in textures_delta.free.drain() {
+        renderer.free_texture(&id);
     }
 
     Some(user_cmd_bufs)
