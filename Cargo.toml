@@ -79,15 +79,6 @@ name = "Triangle"
 description = "Example that renders a basic Triangle"
 
 [[example]]
-name = "egui_gui"
-path = "examples/egui_gui.rs"
-required-features = []
-
-[package.metadata.example.egui_gui]
-name = "Egui Gui"
-description = "Example that runs an egui demo app"
-
-[[example]]
 name = "lines"
 path = "examples/lines.rs"
 required-features = []
