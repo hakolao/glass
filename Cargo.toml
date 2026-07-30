@@ -102,6 +102,15 @@ name = "Line Draw"
 description = "Example that draws lines"
 
 [[example]]
+name = "hdr"
+path = "examples/hdr/main.rs"
+required-features = []
+
+[package.metadata.example.hdr]
+name = "HDR"
+description = "Example that can render hdr"
+
+[[example]]
 name = "sand"
 path = "examples/sand/main.rs"
 required-features = []
