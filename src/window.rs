@@ -10,7 +10,7 @@ use winit::{
     window::{Fullscreen, Window, WindowAttributes},
 };
 
-use crate::{device_context::DeviceContext, GlassApp, GlassError};
+use crate::{device_context::DeviceContext, GlassError};
 
 #[derive(Debug, Clone)]
 pub struct WindowConfig {
@@ -22,6 +22,7 @@ pub struct WindowConfig {
     pub max_size: Option<LogicalSize<u32>>,
     pub min_size: Option<LogicalSize<u32>>,
     pub exit_on_esc: bool,
+    pub hide_until_first_frame: bool,
     pub other_attributes: Option<WindowAttributes>,
 }
 
@@ -35,6 +36,7 @@ impl Default for WindowConfig {
             surface_config: SurfaceConfiguration {
                 usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
                 format: GlassWindow::default_surface_format(),
+                color_space: Default::default(),
                 width: 1920,
                 height: 1080,
                 present_mode: PresentMode::AutoVsync,
@@ -43,6 +45,7 @@ impl Default for WindowConfig {
                 view_formats: vec![],
             },
             exit_on_esc: false,
+            hide_until_first_frame: true,
             max_size: None,
             min_size: None,
             other_attributes: None,
@@ -60,25 +63,16 @@ pub enum WindowPos {
     Pos(PhysicalPosition<u32>),
 }
 
-#[derive(Clone, PartialEq, Eq, Debug)]
-pub enum SurfaceError {
-    /// A timeout was encountered while trying to acquire the next frame.
-    Timeout,
-    /// The underlying surface has changed, and therefore the swap chain must be updated.
-    Outdated,
-    /// The swap chain has been lost and needs to be recreated.
-    Lost,
-    /// There is no more memory left to allocate a new frame.
-    OutOfMemory,
-}
-
 pub struct GlassWindow {
+    name: String,
     window: Arc<Window>,
     surface: Surface<'static>,
     device_context: Arc<DeviceContext>,
     surface_config: wgpu::SurfaceConfiguration,
     exit_on_esc: bool,
     has_focus: bool,
+    hide_until_first_frame: bool,
+    first_frame_presented: bool,
     last_surface_size: [u32; 2],
 }
 
@@ -86,6 +80,7 @@ impl GlassWindow {
     /// Creates a new [`GlassWindow`] that owns the winit [`Window`](winit::window::Window).
     pub fn new(
         context: &Arc<DeviceContext>,
+        name: String,
         config: WindowConfig,
         window: Arc<Window>,
     ) -> Result<GlassWindow, CreateSurfaceError> {
@@ -99,14 +94,22 @@ impl GlassWindow {
             );
         }
         Ok(GlassWindow {
+            name,
             device_context: context.clone(),
             window,
             surface,
             surface_config: config.surface_config,
             exit_on_esc: config.exit_on_esc,
             has_focus: false,
+            hide_until_first_frame: config.hide_until_first_frame,
+            first_frame_presented: false,
             last_surface_size: size,
         })
+    }
+
+    /// Name this window was created under via [`GlassContext::create_window`].
+    pub fn name(&self) -> &str {
+        &self.name
     }
 
     pub fn surface_config(&self) -> &SurfaceConfiguration {
@@ -148,6 +151,7 @@ impl GlassWindow {
         let config = wgpu::SurfaceConfiguration {
             usage: wgpu::TextureUsages::RENDER_ATTACHMENT,
             format: self.surface_config.format,
+            color_space: self.surface_config.color_space,
             width: size.width,
             height: size.height,
             present_mode: self.surface_config.present_mode,
@@ -288,10 +292,9 @@ impl GlassWindow {
         self.last_surface_size
     }
 
-    pub fn render_default<T: GlassApp>(
+    pub fn render_default(
         &mut self,
-        app: &mut T,
-        mut render_function: impl FnMut(&mut T, RenderData) -> Option<Vec<CommandBuffer>>,
+        mut render_function: impl FnMut(RenderData) -> Option<Vec<CommandBuffer>>,
     ) {
         let device = self.device_context.device_arc();
         let queue = self.device_context.queue_arc();
@@ -300,7 +303,7 @@ impl GlassWindow {
                 let mut encoder = device.create_command_encoder(&wgpu::CommandEncoderDescriptor {
                     label: Some("Render Commands"),
                 });
-                let mut commands = render_function(app, RenderData {
+                let mut commands = render_function(RenderData {
                     encoder: &mut encoder,
                     window: self,
                     frame: &frame,
@@ -309,7 +312,8 @@ impl GlassWindow {
                 commands.push(encoder.finish());
                 queue.submit(commands);
                 self.window().pre_present_notify();
-                frame.present();
+                queue.present(frame);
+                self.mark_first_frame_presented();
             }
             wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => return,
             wgpu::CurrentSurfaceTexture::Suboptimal(_) | wgpu::CurrentSurfaceTexture::Outdated => {
@@ -331,6 +335,20 @@ impl GlassWindow {
         }
 
         self.window().request_redraw();
+    }
+
+    /// Reveal the window on its first presented frame, if `hide_until_first_frame` was set.
+    /// Call once per frame after you present. No-op after the first call and when the flag is off.
+    pub fn mark_first_frame_presented(&mut self) {
+        if self.hide_until_first_frame && !self.first_frame_presented {
+            self.window.set_visible(true);
+        }
+        self.first_frame_presented = true;
+    }
+
+    /// Once first frame has been marked as presented this returns `true`, otherwise `false`
+    pub fn is_first_frame_presented(&self) -> bool {
+        self.first_frame_presented
     }
 }
 

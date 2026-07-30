@@ -5,14 +5,15 @@ use glam::Vec2;
 use glass::{
     device_context::DeviceConfig,
     pipelines::QuadPipeline,
-    texture::Texture,
+    texture::{Texture, TextureDesc},
     window::{GlassWindow, RenderData, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use wgpu::{
-    Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder, ComputePassDescriptor,
-    ComputePipeline, ComputePipelineDescriptor, Extent3d, InstanceFlags, Limits, MemoryHints,
-    PowerPreference, StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
+    AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder,
+    ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode,
+    InstanceFlags, Limits, MemoryHints, MipmapFilterMode, PowerPreference, SamplerDescriptor,
+    StorageTextureAccess, StoreOp, TextureFormat, TextureUsages,
 };
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
@@ -53,7 +54,7 @@ fn config() -> GlassConfig {
 
 fn main() -> Result<(), GlassError> {
     Glass::run(config(), |context| {
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: WIDTH,
             height: HEIGHT,
             exit_on_esc: true,
@@ -109,7 +110,7 @@ impl GlassApp for GameOfLifeApp {
 
         context
             .primary_render_window_mut()
-            .render_default(self, render);
+            .render_default(|data| render(self, data));
     }
 }
 
@@ -407,33 +408,46 @@ fn create_canvas_data(
 ) -> CanvasData {
     let canvas = Texture::empty(
         context.device(),
-        "canvas.png",
         Extent3d {
             width: WIDTH,
             height: HEIGHT,
             depth_or_array_layers: 1,
         },
-        1,
-        TextureFormat::Rgba16Float,
-        TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+        &TextureDesc {
+            label: "canvas.png",
+            format: TextureFormat::Rgba16Float,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+            mip_count: 1,
+        },
     );
     let data_in = Texture::empty(
         context.device(),
-        "data_in.png",
         Extent3d {
             width: WIDTH,
             height: HEIGHT,
             depth_or_array_layers: 1,
         },
-        1,
-        TextureFormat::Rgba16Float,
-        TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+        &TextureDesc {
+            label: "data_in.png",
+            format: TextureFormat::Rgba16Float,
+            usage: TextureUsages::TEXTURE_BINDING | TextureUsages::STORAGE_BINDING,
+            mip_count: 1,
+        },
     );
+    let sampler_linear_clamp_to_edge = context.device().create_sampler(&SamplerDescriptor {
+        label: None,
+        address_mode_u: AddressMode::ClampToEdge,
+        address_mode_v: AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Linear,
+        min_filter: FilterMode::Linear,
+        mipmap_filter: MipmapFilterMode::Linear,
+        ..Default::default()
+    });
     // Create bind groups to match pipeline layouts (except update, create that dynamically each frame)
     let canvas_bind_group = quad_pipeline.create_bind_group(
         context.device(),
         &canvas.views[0],
-        context.sampler_linear_clamp_to_edge(),
+        &sampler_linear_clamp_to_edge,
     );
     // These must match the bind group layout of our pipeline
     let init_bind_group_layout = init_pipeline.get_bind_group_layout(0);
@@ -591,7 +605,7 @@ fn camera_projection(screen_size: [f32; 2]) -> glam::Mat4 {
     let half_width = screen_size[0] / 2.0;
     let half_height = screen_size[1] / 2.0;
     OPENGL_TO_WGPU
-        * glam::Mat4::orthographic_rh(
+        * glam::camera::rh::proj::directx::orthographic(
             -half_width,
             half_width,
             -half_height,

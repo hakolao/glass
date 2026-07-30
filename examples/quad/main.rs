@@ -1,12 +1,15 @@
 use glass::{
     device_context::DeviceConfig,
     pipelines::QuadPipeline,
-    texture::Texture,
+    texture::{Texture, TextureDesc},
     utils::default_texture_format,
     window::{GlassWindow, RenderData, WindowConfig},
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
-use wgpu::{BindGroup, CommandBuffer, Limits, StoreOp, TextureUsages};
+use wgpu::{
+    AddressMode, BindGroup, CommandBuffer, FilterMode, Limits, MipmapFilterMode, SamplerDescriptor,
+    StoreOp, TextureUsages,
+};
 use winit::event_loop::ActiveEventLoop;
 
 const WIDTH: u32 = 1920;
@@ -21,7 +24,7 @@ const OPENGL_TO_WGPU: glam::Mat4 = glam::Mat4::from_cols_array(&[
 
 fn main() -> Result<(), GlassError> {
     Glass::run(config(), |context| {
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: WIDTH,
             height: HEIGHT,
             exit_on_esc: true,
@@ -69,7 +72,7 @@ impl GlassApp for TreeApp {
     fn update(&mut self, context: &mut GlassContext) {
         context
             .primary_render_window_mut()
-            .render_default(self, render);
+            .render_default(|data| render(self, data));
     }
 }
 
@@ -135,11 +138,19 @@ struct ExampleData {
 
 fn create_example_data(context: &GlassContext, quad_pipeline: &QuadPipeline) -> ExampleData {
     let tree = create_tree_texture(context);
-    // Create bind group
+    let sampler_linear_clamp_to_edge = context.device().create_sampler(&SamplerDescriptor {
+        label: None,
+        address_mode_u: AddressMode::ClampToEdge,
+        address_mode_v: AddressMode::ClampToEdge,
+        mag_filter: FilterMode::Linear,
+        min_filter: FilterMode::Linear,
+        mipmap_filter: MipmapFilterMode::Linear,
+        ..Default::default()
+    });
     let tree_bind_group = quad_pipeline.create_bind_group(
         context.device(),
         &tree.views[0],
-        context.sampler_linear_clamp_to_edge(),
+        &sampler_linear_clamp_to_edge,
     );
     ExampleData {
         tree,
@@ -149,14 +160,12 @@ fn create_example_data(context: &GlassContext, quad_pipeline: &QuadPipeline) -> 
 
 fn create_tree_texture(app: &GlassContext) -> Texture {
     let diffuse_bytes = include_bytes!("tree.png");
-    Texture::from_bytes(
-        app.device(),
-        app.queue(),
-        diffuse_bytes,
-        "tree.png",
-        default_texture_format(),
-        TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
-    )
+    Texture::from_bytes(app.device(), app.queue(), diffuse_bytes, &TextureDesc {
+        label: "tree.png",
+        format: default_texture_format(),
+        usage: TextureUsages::TEXTURE_BINDING | TextureUsages::COPY_DST,
+        mip_count: 1,
+    })
     .unwrap()
 }
 
@@ -164,7 +173,7 @@ fn camera_projection(screen_size: [f32; 2]) -> glam::Mat4 {
     let half_width = screen_size[0] / 2.0;
     let half_height = screen_size[1] / 2.0;
     OPENGL_TO_WGPU
-        * glam::Mat4::orthographic_rh(
+        * glam::camera::rh::proj::directx::orthographic(
             -half_width,
             half_width,
             -half_height,

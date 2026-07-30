@@ -1,6 +1,6 @@
 [package]
 name = "glass"
-version = "0.6.0"
+version = "0.7.0"
 edition = "2021"
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
@@ -10,22 +10,17 @@ default = []
 wgpu_serde = ["wgpu/serde"]
 
 [dependencies]
-indexmap = "2.9"
-pollster = "0.4"
+indexmap = "2.14"
+pollster = "1.0"
 image = "0.25"
-bytemuck = { version = "1.20", features = ["derive"] }
-wgpu = { version = "29.0", features = ["naga-ir"] }
+bytemuck = { version = "1.25", features = ["derive"] }
+wgpu = { version = "30.0", features = ["naga-ir"] }
 winit = { version = "0.30" }
 
 [dev-dependencies]
-egui = { version = "0.34" }
-egui-wgpu = { version = "0.34" }
-egui-winit = { version = "0.34" }
-egui_extras = { version = "0.34" }
-egui_demo_lib = { version = "0.34" }
-rapier2d = { version = "0.31.0", features = ["default", "debug-render"] }
+rapier2d = { version = "0.34.0", features = ["default", "debug-render"] }
 rand = "0.10"
-glam = "0.32"
+glam = "0.33"
 
 [lints.clippy]
 blocks_in_conditions = "allow"
@@ -36,7 +31,6 @@ uninlined_format_args = "allow"
 default_constructed_unit_structs = "allow"
 collapsible_match = "allow"
 result_large_err = "allow"
-too_many_arguments = "allow"
 
 [profile.dev]
 opt-level = 3
@@ -85,15 +79,6 @@ name = "Triangle"
 description = "Example that renders a basic Triangle"
 
 [[example]]
-name = "egui_gui"
-path = "examples/egui_gui.rs"
-required-features = []
-
-[package.metadata.example.egui_gui]
-name = "Egui Gui"
-description = "Example that runs an egui demo app"
-
-[[example]]
 name = "lines"
 path = "examples/lines.rs"
 required-features = []
@@ -101,6 +86,15 @@ required-features = []
 [package.metadata.example.lines]
 name = "Line Draw"
 description = "Example that draws lines"
+
+[[example]]
+name = "hdr"
+path = "examples/hdr/main.rs"
+required-features = []
+
+[package.metadata.example.hdr]
+name = "HDR"
+description = "Example that can render hdr"
 
 [[example]]
 name = "sand"

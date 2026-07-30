@@ -12,7 +12,7 @@ use winit::event_loop::ActiveEventLoop;
 
 fn main() -> Result<(), GlassError> {
     Glass::run(GlassConfig::default(), |context| {
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: 1920,
             height: 1080,
             exit_on_esc: true,
@@ -35,7 +35,7 @@ impl GlassApp for TriangleApp {
     fn update(&mut self, context: &mut GlassContext) {
         context
             .primary_render_window_mut()
-            .render_default(self, render);
+            .render_default(|data| render(self, data));
     }
 }
 

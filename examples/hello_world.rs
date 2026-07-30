@@ -2,7 +2,7 @@ use glass::{window::WindowConfig, Glass, GlassApp, GlassConfig, GlassContext, Gl
 
 fn main() -> Result<(), GlassError> {
     Glass::run(GlassConfig::default(), |context| {
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: 1920,
             height: 1080,
             exit_on_esc: true,
@@ -18,6 +18,6 @@ impl GlassApp for HelloWorld {
     fn update(&mut self, _context: &mut GlassContext) {
         _context
             .primary_render_window_mut()
-            .render_default(self, |_, _| None);
+            .render_default(|_| None);
     }
 }

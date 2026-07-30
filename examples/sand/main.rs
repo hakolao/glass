@@ -10,8 +10,9 @@ use glass::{
     Glass, GlassApp, GlassConfig, GlassContext, GlassError,
 };
 use wgpu::{
-    Color, CommandBuffer, Limits, LoadOp, Operations, RenderPassColorAttachment,
-    RenderPassDescriptor, StoreOp, TextureViewDescriptor,
+    AddressMode, Color, CommandBuffer, FilterMode, Limits, LoadOp, MipmapFilterMode, Operations,
+    RenderPassColorAttachment, RenderPassDescriptor, SamplerDescriptor, StoreOp,
+    TextureViewDescriptor,
 };
 use winit::{
     event::{ElementState, MouseButton, WindowEvent},
@@ -26,7 +27,7 @@ const CANVAS_SCALE: u32 = 2;
 
 fn main() -> Result<(), GlassError> {
     Glass::run(config(), |context| {
-        context.create_window(WindowConfig {
+        context.create_window("main", WindowConfig {
             width: CANVAS_SIZE * CANVAS_SCALE,
             height: CANVAS_SIZE * CANVAS_SCALE,
             exit_on_esc: true,
@@ -56,10 +57,19 @@ impl SandSim {
             }),
             write_mask: wgpu::ColorWrites::ALL,
         });
+        let sampler_nearest_clamp_to_edge = context.device().create_sampler(&SamplerDescriptor {
+            label: None,
+            address_mode_u: AddressMode::ClampToEdge,
+            address_mode_v: AddressMode::ClampToEdge,
+            mag_filter: FilterMode::Nearest,
+            min_filter: FilterMode::Nearest,
+            mipmap_filter: MipmapFilterMode::Nearest,
+            ..Default::default()
+        });
         let grid = Grid::new(
             context.device(),
             &quad_pipeline,
-            context.sampler_nearest_clamp_to_edge(),
+            &sampler_nearest_clamp_to_edge,
             CANVAS_SIZE,
             CANVAS_SIZE,
         );
@@ -143,7 +153,7 @@ impl GlassApp for SandSim {
 
         context
             .primary_render_window_mut()
-            .render_default(self, render);
+            .render_default(|data| render(self, data));
 
         self.timer.update();
         if let Some(w) = context.primary_render_window_maybe() {
@@ -216,7 +226,7 @@ fn camera_projection(screen_size: [f32; 2]) -> glam::Mat4 {
     let half_width = screen_size[0] / 2.0;
     let half_height = screen_size[1] / 2.0;
     OPENGL_TO_WGPU
-        * glam::Mat4::orthographic_rh(
+        * glam::camera::rh::proj::directx::orthographic(
             -half_width,
             half_width,
             -half_height,

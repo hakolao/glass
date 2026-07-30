@@ -77,7 +77,7 @@ impl QuadPipeline {
                 module: &shader,
                 entry_point: Some("vs_main"),
                 compilation_options: Default::default(),
-                buffers: &[TexturedVertex::desc()],
+                buffers: &[TexturedVertex::desc().into()],
             },
             fragment: Some(wgpu::FragmentState {
                 module: &shader,

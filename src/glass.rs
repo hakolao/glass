@@ -4,7 +4,7 @@ use image::ImageError;
 use indexmap::IndexMap;
 use wgpu::{
     Adapter, AdapterInfo, Backends, CreateSurfaceError, Device, Features, Instance,
-    PowerPreference, Queue, RequestAdapterError, RequestDeviceError, Sampler, SurfaceConfiguration,
+    PowerPreference, Queue, RequestAdapterError, RequestDeviceError, SurfaceConfiguration,
 };
 use winit::{
     application::ApplicationHandler,
@@ -40,10 +40,7 @@ impl Glass {
         app_create_fn: impl FnOnce(&mut GlassContext) -> Box<dyn GlassApp>,
     ) -> Result<(), GlassError> {
         let mut context = GlassContext::new(config.clone())?;
-        let event_loop = match EventLoop::new() {
-            Ok(e) => e,
-            Err(e) => return Err(GlassError::EventLoopError(e)),
-        };
+        let event_loop = EventLoop::new()?;
         let app = app_create_fn(&mut context);
         let mut glass = Glass {
             app,
@@ -54,9 +51,8 @@ impl Glass {
                 ..RunnerState::default()
             },
         };
-        event_loop
-            .run_app(&mut glass)
-            .map_err(GlassError::EventLoopError)
+        event_loop.run_app(&mut glass)?;
+        Ok(())
     }
 }
 
@@ -194,24 +190,8 @@ impl ApplicationHandler for Glass {
 }
 
 fn add_new_windows(event_loop: &ActiveEventLoop, context: &mut GlassContext) {
-    // Add new windows
-    let winit_windows: Vec<_> = std::mem::take(&mut context.create_windows)
-        .into_iter()
-        .map(|w| {
-            (
-                w.clone(),
-                GlassContext::create_winit_window(event_loop, &w).unwrap(),
-            )
-        })
-        .collect();
-    for (window_config, window) in winit_windows {
-        let id = context.add_window(window_config, window).unwrap();
-        // Configure window surface with size
-        let window = context.windows.get_mut(&id).unwrap();
-        let _ = window.configure_surface_with_size(
-            context.device_context.device(),
-            window.window().inner_size(),
-        );
+    for (name, config) in std::mem::take(&mut context.create_windows) {
+        context.spawn_window(event_loop, name, config).unwrap();
     }
 }
 
@@ -365,13 +345,59 @@ impl std::fmt::Display for GlassError {
     }
 }
 
-impl std::error::Error for GlassError {}
+impl std::error::Error for GlassError {
+    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
+        match self {
+            GlassError::WindowError(e) => Some(e),
+            GlassError::SurfaceError(e) => Some(e),
+            GlassError::AdapterNotFound {
+                source, ..
+            } => Some(source),
+            GlassError::DeviceError {
+                source, ..
+            } => Some(source),
+            GlassError::ImageError(e) => Some(e),
+            GlassError::EventLoopError(e) => Some(e),
+            GlassError::WindowNotFoundError {
+                ..
+            }
+            | GlassError::SurfaceConfigurationError(_)
+            | GlassError::InsufficientDevice {
+                ..
+            } => None,
+        }
+    }
+}
+
+impl From<OsError> for GlassError {
+    fn from(e: OsError) -> Self {
+        GlassError::WindowError(e)
+    }
+}
+
+impl From<CreateSurfaceError> for GlassError {
+    fn from(e: CreateSurfaceError) -> Self {
+        GlassError::SurfaceError(e)
+    }
+}
+
+impl From<ImageError> for GlassError {
+    fn from(e: ImageError) -> Self {
+        GlassError::ImageError(e)
+    }
+}
+
+impl From<EventLoopError> for GlassError {
+    fn from(e: EventLoopError) -> Self {
+        GlassError::EventLoopError(e)
+    }
+}
 
 /// The runtime context accessible through [`GlassApp`].
 /// You can use the context to create windows at runtime. Or access devices, which are often
 /// needed for render or compute functionality.
 pub struct GlassContext {
-    create_windows: Vec<WindowConfig>,
+    create_windows: Vec<(String, WindowConfig)>,
     windows: IndexMap<WindowId, GlassWindow>,
     device_context: Arc<DeviceContext>,
     exit: bool,
@@ -380,13 +406,9 @@ pub struct GlassContext {
 
 impl GlassContext {
     pub fn new(mut config: GlassConfig) -> Result<Self, GlassError> {
-        // Modify features & limits needed for common pipelines
         // Add push constants feature for common pipelines
         config.device_config.features |=
             wgpu::Features::IMMEDIATES | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
-        config.device_config.limits = wgpu::Limits {
-            ..config.device_config.limits
-        };
         let device_context = Arc::new(DeviceContext::new(&config.device_config)?);
 
         Ok(Self {
@@ -396,22 +418,6 @@ impl GlassContext {
             exit: false,
             is_resize_extra_update: false,
         })
-    }
-
-    pub fn sampler_nearest_repeat(&self) -> &Arc<Sampler> {
-        self.device_context.sampler_nearest_repeat()
-    }
-
-    pub fn sampler_linear_repeat(&self) -> &Arc<Sampler> {
-        self.device_context.sampler_linear_repeat()
-    }
-
-    pub fn sampler_nearest_clamp_to_edge(&self) -> &Arc<Sampler> {
-        self.device_context.sampler_nearest_clamp_to_edge()
-    }
-
-    pub fn sampler_linear_clamp_to_edge(&self) -> &Arc<Sampler> {
-        self.device_context.sampler_linear_clamp_to_edge()
     }
 
     pub fn is_resize_extra_update(&self) -> bool {
@@ -511,7 +517,22 @@ impl GlassContext {
         self.windows.first_mut().unwrap().1
     }
 
-    pub fn windows(&mut self) -> &mut IndexMap<WindowId, GlassWindow> {
+    /// Returns the window created under `name`, if it exists yet. Names are expected to be
+    /// unique; this returns the first matching window in creation order.
+    pub fn window(&self, name: &str) -> Option<&GlassWindow> {
+        self.windows.values().find(|w| w.name() == name)
+    }
+
+    /// Mutable variant of [`GlassContext::window`].
+    pub fn window_mut(&mut self, name: &str) -> Option<&mut GlassWindow> {
+        self.windows.values_mut().find(|w| w.name() == name)
+    }
+
+    pub fn windows(&self) -> &IndexMap<WindowId, GlassWindow> {
+        &self.windows
+    }
+
+    pub fn windows_mut(&mut self) -> &mut IndexMap<WindowId, GlassWindow> {
         &mut self.windows
     }
 
@@ -523,20 +544,50 @@ impl GlassContext {
         self.windows.get_mut(&id)
     }
 
-    pub fn create_window(&mut self, config: WindowConfig) {
-        self.create_windows.push(config);
+    /// Queues a window for creation. The window is created on the next event loop iteration and
+    /// can then be retrieved with [`GlassContext::window`] using `name`. Use this when no
+    /// [`ActiveEventLoop`] is available (e.g. from [`GlassApp::update`]).
+    pub fn create_window(&mut self, name: impl Into<String>, config: WindowConfig) {
+        self.create_windows.push((name.into(), config));
+    }
+
+    /// Creates a window right away and returns its [`WindowId`]. Requires an [`ActiveEventLoop`],
+    /// so call this from [`GlassApp::start`] or an input handler. The window is retrievable in the
+    /// same call via [`GlassContext::window`] / [`GlassContext::render_window`] using the returned
+    /// name or id.
+    pub fn create_window_immediately(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        name: impl Into<String>,
+        config: WindowConfig,
+    ) -> Result<WindowId, GlassError> {
+        self.spawn_window(event_loop, name.into(), config)
+    }
+
+    fn spawn_window(
+        &mut self,
+        event_loop: &ActiveEventLoop,
+        name: String,
+        config: WindowConfig,
+    ) -> Result<WindowId, GlassError> {
+        let window = Self::create_winit_window(event_loop, &config)?;
+        let id = self.add_window(name, config, window)?;
+        let window = self.windows.get_mut(&id).unwrap();
+        window.configure_surface_with_size(
+            self.device_context.device(),
+            window.window().inner_size(),
+        )?;
+        Ok(id)
     }
 
     fn add_window(
         &mut self,
+        name: String,
         config: WindowConfig,
         window: Arc<Window>,
     ) -> Result<WindowId, GlassError> {
         let id = window.id();
-        let render_window = match GlassWindow::new(&self.device_context, config, window) {
-            Ok(window) => window,
-            Err(e) => return Err(GlassError::SurfaceError(e)),
-        };
+        let render_window = GlassWindow::new(&self.device_context, name, config, window)?;
         self.windows.insert(id, render_window);
         Ok(id)
     }
@@ -560,6 +611,11 @@ impl GlassContext {
         // Max size
         if let Some(inner_size) = config.max_size {
             window_attributes = window_attributes.with_max_inner_size(inner_size);
+        }
+
+        // Hidre first frame
+        if config.hide_until_first_frame {
+            window_attributes = window_attributes.with_visible(false);
         }
 
         window_attributes = match &config.pos {
