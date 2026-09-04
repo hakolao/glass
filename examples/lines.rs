@@ -1,13 +1,13 @@
 use glam::{Mat4, Vec2, Vec3};
-use glass::{
-    device_context::DeviceConfig,
-    pipelines::{ColoredVertex, Line, LinePipeline},
-    window::{GlassWindow, RenderData, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
-};
+use glass::prelude::*;
 use rapier2d::prelude::*;
 use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, StoreOp};
 use winit::event_loop::ActiveEventLoop;
+
+#[path = "common/mod.rs"]
+mod common;
+
+use common::pipelines::{ColoredVertex, Line, LinePipeline};
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
@@ -22,7 +22,8 @@ fn config() -> GlassConfig {
                 max_immediate_size: 128,
                 ..Default::default()
             },
-            features: Features::POLYGON_MODE_LINE,
+            // LinePipeline passes its per-draw data as immediates.
+            features: Features::POLYGON_MODE_LINE | Features::IMMEDIATES,
             ..DeviceConfig::default()
         },
         ..Default::default()
@@ -224,7 +225,9 @@ impl GlassApp for LineApp {
         );
 
         let window = _context.primary_render_window_mut();
-        window.render_default(|data| add_render_commands(self, data));
+        window
+            .render_default(|data| add_render_commands(self, data))
+            .unwrap_or_else(|e| eprintln!("render: {e}"));
     }
 }
 

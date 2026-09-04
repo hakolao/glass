@@ -1,7 +1,4 @@
-use glass::{
-    window::{RenderData, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
-};
+use glass::prelude::*;
 use wgpu::{Color, CommandBuffer, StoreOp};
 use winit::{
     event::{ElementState, WindowEvent},
@@ -70,7 +67,9 @@ impl GlassApp for MultiWindowApp {
 
     fn update(&mut self, context: &mut GlassContext) {
         for (_, window) in context.windows_mut().iter_mut() {
-            window.render_default(|data| render(self, data));
+            window
+                .render_default(|data| render(self, data))
+                .unwrap_or_else(|e| eprintln!("render: {e}"));
         }
     }
 }

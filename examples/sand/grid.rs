@@ -1,16 +1,15 @@
 use glam::{IVec2, Vec2};
-use glass::{
-    pipelines::QuadPipeline,
-    texture::{Texture, TextureDesc},
-    utils::default_texture_format,
-};
+use glass::{prelude::*, utils::default_texture_format};
 use image::RgbaImage;
 use wgpu::{
     BindGroup, Device, Extent3d, Origin3d, Queue, Sampler, TexelCopyBufferLayout,
     TexelCopyTextureInfo, TextureAspect, TextureUsages,
 };
 
-use crate::sand::{Sand, SandType};
+use crate::{
+    common::pipelines::QuadPipeline,
+    sand::{Sand, SandType},
+};
 
 pub struct Grid {
     pub data: Vec<Sand>,

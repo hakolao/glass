@@ -2,13 +2,12 @@ use std::{borrow::Cow, time::Instant};
 
 use bytemuck::{Pod, Zeroable};
 use glam::Vec2;
-use glass::{
-    device_context::DeviceConfig,
-    pipelines::QuadPipeline,
-    texture::{Texture, TextureDesc},
-    window::{GlassWindow, RenderData, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
-};
+use glass::prelude::*;
+
+#[path = "../common/mod.rs"]
+mod common;
+
+use common::{camera_projection, pipelines::QuadPipeline};
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder,
     ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode,
@@ -24,14 +23,6 @@ use winit::{
 const WIDTH: u32 = 1024;
 const HEIGHT: u32 = 1024;
 const FPS_60: f32 = 16.0 / 1000.0;
-#[rustfmt::skip]
-const OPENGL_TO_WGPU: glam::Mat4 = glam::Mat4::from_cols_array(&[
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-]);
-
 fn config() -> GlassConfig {
     GlassConfig {
         device_config: DeviceConfig {
@@ -110,7 +101,8 @@ impl GlassApp for GameOfLifeApp {
 
         context
             .primary_render_window_mut()
-            .render_default(|data| render(self, data));
+            .render_default(|data| render(self, data))
+            .unwrap_or_else(|e| eprintln!("render: {e}"));
     }
 }
 
@@ -599,18 +591,4 @@ fn create_game_of_life_pipeline(
         });
 
     (init_pipeline, update_pipeline, draw_pipeline)
-}
-
-fn camera_projection(screen_size: [f32; 2]) -> glam::Mat4 {
-    let half_width = screen_size[0] / 2.0;
-    let half_height = screen_size[1] / 2.0;
-    OPENGL_TO_WGPU
-        * glam::camera::rh::proj::directx::orthographic(
-            -half_width,
-            half_width,
-            -half_height,
-            half_height,
-            0.0,
-            1000.0,
-        )
 }

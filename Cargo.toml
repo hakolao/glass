@@ -1,23 +1,37 @@
 [package]
 name = "glass"
-version = "0.7.0"
+version = "0.8.0"
 edition = "2021"
+rust-version = "1.87.0"
+description = "Skip wgpu, winit and window organization boilerplate and focus on your render and compute pipelines"
+repository = "https://github.com/hakolao/glass"
+documentation = "https://docs.rs/glass"
+readme = "README.md"
+license = "MIT OR Apache-2.0"
+keywords = ["wgpu", "winit", "graphics", "gamedev", "gpu"]
+categories = ["graphics", "game-development", "rendering"]
 
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [features]
 default = []
+# Enables `serde` impls on the `wgpu` types re-exported by this crate.
 wgpu_serde = ["wgpu/serde"]
+# Enables `DeviceConfig::trace_path`. Off by default, since wgpu tracing has a cost.
+trace = ["wgpu/trace"]
 
 [dependencies]
 indexmap = "2.14"
 pollster = "1.0"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-bytemuck = { version = "1.25", features = ["derive"] }
 wgpu = { version = "30.0", features = ["naga-ir"] }
 winit = { version = "0.30" }
+thiserror = "2.0"
+log = "0.4"
 
 [dev-dependencies]
+# Only the example pipelines need this; the library itself has no POD types.
+bytemuck = { version = "1.25", features = ["derive"] }
 rapier2d = { version = "0.34.0", features = ["default", "debug-render"] }
 rand = "0.10"
 glam = "0.33"
@@ -42,65 +56,33 @@ opt-level = 3
 name = "hello_world"
 path = "examples/hello_world.rs"
 
-[package.metadata.example.hello_world]
-name = "Hello World"
-description = "A traditional hello world example"
-
 [[example]]
 name = "game_of_life"
 path = "examples/game_of_life/main.rs"
-
-[package.metadata.example.game_of_life]
-name = "Game Of Life Compute Shader"
-description = "Game of life running a compute shader"
 
 [[example]]
 name = "multiple_windows"
 path = "examples/multiple_windows/main.rs"
 
-[package.metadata.example.multiple_windows]
-name = "Multiple Windows"
-description = "Example that opens multiple windows on space key"
-
 [[example]]
 name = "quad"
 path = "examples/quad/main.rs"
-
-[package.metadata.example.quad]
-name = "Quad"
-description = "Example that renders a basic Quad"
+# Runs the `examples/common` unit tests (vertex layouts vs. their structs) under `cargo test`.
+# Only one example needs this; the others would just run the same tests again.
+test = true
 
 [[example]]
 name = "triangle"
 path = "examples/triangle/main.rs"
 
-[package.metadata.example.triangle]
-name = "Triangle"
-description = "Example that renders a basic Triangle"
-
 [[example]]
 name = "lines"
 path = "examples/lines.rs"
-required-features = []
-
-[package.metadata.example.lines]
-name = "Line Draw"
-description = "Example that draws lines"
 
 [[example]]
 name = "hdr"
 path = "examples/hdr/main.rs"
-required-features = []
-
-[package.metadata.example.hdr]
-name = "HDR"
-description = "Example that can render hdr"
 
 [[example]]
 name = "sand"
 path = "examples/sand/main.rs"
-required-features = []
-
-[package.metadata.example.sand]
-name = "Sand Sim"
-description = "Example sand fall"

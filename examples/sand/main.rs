@@ -3,15 +3,10 @@ mod sand;
 mod timer;
 
 use glam::Vec2;
-use glass::{
-    device_context::DeviceConfig,
-    pipelines::QuadPipeline,
-    window::{GlassWindow, RenderData, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
-};
+use glass::prelude::*;
 use wgpu::{
-    AddressMode, Color, CommandBuffer, FilterMode, Limits, LoadOp, MipmapFilterMode, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor, SamplerDescriptor, StoreOp,
+    AddressMode, Color, CommandBuffer, Features, FilterMode, Limits, LoadOp, MipmapFilterMode,
+    Operations, RenderPassColorAttachment, RenderPassDescriptor, SamplerDescriptor, StoreOp,
     TextureViewDescriptor,
 };
 use winit::{
@@ -21,6 +16,11 @@ use winit::{
 };
 
 use crate::{grid::Grid, sand::SandType, timer::Timer};
+
+#[path = "../common/mod.rs"]
+mod common;
+
+use common::{camera_projection, pipelines::QuadPipeline};
 
 const CANVAS_SIZE: u32 = 512;
 const CANVAS_SCALE: u32 = 2;
@@ -153,7 +153,8 @@ impl GlassApp for SandSim {
 
         context
             .primary_render_window_mut()
-            .render_default(|data| render(self, data));
+            .render_default(|data| render(self, data))
+            .unwrap_or_else(|e| eprintln!("render: {e}"));
 
         self.timer.update();
         if let Some(w) = context.primary_render_window_maybe() {
@@ -222,33 +223,12 @@ fn cursor_to_canvas(cursor: Vec2, screen_width: f32, screen_height: f32) -> Vec2
     Vec2::new(1.0, -1.0) * (cursor - half_screen) / CANVAS_SCALE as f32 + CANVAS_SIZE as f32 * 0.5
 }
 
-fn camera_projection(screen_size: [f32; 2]) -> glam::Mat4 {
-    let half_width = screen_size[0] / 2.0;
-    let half_height = screen_size[1] / 2.0;
-    OPENGL_TO_WGPU
-        * glam::camera::rh::proj::directx::orthographic(
-            -half_width,
-            half_width,
-            -half_height,
-            half_height,
-            0.0,
-            1000.0,
-        )
-}
-
-#[rustfmt::skip]
-pub const OPENGL_TO_WGPU: glam::Mat4 = glam::Mat4::from_cols_array(&[
-    1.0, 0.0, 0.0, 0.0,
-    0.0, 1.0, 0.0, 0.0,
-    0.0, 0.0, 0.5, 0.0,
-    0.0, 0.0, 0.5, 1.0,
-]);
-
 fn config() -> GlassConfig {
     GlassConfig {
         device_config: DeviceConfig {
+            // QuadPipeline passes its per-draw data as immediates.
+            features: Features::IMMEDIATES,
             limits: Limits {
-                // Needed for push constants
                 max_immediate_size: 128,
                 ..Default::default()
             },

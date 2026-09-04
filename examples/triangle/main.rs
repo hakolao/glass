@@ -1,9 +1,6 @@
 use std::borrow::Cow;
 
-use glass::{
-    window::{GlassWindow, RenderData, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
-};
+use glass::prelude::*;
 use wgpu::{
     CommandBuffer, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
     RenderPipelineDescriptor, ShaderModuleDescriptor, StoreOp,
@@ -35,7 +32,8 @@ impl GlassApp for TriangleApp {
     fn update(&mut self, context: &mut GlassContext) {
         context
             .primary_render_window_mut()
-            .render_default(|data| render(self, data));
+            .render_default(|data| render(self, data))
+            .unwrap_or_else(|e| eprintln!("render: {e}"));
     }
 }
 
