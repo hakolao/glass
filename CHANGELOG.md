@@ -21,6 +21,9 @@
 - Removed the `pipelines` module. `QuadPipeline`, `LinePipeline` and the vertex types now
   live in `examples/common/pipelines/` to copy from, since drawing is the application's
   job. `colored_quad_vertices` is gone entirely.
+- `GlassWindow::render_default` returns `Result<(), GlassError>`. Recoverable surface states
+  (occluded, timed out, suboptimal, outdated, lost) still return `Ok` with the frame skipped; only
+  a failure to rebuild the surface is an error.
 - `GlassContext::new` no longer adds `IMMEDIATES` and
   `TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES` to your requested features. Request what your
   pipelines need in `DeviceConfig::features`.
@@ -39,6 +42,8 @@
 ### Added
 
 - `log` dependency: adapter selection at `info`, surface and window failures at `warn`/`error`.
+- `trace` feature, which makes `DeviceConfig::trace_path` actually write a wgpu API trace. The
+  field was previously read and discarded.
 - Crate docs from `README.md`, `#![forbid(unsafe_code)]`, `missing_docs`, 19 unit tests and
   4 doctests, where there were none.
 - Package metadata, MSRV 1.87, dual MIT/Apache-2.0 licensing, committed `Cargo.lock`.

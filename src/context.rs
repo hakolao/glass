@@ -1,4 +1,5 @@
-//! The runtime context handed to your [`GlassApp`](crate::GlassApp), and the configuration used to build it.
+//! The runtime context handed to your [`GlassApp`](crate::GlassApp), and the
+//! configuration used to build it.
 
 use std::sync::Arc;
 
@@ -24,11 +25,16 @@ use crate::{
 pub struct GlassConfig {
     /// How the wgpu instance, adapter, device and queue are requested.
     pub device_config: DeviceConfig,
-    /// Run an extra [`GlassApp::update`](crate::GlassApp::update) while a resize is in progress, so the window keeps
-    /// painting instead of showing a stale frame while the user drags its edge.
+    /// Run an extra [`GlassApp::update`](crate::GlassApp::update) while a resize is in
+    /// progress, so the window keeps painting instead of showing a stale frame while the
+    /// user drags its edge.
     pub run_extra_update_on_resize: bool,
-    /// Reconfigure each window surface automatically on resize and scale-factor changes. Turn
-    /// this off if your app wants to own surface configuration.
+    /// Reconfigure each window surface automatically on resize and scale-factor changes.
+    ///
+    /// **Defaults to `false`**, which leaves surface configuration entirely to your app:
+    /// a resized window keeps rendering at its old surface size until you call
+    /// [`GlassContext::reconfigure_surface_with_size`]. Set it to `true` (or start from
+    /// [`GlassConfig::performance`]) to have `glass` handle it.
     pub is_surface_auto_resize: bool,
 }
 

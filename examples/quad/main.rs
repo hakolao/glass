@@ -63,7 +63,8 @@ impl GlassApp for TreeApp {
     fn update(&mut self, context: &mut GlassContext) {
         context
             .primary_render_window_mut()
-            .render_default(|data| render(self, data));
+            .render_default(|data| render(self, data))
+            .unwrap_or_else(|e| eprintln!("render: {e}"));
     }
 }
 

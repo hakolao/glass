@@ -153,7 +153,8 @@ impl GlassApp for SandSim {
 
         context
             .primary_render_window_mut()
-            .render_default(|data| render(self, data));
+            .render_default(|data| render(self, data))
+            .unwrap_or_else(|e| eprintln!("render: {e}"));
 
         self.timer.update();
         if let Some(w) = context.primary_render_window_maybe() {

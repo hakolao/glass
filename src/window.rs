@@ -338,14 +338,22 @@ impl GlassWindow {
     ///
     /// Recoverable surface states are handled here: an occluded or timed-out surface skips the
     /// frame, a suboptimal or outdated one is reconfigured, and a lost one is recreated. None of
-    /// those cases call `render_function`.
+    /// those cases call `render_function`, and none of them are errors — they return `Ok(())`
+    /// with the frame simply not drawn.
     ///
     /// Return extra [`CommandBuffer`]s from `render_function` to have them submitted before the
     /// encoder `glass` provides.
+    ///
+    /// # Errors
+    ///
+    /// Fails only if recovering the surface fails: [`GlassError::SurfaceError`] when a lost
+    /// surface cannot be recreated, or [`GlassError::UnsupportedSurfaceFormat`] when the
+    /// recovered surface no longer supports the configured format. Both mean this window can
+    /// no longer render.
     pub fn render_default(
         &mut self,
         mut render_function: impl FnMut(RenderData<'_>) -> Option<Vec<CommandBuffer>>,
-    ) {
+    ) -> Result<(), GlassError> {
         let device = self.device_context.device_arc();
         let queue = self.device_context.queue_arc();
         match self.surface().get_current_texture() {
@@ -365,12 +373,12 @@ impl GlassWindow {
                 queue.present(frame);
                 self.mark_first_frame_presented();
             }
-            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => return,
+            wgpu::CurrentSurfaceTexture::Occluded | wgpu::CurrentSurfaceTexture::Timeout => {
+                return Ok(())
+            }
             wgpu::CurrentSurfaceTexture::Suboptimal(_) | wgpu::CurrentSurfaceTexture::Outdated => {
-                if let Err(e) = self.reconfigure_surface(&device) {
-                    log::warn!("failed to reconfigure a stale surface: {e}");
-                }
-                return;
+                self.reconfigure_surface(&device)?;
+                return Ok(());
             }
             wgpu::CurrentSurfaceTexture::Validation => {
                 // `render_default` registers no error scope, so wgpu raises validation errors
@@ -378,26 +386,18 @@ impl GlassWindow {
                 unreachable!("No error scope registered, so validation errors will panic")
             }
             wgpu::CurrentSurfaceTexture::Lost => {
-                // Losing the surface is recoverable, so log and skip the frame rather than
-                // bringing the whole app down with it.
-                match self
+                // Losing the surface is recoverable: rebuild it and skip this frame.
+                self.surface = self
                     .device_context
                     .instance()
-                    .create_surface(self.window.clone())
-                {
-                    Ok(surface) => {
-                        self.surface = surface;
-                        if let Err(e) = self.reconfigure_surface(&device) {
-                            log::warn!("failed to configure a recreated surface: {e}");
-                        }
-                    }
-                    Err(e) => log::error!("failed to recreate a lost surface: {e}"),
-                }
-                return;
+                    .create_surface(self.window.clone())?;
+                self.reconfigure_surface(&device)?;
+                return Ok(());
             }
         }
 
         self.window().request_redraw();
+        Ok(())
     }
 
     /// Reveal the window on its first presented frame, if `hide_until_first_frame` was set.

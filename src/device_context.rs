@@ -34,7 +34,8 @@ pub struct DeviceConfig {
     pub backends: Backends,
     /// Instance-level debugging and validation flags.
     pub instance_flags: InstanceFlags,
-    /// Where to write an API trace. Currently unused; wgpu tracing is off.
+    /// Directory to write a wgpu API trace into. Requires the `trace` feature; without it
+    /// a set path is ignored and warned about.
     pub trace_path: Option<PathBuf>,
 }
 
@@ -43,12 +44,7 @@ impl DeviceConfig {
     pub fn performance() -> DeviceConfig {
         DeviceConfig {
             power_preference: PowerPreference::HighPerformance,
-            memory_hints: MemoryHints::Performance,
-            features: wgpu::Features::empty(),
-            limits: Limits::default(),
-            backends: Backends::all(),
-            instance_flags: InstanceFlags::from_build_config(),
-            trace_path: None,
+            ..DeviceConfig::default()
         }
     }
 }
@@ -189,14 +185,14 @@ impl DeviceContext {
         }
         // -------------------------------------------------------
 
-        let _path = config.trace_path.as_deref();
+        let trace = trace_for(config);
         let (device, queue) = match wait_async(adapter.request_device(&DeviceDescriptor {
             label: None,
             required_features: config.features,
             required_limits: config.limits.clone(),
             experimental_features: Default::default(),
             memory_hints: config.memory_hints.clone(),
-            trace: Trace::Off,
+            trace,
         })) {
             Ok(dq) => dq,
             Err(e) => {
@@ -261,5 +257,25 @@ fn log_visible_adapters(available: &[wgpu::AdapterInfo]) {
             info.driver,
             info.driver_info
         );
+    }
+}
+
+/// Turns [`DeviceConfig::trace_path`] into a wgpu [`Trace`].
+///
+/// `Trace::Directory` only exists when wgpu is built with its `trace` feature, so a path set
+/// without this crate's `trace` feature is a mistake worth reporting rather than ignoring.
+fn trace_for(config: &DeviceConfig) -> Trace {
+    match config.trace_path.as_deref() {
+        #[cfg(feature = "trace")]
+        Some(path) => Trace::Directory(path.to_path_buf()),
+        #[cfg(not(feature = "trace"))]
+        Some(path) => {
+            log::warn!(
+                "trace_path is set to {} but the `trace` feature is off, so no trace is written",
+                path.display()
+            );
+            Trace::Off
+        }
+        None => Trace::Off,
     }
 }

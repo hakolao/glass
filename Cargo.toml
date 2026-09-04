@@ -17,6 +17,8 @@ categories = ["graphics", "game-development", "rendering"]
 default = []
 # Enables `serde` impls on the `wgpu` types re-exported by this crate.
 wgpu_serde = ["wgpu/serde"]
+# Enables `DeviceConfig::trace_path`. Off by default, since wgpu tracing has a cost.
+trace = ["wgpu/trace"]
 
 [dependencies]
 indexmap = "2.14"
@@ -54,25 +56,13 @@ opt-level = 3
 name = "hello_world"
 path = "examples/hello_world.rs"
 
-[package.metadata.example.hello_world]
-name = "Hello World"
-description = "A traditional hello world example"
-
 [[example]]
 name = "game_of_life"
 path = "examples/game_of_life/main.rs"
 
-[package.metadata.example.game_of_life]
-name = "Game Of Life Compute Shader"
-description = "Game of life running a compute shader"
-
 [[example]]
 name = "multiple_windows"
 path = "examples/multiple_windows/main.rs"
-
-[package.metadata.example.multiple_windows]
-name = "Multiple Windows"
-description = "Example that opens multiple windows on space key"
 
 [[example]]
 name = "quad"
@@ -81,38 +71,18 @@ path = "examples/quad/main.rs"
 # Only one example needs this; the others would just run the same tests again.
 test = true
 
-[package.metadata.example.quad]
-name = "Quad"
-description = "Example that renders a basic Quad"
-
 [[example]]
 name = "triangle"
 path = "examples/triangle/main.rs"
-
-[package.metadata.example.triangle]
-name = "Triangle"
-description = "Example that renders a basic Triangle"
 
 [[example]]
 name = "lines"
 path = "examples/lines.rs"
 
-[package.metadata.example.lines]
-name = "Line Draw"
-description = "Example that draws lines"
-
 [[example]]
 name = "hdr"
 path = "examples/hdr/main.rs"
 
-[package.metadata.example.hdr]
-name = "HDR"
-description = "Example that can render hdr"
-
 [[example]]
 name = "sand"
 path = "examples/sand/main.rs"
-
-[package.metadata.example.sand]
-name = "Sand Sim"
-description = "Example sand fall"
