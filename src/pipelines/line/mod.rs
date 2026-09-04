@@ -1,3 +1,3 @@
 mod pipeline;
 
-pub use pipeline::{Line, LinePipeline};
+pub use pipeline::{Line, LinePipeline, LinePushConstants};

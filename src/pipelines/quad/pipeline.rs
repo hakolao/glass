@@ -1,3 +1,5 @@
+//! A pipeline that draws a textured, optionally anti-aliased quad.
+
 use std::borrow::Cow;
 
 use bytemuck::{Pod, Zeroable};
@@ -7,6 +9,49 @@ use wgpu::{
 
 use crate::pipelines::{vertex::TexturedVertex, QUAD_INDICES, TEXTURED_QUAD_VERTICES};
 
+/// Draws a textured quad, sized and positioned per draw call through immediate data.
+///
+/// The quad geometry lives in this pipeline, so the only per-draw cost is the immediate
+/// data and a bind group holding your texture and sampler.
+///
+/// Build the pipeline once, for the format of the attachment you draw into:
+///
+/// ```no_run
+/// use glass::prelude::*;
+/// use glass::wgpu::{BindGroup, ColorTargetState, Device, RenderPass, Sampler, TextureView};
+///
+/// # fn setup(device: &Device, target: ColorTargetState) -> QuadPipeline {
+/// QuadPipeline::new(device, target)
+/// # }
+/// ```
+///
+/// Then bind a texture once, and draw it as often as you like:
+///
+/// ```no_run
+/// # use glass::prelude::*;
+/// # use glass::wgpu::{BindGroup, Device, RenderPass, Sampler, TextureView};
+/// # fn bind(pipeline: &QuadPipeline, device: &Device, view: &TextureView, sampler: &Sampler)
+/// #     -> BindGroup {
+/// pipeline.create_bind_group(device, view, sampler)
+/// # }
+///
+/// # fn draw<'r>(
+/// #     pipeline: &'r QuadPipeline,
+/// #     rpass: &mut RenderPass<'r>,
+/// #     bind_group: &'r BindGroup,
+/// #     view_proj: [[f32; 4]; 4],
+/// # ) {
+/// pipeline.draw(
+///     rpass,
+///     bind_group,
+///     [0.0, 0.0, 0.0, 1.0], // centred on the origin
+///     view_proj,
+///     [256.0, 256.0],       // 256x256 world units
+///     0.0,                  // hard edges
+/// );
+/// # }
+/// ```
+#[derive(Debug)]
 pub struct QuadPipeline {
     pipeline: RenderPipeline,
     vertices: Buffer,
@@ -14,6 +59,8 @@ pub struct QuadPipeline {
 }
 
 impl QuadPipeline {
+    /// Builds the pipeline and its quad geometry for a render target described by
+    /// `color_target_state`, which must match the format of the attachment you draw into.
     pub fn new(device: &Device, color_target_state: wgpu::ColorTargetState) -> QuadPipeline {
         let vertices = device.create_buffer_init(&wgpu::util::BufferInitDescriptor {
             label: Some("Vertex Buffer"),
@@ -33,6 +80,7 @@ impl QuadPipeline {
         }
     }
 
+    /// The underlying [`RenderPipeline`], for apps that manage their own quad geometry.
     pub fn new_render_pipeline(
         device: &Device,
         color_target_state: wgpu::ColorTargetState,
@@ -107,6 +155,8 @@ impl QuadPipeline {
         pipeline
     }
 
+    /// Binds `image` and `sampler` for use with the draw functions. Create this once per
+    /// texture rather than once per frame.
     pub fn create_bind_group(
         &self,
         device: &Device,
@@ -131,6 +181,9 @@ impl QuadPipeline {
         bind_group
     }
 
+    /// Draws the quad at `quad_pos` with `quad_size`, sampling the whole texture.
+    ///
+    /// `aa_strength` softens the quad edges in pixels; pass `0.0` for hard edges.
     pub fn draw<'r>(
         &'r self,
         rpass: &mut RenderPass<'r>,
@@ -152,6 +205,8 @@ impl QuadPipeline {
         );
     }
 
+    /// [`QuadPipeline::draw`], but sampling only the sub-rectangle of the texture given by
+    /// `uv_offset` and `uv_scale`. Use this to draw one sprite out of an atlas.
     #[allow(clippy::too_many_arguments)]
     pub fn draw_with_uv<'r>(
         &'r self,
@@ -227,12 +282,18 @@ impl QuadPipeline {
 
 /// Quad instance specific values passed to the shader.
 #[repr(C)]
-#[derive(Copy, Clone, Pod, Zeroable)]
+#[derive(Copy, Clone, Debug, Pod, Zeroable)]
 pub struct QuadPushConstants {
+    /// Centre of the quad, in world space.
     pub quad_pos: [f32; 4],
+    /// Combined view and projection matrix.
     pub view_proj: [[f32; 4]; 4],
+    /// Width and height of the quad, in world units.
     pub dims: [f32; 2],
+    /// Offset into the texture, in UV space.
     pub uv_offset: [f32; 2],
+    /// Portion of the texture to sample, in UV space.
     pub uv_scale: [f32; 2],
+    /// Edge softening, in pixels. `0.0` gives hard edges.
     pub aa_strength: f32,
 }

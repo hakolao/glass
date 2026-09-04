@@ -1,9 +1,6 @@
 use std::borrow::Cow;
 
-use glass::{
-    window::{GlassWindow, RenderData, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
-};
+use glass::prelude::*;
 use wgpu::{
     CommandBuffer, MultisampleState, PipelineLayoutDescriptor, PrimitiveState, RenderPipeline,
     RenderPipelineDescriptor, ShaderModuleDescriptor, StoreOp,

@@ -16,10 +16,7 @@
 //! On an SDR output the bright staircase patches clip to the same white; on a
 //! working HDR output each is visibly brighter than the last.
 
-use glass::{
-    window::{RenderData, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
-};
+use glass::prelude::*;
 use wgpu::{
     util::{BufferInitDescriptor, DeviceExt},
     BindGroup, BindGroupLayout, Buffer, CommandBuffer, RenderPipeline, ShaderModule,

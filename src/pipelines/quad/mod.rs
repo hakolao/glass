@@ -1,3 +1,3 @@
 mod pipeline;
 
-pub use pipeline::QuadPipeline;
+pub use pipeline::{QuadPipeline, QuadPushConstants};

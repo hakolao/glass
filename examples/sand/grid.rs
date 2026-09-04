@@ -1,9 +1,5 @@
 use glam::{IVec2, Vec2};
-use glass::{
-    pipelines::QuadPipeline,
-    texture::{Texture, TextureDesc},
-    utils::default_texture_format,
-};
+use glass::{prelude::*, utils::default_texture_format};
 use image::RgbaImage;
 use wgpu::{
     BindGroup, Device, Extent3d, Origin3d, Queue, Sampler, TexelCopyBufferLayout,

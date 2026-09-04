@@ -1,29 +1,14 @@
-use std::{fmt::Formatter, sync::Arc};
+//! The [`Glass`] runner: drives the winit event loop and calls into your [`GlassApp`].
 
-use image::ImageError;
-use indexmap::IndexMap;
-use wgpu::{
-    Adapter, AdapterInfo, Backends, CreateSurfaceError, Device, Features, Instance,
-    PowerPreference, Queue, RequestAdapterError, RequestDeviceError, SurfaceConfiguration,
-};
 use winit::{
     application::ApplicationHandler,
-    dpi::PhysicalSize,
-    error::{EventLoopError, OsError},
     event::{DeviceEvent, DeviceId, ElementState, StartCause, WindowEvent},
     event_loop::{ActiveEventLoop, ControlFlow, EventLoop},
     keyboard::{Key, NamedKey},
-    window::{Fullscreen, Window, WindowId},
+    window::WindowId,
 };
 
-use crate::{
-    device_context::{DeviceConfig, DeviceContext},
-    window::{
-        get_best_videomode, get_centered_window_position, get_fitting_videomode, GlassWindow,
-        WindowConfig, WindowPos,
-    },
-    GlassApp,
-};
+use crate::{GlassApp, GlassConfig, GlassContext, GlassError};
 
 /// [`Glass`] is an application that exposes an easy to use API to organize your winit applications
 /// which render using wgpu. Just impl [`GlassApp`] for your application (of any type) and you
@@ -34,7 +19,31 @@ pub struct Glass {
     runner_state: RunnerState,
 }
 
+// Written by hand rather than derived, because the boxed [`GlassApp`] is opaque: requiring
+// `Debug` of it would force the bound on every user app.
+impl std::fmt::Debug for Glass {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Glass")
+            .field("app", &"Box<dyn GlassApp>")
+            .field("context", &self.context)
+            .field("runner_state", &self.runner_state)
+            .finish()
+    }
+}
+
 impl Glass {
+    /// Creates the device context, the event loop and your app, then runs until every window is
+    /// closed or [`GlassContext::exit`] is called.
+    ///
+    /// `app_create_fn` receives the context before the event loop starts, so it is the right place
+    /// to call [`GlassContext::create_window`] and to build pipelines.
+    ///
+    /// # Errors
+    ///
+    /// Fails if the device context cannot be created, if the event loop cannot be created or run,
+    /// or if a window queued through [`GlassContext::create_window`] fails to be created. The last
+    /// case ends the event loop and returns the failure here, because deferred creation has no
+    /// other way to report it.
     pub fn run(
         config: GlassConfig,
         app_create_fn: impl FnOnce(&mut GlassContext) -> Box<dyn GlassApp>,
@@ -52,7 +61,11 @@ impl Glass {
             },
         };
         event_loop.run_app(&mut glass)?;
-        Ok(())
+        // A window that failed to spawn during the loop ends it; report that instead of `Ok`.
+        match glass.runner_state.deferred_error {
+            Some(e) => Err(e),
+            None => Ok(()),
+        }
     }
 }
 
@@ -72,6 +85,9 @@ impl ApplicationHandler for Glass {
     }
 
     fn resumed(&mut self, event_loop: &ActiveEventLoop) {
+        if !self.add_new_windows(event_loop) {
+            return;
+        }
         let Glass {
             app,
             context,
@@ -80,7 +96,6 @@ impl ApplicationHandler for Glass {
         } = self;
         // Initial windows
         if !runner_state.is_init {
-            add_new_windows(event_loop, context);
             app.start(event_loop, context);
             runner_state.is_init = true;
         }
@@ -100,56 +115,54 @@ impl ApplicationHandler for Glass {
         } = self;
         app.window_input(context, event_loop, window_id, &event);
 
-        if let Some(window) = context.windows.get_mut(&window_id) {
-            match event {
-                WindowEvent::Resized(physical_size) => {
-                    if runner_state.is_surface_auto_resize {
-                        // On windows, minimized app can have 0,0 size
-                        if physical_size.width > 0 && physical_size.height > 0 {
-                            let _ = window.configure_surface_with_size(
-                                context.device_context.device(),
-                                physical_size,
-                            );
-                            if runner_state.run_extra_update_on_resize {
-                                context.is_resize_extra_update = true;
-                                run_update(event_loop, app, context, runner_state);
-                            }
+        let device = context.device_arc();
+        let Some(window) = context.render_window_mut(window_id) else {
+            return;
+        };
+        match event {
+            WindowEvent::Resized(physical_size) => {
+                if runner_state.is_surface_auto_resize {
+                    // On windows, minimized app can have 0,0 size
+                    if physical_size.width > 0 && physical_size.height > 0 {
+                        let _ = window.configure_surface_with_size(&device, physical_size);
+                        if runner_state.run_extra_update_on_resize {
+                            context.set_resize_extra_update(true);
+                            run_update(event_loop, app, context, runner_state);
                         }
                     }
                 }
-                WindowEvent::ScaleFactorChanged {
-                    ..
-                } => {
-                    if runner_state.is_surface_auto_resize {
-                        let size = window.window().inner_size();
-                        let _ = window
-                            .configure_surface_with_size(context.device_context.device(), size);
-                    }
+            }
+            WindowEvent::ScaleFactorChanged {
+                ..
+            } => {
+                if runner_state.is_surface_auto_resize {
+                    let size = window.window().inner_size();
+                    let _ = window.configure_surface_with_size(&device, size);
                 }
-                WindowEvent::KeyboardInput {
-                    event,
-                    is_synthetic,
-                    ..
-                } => {
-                    if event.logical_key == Key::Named(NamedKey::Escape)
-                        && !is_synthetic
-                        && window.exit_on_esc()
-                        && window.is_focused()
-                        && event.state == ElementState::Pressed
-                    {
-                        runner_state.request_window_close = true;
-                        runner_state.remove_windows.push(window_id);
-                    }
-                }
-                WindowEvent::Focused(has_focus) => {
-                    window.set_focus(has_focus);
-                }
-                WindowEvent::CloseRequested => {
+            }
+            WindowEvent::KeyboardInput {
+                event,
+                is_synthetic,
+                ..
+            } => {
+                if event.logical_key == Key::Named(NamedKey::Escape)
+                    && !is_synthetic
+                    && window.exit_on_esc()
+                    && window.is_focused()
+                    && event.state == ElementState::Pressed
+                {
                     runner_state.request_window_close = true;
                     runner_state.remove_windows.push(window_id);
                 }
-                _ => (),
             }
+            WindowEvent::Focused(has_focus) => {
+                window.set_focus(has_focus);
+            }
+            WindowEvent::CloseRequested => {
+                runner_state.request_window_close = true;
+                runner_state.remove_windows.push(window_id);
+            }
+            _ => (),
         }
     }
 
@@ -168,14 +181,16 @@ impl ApplicationHandler for Glass {
     }
 
     fn about_to_wait(&mut self, event_loop: &ActiveEventLoop) {
-        add_new_windows(event_loop, &mut self.context);
+        if !self.add_new_windows(event_loop) {
+            return;
+        }
         let Glass {
             app,
             context,
             runner_state,
             ..
         } = self;
-        context.is_resize_extra_update = false;
+        context.set_resize_extra_update(false);
         run_update(event_loop, app, context, runner_state);
     }
 
@@ -189,9 +204,21 @@ impl ApplicationHandler for Glass {
     }
 }
 
-fn add_new_windows(event_loop: &ActiveEventLoop, context: &mut GlassContext) {
-    for (name, config) in std::mem::take(&mut context.create_windows) {
-        context.spawn_window(event_loop, name, config).unwrap();
+impl Glass {
+    /// Creates the windows queued through [`GlassContext::create_window`].
+    ///
+    /// Returns `false` when creation failed, in which case the error is stashed for
+    /// [`Glass::run`] to return and the event loop is asked to exit.
+    fn add_new_windows(&mut self, event_loop: &ActiveEventLoop) -> bool {
+        match self.context.create_queued_windows(event_loop) {
+            Ok(()) => true,
+            Err(e) => {
+                log::error!("failed to create a queued window: {e}");
+                self.runner_state.deferred_error = Some(e);
+                event_loop.exit();
+                false
+            }
+        }
     }
 }
 
@@ -201,19 +228,19 @@ fn run_update(
     context: &mut GlassContext,
     runner_state: &mut RunnerState,
 ) {
-    if context.exit {
-        context.windows.clear();
+    if context.should_exit() {
+        context.clear_windows();
         event_loop.exit();
         return;
     }
     if runner_state.request_window_close {
         for window in runner_state.remove_windows.iter() {
-            context.windows.swap_remove(window);
+            context.remove_window(window);
         }
         runner_state.remove_windows.clear();
         runner_state.request_window_close = false;
         // Exit
-        if context.windows.is_empty() {
+        if !context.has_windows() {
             context.exit();
             return;
         }
@@ -221,445 +248,14 @@ fn run_update(
     app.update(context);
 }
 
-#[derive(Default)]
+#[derive(Debug, Default)]
 struct RunnerState {
     is_init: bool,
     request_window_close: bool,
     run_extra_update_on_resize: bool,
     is_surface_auto_resize: bool,
     remove_windows: Vec<WindowId>,
-}
-
-/// Configuration of your windows and devices.
-#[derive(Default, Debug, Clone)]
-pub struct GlassConfig {
-    pub device_config: DeviceConfig,
-    pub run_extra_update_on_resize: bool,
-    pub is_surface_auto_resize: bool,
-}
-
-impl GlassConfig {
-    pub fn performance() -> Self {
-        Self {
-            device_config: DeviceConfig {
-                power_preference: PowerPreference::HighPerformance,
-                ..Default::default()
-            },
-            run_extra_update_on_resize: true,
-            is_surface_auto_resize: true,
-        }
-    }
-}
-
-#[derive(Debug)]
-pub enum GlassError {
-    WindowError(OsError),
-    WindowNotFoundError {
-        window_id: WindowId,
-    },
-    SurfaceError(CreateSurfaceError),
-    SurfaceConfigurationError(String),
-    AdapterNotFound {
-        source: RequestAdapterError,
-        requested_backends: Backends,
-        available: Vec<AdapterInfo>,
-    },
-    DeviceError {
-        source: RequestDeviceError,
-        adapter: AdapterInfo,
-    },
-    ImageError(ImageError),
-    EventLoopError(EventLoopError),
-    InsufficientDevice {
-        adapter: AdapterInfo,
-        missing_features: Features,
-        violations: Vec<String>,
-    },
-}
-
-impl std::fmt::Display for GlassError {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        let s = match self {
-            GlassError::WindowError(e) => format!("WindowError: {}", e),
-            GlassError::WindowNotFoundError {
-                window_id,
-            } => format!("WindowNotFoundError: {:?}", window_id),
-            GlassError::SurfaceError(e) => format!("SurfaceError: {}", e),
-            GlassError::SurfaceConfigurationError(e) => format!("SurfaceConfigurationError: {}", e),
-            GlassError::AdapterNotFound {
-                source,
-                requested_backends,
-                available,
-            } => {
-                let list = if available.is_empty() {
-                    "  (none)".to_string()
-                } else {
-                    available
-                        .iter()
-                        .map(|i| {
-                            format!(
-                                "  {} | {:?} | {:?} | driver: {} {}",
-                                i.name, i.backend, i.device_type, i.driver, i.driver_info
-                            )
-                        })
-                        .collect::<Vec<_>>()
-                        .join("\n")
-                };
-                format!(
-                    "AdapterNotFound: {source}\nRequested backends: \
-                     {requested_backends:?}\nAdapters visible on any backend ({}):\n{list}",
-                    available.len()
-                )
-            }
-            GlassError::DeviceError {
-                source,
-                adapter,
-            } => format!(
-                "DeviceError: {source}\nAdapter: {} | {:?} | {:?} | driver: {} {}",
-                adapter.name,
-                adapter.backend,
-                adapter.device_type,
-                adapter.driver,
-                adapter.driver_info
-            ),
-            GlassError::ImageError(e) => format!("ImageError: {}", e),
-            GlassError::EventLoopError(e) => format!("EventLoopError: {}", e),
-            GlassError::InsufficientDevice {
-                adapter,
-                missing_features,
-                violations,
-            } => {
-                let mut parts = Vec::new();
-                if !missing_features.is_empty() {
-                    parts.push(format!("missing features: {missing_features:?}"));
-                }
-                parts.extend(violations.iter().cloned());
-                format!(
-                    "InsufficientDevice: adapter '{}' does not meet requirements: {}",
-                    adapter.name,
-                    parts.join(", ")
-                )
-            }
-        };
-        write!(f, "{}", s)
-    }
-}
-
-impl std::error::Error for GlassError {
-    fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
-        match self {
-            GlassError::WindowError(e) => Some(e),
-            GlassError::SurfaceError(e) => Some(e),
-            GlassError::AdapterNotFound {
-                source, ..
-            } => Some(source),
-            GlassError::DeviceError {
-                source, ..
-            } => Some(source),
-            GlassError::ImageError(e) => Some(e),
-            GlassError::EventLoopError(e) => Some(e),
-            GlassError::WindowNotFoundError {
-                ..
-            }
-            | GlassError::SurfaceConfigurationError(_)
-            | GlassError::InsufficientDevice {
-                ..
-            } => None,
-        }
-    }
-}
-
-impl From<OsError> for GlassError {
-    fn from(e: OsError) -> Self {
-        GlassError::WindowError(e)
-    }
-}
-
-impl From<CreateSurfaceError> for GlassError {
-    fn from(e: CreateSurfaceError) -> Self {
-        GlassError::SurfaceError(e)
-    }
-}
-
-impl From<ImageError> for GlassError {
-    fn from(e: ImageError) -> Self {
-        GlassError::ImageError(e)
-    }
-}
-
-impl From<EventLoopError> for GlassError {
-    fn from(e: EventLoopError) -> Self {
-        GlassError::EventLoopError(e)
-    }
-}
-
-/// The runtime context accessible through [`GlassApp`].
-/// You can use the context to create windows at runtime. Or access devices, which are often
-/// needed for render or compute functionality.
-pub struct GlassContext {
-    create_windows: Vec<(String, WindowConfig)>,
-    windows: IndexMap<WindowId, GlassWindow>,
-    device_context: Arc<DeviceContext>,
-    exit: bool,
-    is_resize_extra_update: bool,
-}
-
-impl GlassContext {
-    pub fn new(mut config: GlassConfig) -> Result<Self, GlassError> {
-        // Add push constants feature for common pipelines
-        config.device_config.features |=
-            wgpu::Features::IMMEDIATES | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
-        let device_context = Arc::new(DeviceContext::new(&config.device_config)?);
-
-        Ok(Self {
-            device_context,
-            create_windows: vec![],
-            windows: IndexMap::default(),
-            exit: false,
-            is_resize_extra_update: false,
-        })
-    }
-
-    pub fn is_resize_extra_update(&self) -> bool {
-        self.is_resize_extra_update
-    }
-
-    #[allow(unused)]
-    pub fn instance(&self) -> &Instance {
-        self.device_context.instance()
-    }
-
-    pub fn adapter(&self) -> &Adapter {
-        self.device_context.adapter()
-    }
-
-    pub fn device(&self) -> &Device {
-        self.device_context.device()
-    }
-
-    pub fn device_arc(&self) -> Arc<Device> {
-        self.device_context.device_arc()
-    }
-
-    pub fn queue(&self) -> &Queue {
-        self.device_context.queue()
-    }
-
-    pub fn queue_arc(&self) -> Arc<Queue> {
-        self.device_context.queue_arc()
-    }
-
-    pub fn configure_surface(
-        &mut self,
-        window_id: &WindowId,
-        config: &SurfaceConfiguration,
-    ) -> Result<(), GlassError> {
-        if let Some(window) = self.windows.get_mut(window_id) {
-            window.configure_surface(self.device_context.device(), config)?;
-            Ok(())
-        } else {
-            Err(GlassError::WindowNotFoundError {
-                window_id: *window_id,
-            })
-        }
-    }
-
-    pub fn reconfigure_surface_with_size(
-        &mut self,
-        window_id: &WindowId,
-        size: PhysicalSize<u32>,
-    ) -> Result<(), GlassError> {
-        if let Some(window) = self.windows.get_mut(window_id) {
-            window.configure_surface_with_size(self.device_context.device(), size)?;
-            Ok(())
-        } else {
-            Err(GlassError::WindowNotFoundError {
-                window_id: *window_id,
-            })
-        }
-    }
-
-    pub fn reconfigure_surface(&mut self, window_id: &WindowId) -> Result<(), GlassError> {
-        if let Some(window) = self.windows.get_mut(window_id) {
-            window.reconfigure_surface(self.device_context.device())?;
-            Ok(())
-        } else {
-            Err(GlassError::WindowNotFoundError {
-                window_id: *window_id,
-            })
-        }
-    }
-
-    pub fn recreate_surface(
-        &mut self,
-        window_id: &WindowId,
-        config: &SurfaceConfiguration,
-    ) -> Result<(), GlassError> {
-        if let Some(window) = self.windows.get_mut(window_id) {
-            window.recreate_surface(self.device_context.device(), config)?;
-            Ok(())
-        } else {
-            Err(GlassError::WindowNotFoundError {
-                window_id: *window_id,
-            })
-        }
-    }
-
-    pub fn primary_render_window_maybe(&self) -> Option<&GlassWindow> {
-        self.windows.first().map(|(_k, v)| v)
-    }
-
-    pub fn primary_render_window(&self) -> &GlassWindow {
-        self.windows.first().unwrap().1
-    }
-
-    pub fn primary_render_window_mut(&mut self) -> &mut GlassWindow {
-        self.windows.first_mut().unwrap().1
-    }
-
-    /// Returns the window created under `name`, if it exists yet. Names are expected to be
-    /// unique; this returns the first matching window in creation order.
-    pub fn window(&self, name: &str) -> Option<&GlassWindow> {
-        self.windows.values().find(|w| w.name() == name)
-    }
-
-    /// Mutable variant of [`GlassContext::window`].
-    pub fn window_mut(&mut self, name: &str) -> Option<&mut GlassWindow> {
-        self.windows.values_mut().find(|w| w.name() == name)
-    }
-
-    pub fn windows(&self) -> &IndexMap<WindowId, GlassWindow> {
-        &self.windows
-    }
-
-    pub fn windows_mut(&mut self) -> &mut IndexMap<WindowId, GlassWindow> {
-        &mut self.windows
-    }
-
-    pub fn render_window(&self, id: WindowId) -> Option<&GlassWindow> {
-        self.windows.get(&id)
-    }
-
-    pub fn render_window_mut(&mut self, id: WindowId) -> Option<&mut GlassWindow> {
-        self.windows.get_mut(&id)
-    }
-
-    /// Queues a window for creation. The window is created on the next event loop iteration and
-    /// can then be retrieved with [`GlassContext::window`] using `name`. Use this when no
-    /// [`ActiveEventLoop`] is available (e.g. from [`GlassApp::update`]).
-    pub fn create_window(&mut self, name: impl Into<String>, config: WindowConfig) {
-        self.create_windows.push((name.into(), config));
-    }
-
-    /// Creates a window right away and returns its [`WindowId`]. Requires an [`ActiveEventLoop`],
-    /// so call this from [`GlassApp::start`] or an input handler. The window is retrievable in the
-    /// same call via [`GlassContext::window`] / [`GlassContext::render_window`] using the returned
-    /// name or id.
-    pub fn create_window_immediately(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        name: impl Into<String>,
-        config: WindowConfig,
-    ) -> Result<WindowId, GlassError> {
-        self.spawn_window(event_loop, name.into(), config)
-    }
-
-    fn spawn_window(
-        &mut self,
-        event_loop: &ActiveEventLoop,
-        name: String,
-        config: WindowConfig,
-    ) -> Result<WindowId, GlassError> {
-        let window = Self::create_winit_window(event_loop, &config)?;
-        let id = self.add_window(name, config, window)?;
-        let window = self.windows.get_mut(&id).unwrap();
-        window.configure_surface_with_size(
-            self.device_context.device(),
-            window.window().inner_size(),
-        )?;
-        Ok(id)
-    }
-
-    fn add_window(
-        &mut self,
-        name: String,
-        config: WindowConfig,
-        window: Arc<Window>,
-    ) -> Result<WindowId, GlassError> {
-        let id = window.id();
-        let render_window = GlassWindow::new(&self.device_context, name, config, window)?;
-        self.windows.insert(id, render_window);
-        Ok(id)
-    }
-
-    fn create_winit_window(
-        event_loop: &ActiveEventLoop,
-        config: &WindowConfig,
-    ) -> Result<Arc<Window>, GlassError> {
-        let mut window_attributes = config
-            .other_attributes
-            .clone()
-            .unwrap_or_else(Window::default_attributes)
-            .with_inner_size(winit::dpi::LogicalSize::new(config.width, config.height))
-            .with_title(config.title.clone());
-
-        // Min size
-        if let Some(inner_size) = config.min_size {
-            window_attributes = window_attributes.with_min_inner_size(inner_size);
-        }
-
-        // Max size
-        if let Some(inner_size) = config.max_size {
-            window_attributes = window_attributes.with_max_inner_size(inner_size);
-        }
-
-        // Hidre first frame
-        if config.hide_until_first_frame {
-            window_attributes = window_attributes.with_visible(false);
-        }
-
-        window_attributes = match &config.pos {
-            WindowPos::Maximized => window_attributes.with_maximized(true),
-            WindowPos::FullScreen => {
-                if let Some(monitor) = event_loop.primary_monitor() {
-                    window_attributes
-                        .with_fullscreen(Some(Fullscreen::Exclusive(get_best_videomode(&monitor))))
-                } else {
-                    window_attributes
-                }
-            }
-            WindowPos::SizedFullScreen => {
-                if let Some(monitor) = event_loop.primary_monitor() {
-                    window_attributes.with_fullscreen(Some(Fullscreen::Exclusive(
-                        get_fitting_videomode(&monitor, config.width, config.height),
-                    )))
-                } else {
-                    window_attributes
-                }
-            }
-            WindowPos::FullScreenBorderless => window_attributes
-                .with_fullscreen(Some(Fullscreen::Borderless(event_loop.primary_monitor()))),
-            WindowPos::Pos(pos) => window_attributes.with_position(*pos),
-            WindowPos::Centered => {
-                if let Some(monitor) = event_loop.primary_monitor() {
-                    window_attributes.with_position(get_centered_window_position(
-                        &monitor,
-                        config.width,
-                        config.height,
-                    ))
-                } else {
-                    window_attributes
-                }
-            }
-        };
-
-        match event_loop.create_window(window_attributes) {
-            Ok(w) => Ok(Arc::new(w)),
-            Err(e) => Err(GlassError::WindowError(e)),
-        }
-    }
-
-    pub fn exit(&mut self) {
-        self.exit = true;
-    }
+    /// Failure from a window queued via [`GlassContext::create_window`], returned by
+    /// [`Glass::run`] once the loop has ended.
+    deferred_error: Option<GlassError>,
 }

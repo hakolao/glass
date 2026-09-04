@@ -1,2 +1,15 @@
 /target
-/Cargo.lock
+
+# IDE / editor
+.idea/
+.vscode/
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Build / profiling artifacts
+*.pdb
+/perf.data*

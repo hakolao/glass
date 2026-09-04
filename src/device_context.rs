@@ -1,3 +1,5 @@
+//! Requesting and holding the wgpu instance, adapter, device and queue.
+
 use std::{path::PathBuf, sync::Arc};
 
 use wgpu::{
@@ -6,20 +8,38 @@ use wgpu::{
     Trace,
 };
 
-use crate::{utils::wait_async, GlassError};
+use crate::{
+    error::{AdapterNotFoundError, DeviceCreationError, InsufficientDeviceError},
+    utils::wait_async,
+    GlassError,
+};
 
+/// What to ask wgpu for when creating the instance, adapter and device.
+///
+/// `features` and `limits` are requirements, not hints: if the adapter cannot meet them,
+/// [`DeviceContext::new`] fails with [`GlassError::InsufficientDevice`] rather than quietly
+/// giving you less than you asked for.
 #[derive(Debug, Clone)]
 pub struct DeviceConfig {
+    /// Whether to prefer a discrete or an integrated GPU.
     pub power_preference: PowerPreference,
+    /// Whether wgpu should tune its allocator for performance or for low memory use.
     pub memory_hints: MemoryHints,
+    /// Features the adapter must support. `glass` adds the ones its own pipelines need.
     pub features: wgpu::Features,
+    /// Limits the adapter must meet.
     pub limits: Limits,
+    /// Which graphics backends may be used. Narrowing this is the usual cause of
+    /// [`GlassError::AdapterNotFound`].
     pub backends: Backends,
+    /// Instance-level debugging and validation flags.
     pub instance_flags: InstanceFlags,
+    /// Where to write an API trace. Currently unused; wgpu tracing is off.
     pub trace_path: Option<PathBuf>,
 }
 
 impl DeviceConfig {
+    /// A configuration that asks for the high-performance adapter and all backends.
     pub fn performance() -> DeviceConfig {
         DeviceConfig {
             power_preference: PowerPreference::HighPerformance,
@@ -47,6 +67,7 @@ impl Default for DeviceConfig {
     }
 }
 
+/// The wgpu instance, adapter, device and queue, shared by every window.
 #[derive(Debug)]
 pub struct DeviceContext {
     config: DeviceConfig,
@@ -57,6 +78,13 @@ pub struct DeviceContext {
 }
 
 impl DeviceContext {
+    /// Requests an adapter matching `config` and a device from it.
+    ///
+    /// # Errors
+    ///
+    /// Fails with [`GlassError::AdapterNotFound`] if no adapter matches `config.backends`,
+    /// [`GlassError::InsufficientDevice`] if the adapter lacks the requested features or
+    /// limits, or [`GlassError::DeviceError`] if the adapter refuses to create a device.
     pub fn new(config: &DeviceConfig) -> Result<DeviceContext, GlassError> {
         let instance = Instance::new(InstanceDescriptor {
             backends: config.backends,
@@ -76,7 +104,10 @@ impl DeviceContext {
 
     /// If adapter, device and queue has been created without a window (surface), recreate them
     /// once you have a surface to ensure compatibility of queue families.
-    pub fn reconfigure_with_surface(&mut self, surface: &Surface) -> Result<(), GlassError> {
+    /// # Errors
+    ///
+    /// Fails the same way [`DeviceContext::new`] does.
+    pub fn reconfigure_with_surface(&mut self, surface: &Surface<'_>) -> Result<(), GlassError> {
         let (adapter, device, queue) =
             Self::create_adapter_device_and_queue(&self.config, &self.instance, Some(surface))?;
         self.adapter = adapter;
@@ -88,7 +119,7 @@ impl DeviceContext {
     fn create_adapter_device_and_queue(
         config: &DeviceConfig,
         instance: &Instance,
-        surface: Option<&Surface>,
+        surface: Option<&Surface<'_>>,
     ) -> Result<(Adapter, Device, Queue), GlassError> {
         let adapter = match wait_async(instance.request_adapter(&RequestAdapterOptions {
             power_preference: config.power_preference,
@@ -105,26 +136,39 @@ impl DeviceContext {
                     flags: config.instance_flags,
                     ..InstanceDescriptor::new_without_display_handle()
                 });
-                let available = wait_async(probe.enumerate_adapters(Backends::all()))
+                let available: Vec<_> = wait_async(probe.enumerate_adapters(Backends::all()))
                     .iter()
                     .map(|a| a.get_info())
                     .collect();
-                return Err(GlassError::AdapterNotFound {
+                log_visible_adapters(&available);
+                return Err(Box::new(AdapterNotFoundError {
                     source: e,
                     requested_backends: config.backends,
                     available,
-                });
+                })
+                .into());
             }
         };
+
+        let info = adapter.get_info();
+        log::info!(
+            "using adapter '{}' | {:?} | {:?} | driver: {} {}",
+            info.name,
+            info.backend,
+            info.device_type,
+            info.driver,
+            info.driver_info
+        );
 
         // --- Capability check: error instead of downgrading ---
         let missing_features = config.features.difference(adapter.features());
         if !missing_features.is_empty() {
-            return Err(GlassError::InsufficientDevice {
+            return Err(Box::new(InsufficientDeviceError {
                 adapter: adapter.get_info(),
                 missing_features,
                 violations: Vec::new(),
-            });
+            })
+            .into());
         }
 
         let mut violations = Vec::new();
@@ -136,11 +180,12 @@ impl DeviceContext {
             },
         );
         if !violations.is_empty() {
-            return Err(GlassError::InsufficientDevice {
+            return Err(Box::new(InsufficientDeviceError {
                 adapter: adapter.get_info(),
                 missing_features: Features::empty(),
                 violations,
-            });
+            })
+            .into());
         }
         // -------------------------------------------------------
 
@@ -155,37 +200,66 @@ impl DeviceContext {
         })) {
             Ok(dq) => dq,
             Err(e) => {
-                return Err(GlassError::DeviceError {
+                return Err(Box::new(DeviceCreationError {
                     source: e,
                     adapter: adapter.get_info(),
                 })
+                .into())
             }
         };
 
         Ok((adapter, device, queue))
     }
 
+    /// The wgpu instance every surface is created from.
     pub fn instance(&self) -> &Instance {
         &self.instance
     }
 
+    /// The adapter the device was requested from.
     pub fn adapter(&self) -> &Adapter {
         &self.adapter
     }
 
+    /// The shared device.
     pub fn device(&self) -> &Device {
         &self.device
     }
 
+    /// A cloned handle to the shared device.
     pub fn device_arc(&self) -> Arc<Device> {
         self.device.clone()
     }
 
+    /// The shared queue.
     pub fn queue(&self) -> &Queue {
         &self.queue
     }
 
+    /// A cloned handle to the shared queue.
     pub fn queue_arc(&self) -> Arc<Queue> {
         self.queue.clone()
+    }
+}
+
+/// Logs every adapter the machine exposes on any backend.
+///
+/// This is the detail that used to be baked into the error message. It lives here so that the
+/// error stays one line while the diagnostics remain available to anyone running with a logger.
+fn log_visible_adapters(available: &[wgpu::AdapterInfo]) {
+    if available.is_empty() {
+        log::warn!("no adapters are visible on any backend");
+        return;
+    }
+    log::warn!("adapters visible on other backends:");
+    for info in available {
+        log::warn!(
+            "  {} | {:?} | {:?} | driver: {} {}",
+            info.name,
+            info.backend,
+            info.device_type,
+            info.driver,
+            info.driver_info
+        );
     }
 }

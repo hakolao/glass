@@ -1,7 +1,4 @@
-use glass::{
-    window::{RenderData, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
-};
+use glass::prelude::*;
 use wgpu::{Color, CommandBuffer, StoreOp};
 use winit::{
     event::{ElementState, WindowEvent},

@@ -1,3 +1,5 @@
+//! The [`GlassApp`] trait: the set of hooks your application implements.
+
 use winit::{
     event::{DeviceEvent, DeviceId, WindowEvent},
     event_loop::ActiveEventLoop,

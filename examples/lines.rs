@@ -1,10 +1,5 @@
 use glam::{Mat4, Vec2, Vec3};
-use glass::{
-    device_context::DeviceConfig,
-    pipelines::{ColoredVertex, Line, LinePipeline},
-    window::{GlassWindow, RenderData, WindowConfig},
-    Glass, GlassApp, GlassConfig, GlassContext, GlassError,
-};
+use glass::prelude::*;
 use rapier2d::prelude::*;
 use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, StoreOp};
 use winit::event_loop::ActiveEventLoop;

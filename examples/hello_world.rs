@@ -1,4 +1,4 @@
-use glass::{window::WindowConfig, Glass, GlassApp, GlassConfig, GlassContext, GlassError};
+use glass::prelude::*;
 
 fn main() -> Result<(), GlassError> {
     Glass::run(GlassConfig::default(), |context| {
@@ -15,9 +15,7 @@ fn main() -> Result<(), GlassError> {
 struct HelloWorld;
 
 impl GlassApp for HelloWorld {
-    fn update(&mut self, _context: &mut GlassContext) {
-        _context
-            .primary_render_window_mut()
-            .render_default(|_| None);
+    fn update(&mut self, context: &mut GlassContext) {
+        context.primary_render_window_mut().render_default(|_| None);
     }
 }
