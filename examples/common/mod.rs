@@ -1,10 +1,12 @@
 //! Bits shared between the examples.
 //!
-//! Not part of the `glass` API. Examples pull this in with
-//! `#[path = "../common/mod.rs"] mod common;`, so anything unused by a given example would warn;
-//! `#![allow(dead_code)]` keeps each example free to use only what it needs.
+//! Not part of the `glass` API. Each example pulls the whole module in with
+//! `#[path = "../common/mod.rs"] mod common;` and uses a subset of it, so the allow below keeps
+//! every example from warning about the parts it does not touch.
 
-#![allow(dead_code)]
+#![allow(dead_code, unused_imports)]
+
+pub mod pipelines;
 
 /// Maps OpenGL's `-1..1` depth range onto the `0..1` range wgpu expects.
 ///

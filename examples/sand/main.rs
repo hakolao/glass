@@ -5,8 +5,8 @@ mod timer;
 use glam::Vec2;
 use glass::prelude::*;
 use wgpu::{
-    AddressMode, Color, CommandBuffer, FilterMode, Limits, LoadOp, MipmapFilterMode, Operations,
-    RenderPassColorAttachment, RenderPassDescriptor, SamplerDescriptor, StoreOp,
+    AddressMode, Color, CommandBuffer, Features, FilterMode, Limits, LoadOp, MipmapFilterMode,
+    Operations, RenderPassColorAttachment, RenderPassDescriptor, SamplerDescriptor, StoreOp,
     TextureViewDescriptor,
 };
 use winit::{
@@ -20,7 +20,7 @@ use crate::{grid::Grid, sand::SandType, timer::Timer};
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::camera_projection;
+use common::{camera_projection, pipelines::QuadPipeline};
 
 const CANVAS_SIZE: u32 = 512;
 const CANVAS_SCALE: u32 = 2;
@@ -225,8 +225,9 @@ fn cursor_to_canvas(cursor: Vec2, screen_width: f32, screen_height: f32) -> Vec2
 fn config() -> GlassConfig {
     GlassConfig {
         device_config: DeviceConfig {
+            // QuadPipeline passes its per-draw data as immediates.
+            features: Features::IMMEDIATES,
             limits: Limits {
-                // Needed for push constants
                 max_immediate_size: 128,
                 ..Default::default()
             },

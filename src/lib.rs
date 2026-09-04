@@ -12,7 +12,6 @@ pub mod device_context;
 pub mod error;
 mod glass;
 mod glass_app;
-pub mod pipelines;
 pub mod prelude;
 pub mod texture;
 pub mod utils;

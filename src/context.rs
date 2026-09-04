@@ -80,18 +80,14 @@ pub struct GlassContext {
 impl GlassContext {
     /// Creates the context, which requests the wgpu instance, adapter, device and queue up front.
     ///
-    /// [`wgpu::Features::IMMEDIATES`] and
-    /// [`wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES`] are added to the requested
-    /// features, because the pipelines in [`crate::pipelines`] need them.
+    /// Exactly the features and limits in `config.device_config` are requested, and nothing
+    /// more; ask for what your pipelines need.
     ///
     /// # Errors
     ///
     /// Fails if no adapter matches [`DeviceConfig::backends`], or if the adapter that is found
     /// does not meet the requested features and limits.
-    pub fn new(mut config: GlassConfig) -> Result<Self, GlassError> {
-        // Add push constants feature for common pipelines
-        config.device_config.features |=
-            wgpu::Features::IMMEDIATES | wgpu::Features::TEXTURE_ADAPTER_SPECIFIC_FORMAT_FEATURES;
+    pub fn new(config: GlassConfig) -> Result<Self, GlassError> {
         let device_context = Arc::new(DeviceContext::new(&config.device_config)?);
 
         Ok(Self {

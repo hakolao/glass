@@ -5,7 +5,7 @@ use std::{borrow::Cow, ops::Range};
 use bytemuck::{Pod, Zeroable};
 use wgpu::{util::DeviceExt, Buffer, Device, RenderPass, RenderPipeline};
 
-use crate::pipelines::ColoredVertex;
+use super::super::ColoredVertex;
 
 /// Draws lines with [`LineList`](wgpu::PrimitiveTopology::LineList) topology.
 ///

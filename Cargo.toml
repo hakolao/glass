@@ -22,13 +22,14 @@ wgpu_serde = ["wgpu/serde"]
 indexmap = "2.14"
 pollster = "1.0"
 image = { version = "0.25", default-features = false, features = ["png", "jpeg"] }
-bytemuck = { version = "1.25", features = ["derive"] }
 wgpu = { version = "30.0", features = ["naga-ir"] }
 winit = { version = "0.30" }
 thiserror = "2.0"
 log = "0.4"
 
 [dev-dependencies]
+# Only the example pipelines need this; the library itself has no POD types.
+bytemuck = { version = "1.25", features = ["derive"] }
 rapier2d = { version = "0.34.0", features = ["default", "debug-render"] }
 rand = "0.10"
 glam = "0.33"
@@ -76,6 +77,9 @@ description = "Example that opens multiple windows on space key"
 [[example]]
 name = "quad"
 path = "examples/quad/main.rs"
+# Runs the `examples/common` unit tests (vertex layouts vs. their structs) under `cargo test`.
+# Only one example needs this; the others would just run the same tests again.
+test = true
 
 [package.metadata.example.quad]
 name = "Quad"

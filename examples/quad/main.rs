@@ -1,14 +1,14 @@
 use glass::{prelude::*, utils::default_texture_format};
 use wgpu::{
-    AddressMode, BindGroup, CommandBuffer, FilterMode, Limits, MipmapFilterMode, SamplerDescriptor,
-    StoreOp, TextureUsages,
+    AddressMode, BindGroup, CommandBuffer, Features, FilterMode, Limits, MipmapFilterMode,
+    SamplerDescriptor, StoreOp, TextureUsages,
 };
 use winit::event_loop::ActiveEventLoop;
 
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::camera_projection;
+use common::{camera_projection, pipelines::QuadPipeline};
 
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
@@ -27,8 +27,9 @@ fn main() -> Result<(), GlassError> {
 fn config() -> GlassConfig {
     GlassConfig {
         device_config: DeviceConfig {
+            // QuadPipeline passes its per-draw data as immediates.
+            features: Features::IMMEDIATES,
             limits: Limits {
-                // Needed for push constants
                 max_immediate_size: 128,
                 ..Default::default()
             },

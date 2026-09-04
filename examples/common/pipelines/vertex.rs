@@ -81,7 +81,7 @@ impl SimpleTexturedVertex {
     }
 }
 
-/// A vertex with a colour and no texture, used by [`LinePipeline`](crate::pipelines::LinePipeline).
+/// A vertex with a colour and no texture, used by [`LinePipeline`](LinePipeline).
 #[repr(C)]
 #[derive(Default, Copy, Clone, Debug, Pod, Zeroable)]
 pub struct ColoredVertex {

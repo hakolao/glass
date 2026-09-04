@@ -6,9 +6,9 @@
 `Glass` helps you skip annoying _wgpu_ boilerplate, _winit_ boilerplate and _window_ organization,
 so you can focus on your render or compute pipelines.
 
-It gives you a window with a configured surface, a device and queue shared across every window, a
-lifecycle trait to hang your app off, and two ready-made pipelines for the things almost everyone
-needs: drawing a textured quad and drawing lines.
+It gives you a window with a configured surface, a device and queue shared across every window, and
+a lifecycle trait to hang your app off. Drawing is left to you; the examples include quad and
+line pipelines to copy from.
 
 ```rust,no_run
 use glass::prelude::*;

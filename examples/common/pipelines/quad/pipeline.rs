@@ -7,7 +7,7 @@ use wgpu::{
     util::DeviceExt, BindGroup, Buffer, Device, RenderPass, RenderPipeline, Sampler, TextureView,
 };
 
-use crate::pipelines::{vertex::TexturedVertex, QUAD_INDICES, TEXTURED_QUAD_VERTICES};
+use super::super::{vertex::TexturedVertex, QUAD_INDICES, TEXTURED_QUAD_VERTICES};
 
 /// Draws a textured quad, sized and positioned per draw call through immediate data.
 ///
@@ -17,7 +17,7 @@ use crate::pipelines::{vertex::TexturedVertex, QUAD_INDICES, TEXTURED_QUAD_VERTI
 /// Build the pipeline once, for the format of the attachment you draw into:
 ///
 /// ```no_run
-/// use glass::prelude::*;
+/// # use common::pipelines::QuadPipeline;
 /// use glass::wgpu::{BindGroup, ColorTargetState, Device, RenderPass, Sampler, TextureView};
 ///
 /// # fn setup(device: &Device, target: ColorTargetState) -> QuadPipeline {
@@ -28,7 +28,7 @@ use crate::pipelines::{vertex::TexturedVertex, QUAD_INDICES, TEXTURED_QUAD_VERTI
 /// Then bind a texture once, and draw it as often as you like:
 ///
 /// ```no_run
-/// # use glass::prelude::*;
+/// # use common::pipelines::QuadPipeline;
 /// # use glass::wgpu::{BindGroup, Device, RenderPass, Sampler, TextureView};
 /// # fn bind(pipeline: &QuadPipeline, device: &Device, view: &TextureView, sampler: &Sampler)
 /// #     -> BindGroup {

@@ -4,6 +4,11 @@ use rapier2d::prelude::*;
 use wgpu::{util::DeviceExt, Buffer, CommandBuffer, Features, Limits, StoreOp};
 use winit::event_loop::ActiveEventLoop;
 
+#[path = "common/mod.rs"]
+mod common;
+
+use common::pipelines::{ColoredVertex, Line, LinePipeline};
+
 const WIDTH: u32 = 1920;
 const HEIGHT: u32 = 1080;
 /// Height of screen is 10 meters. This much we need to multiply positions in physics world
@@ -17,7 +22,8 @@ fn config() -> GlassConfig {
                 max_immediate_size: 128,
                 ..Default::default()
             },
-            features: Features::POLYGON_MODE_LINE,
+            // LinePipeline passes its per-draw data as immediates.
+            features: Features::POLYGON_MODE_LINE | Features::IMMEDIATES,
             ..DeviceConfig::default()
         },
         ..Default::default()

@@ -25,7 +25,7 @@ pub struct DeviceConfig {
     pub power_preference: PowerPreference,
     /// Whether wgpu should tune its allocator for performance or for low memory use.
     pub memory_hints: MemoryHints,
-    /// Features the adapter must support. `glass` adds the ones its own pipelines need.
+    /// Features the adapter must support. Nothing is added on your behalf.
     pub features: wgpu::Features,
     /// Limits the adapter must meet.
     pub limits: Limits,

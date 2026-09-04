@@ -7,7 +7,7 @@ use glass::prelude::*;
 #[path = "../common/mod.rs"]
 mod common;
 
-use common::camera_projection;
+use common::{camera_projection, pipelines::QuadPipeline};
 use wgpu::{
     AddressMode, Backends, BindGroup, BindGroupDescriptor, CommandBuffer, CommandEncoder,
     ComputePassDescriptor, ComputePipeline, ComputePipelineDescriptor, Extent3d, FilterMode,

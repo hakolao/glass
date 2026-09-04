@@ -6,7 +6,10 @@ use wgpu::{
     TexelCopyTextureInfo, TextureAspect, TextureUsages,
 };
 
-use crate::sand::{Sand, SandType};
+use crate::{
+    common::pipelines::QuadPipeline,
+    sand::{Sand, SandType},
+};
 
 pub struct Grid {
     pub data: Vec<Sand>,
