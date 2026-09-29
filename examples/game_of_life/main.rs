@@ -35,6 +35,7 @@ fn config() -> GlassConfig {
                 ..Limits::default()
             },
             backends: Backends::all(),
+            backend_options: Default::default(),
             instance_flags: InstanceFlags::from_build_config(),
             trace_path: None,
         },

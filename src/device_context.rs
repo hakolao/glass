@@ -3,9 +3,9 @@
 use std::{path::PathBuf, sync::Arc};
 
 use wgpu::{
-    Adapter, Backends, Device, DeviceDescriptor, Features, Instance, InstanceDescriptor,
-    InstanceFlags, Limits, MemoryHints, PowerPreference, Queue, RequestAdapterOptions, Surface,
-    Trace,
+    Adapter, BackendOptions, Backends, Device, DeviceDescriptor, Features, Instance,
+    InstanceDescriptor, InstanceFlags, Limits, MemoryHints, PowerPreference, Queue,
+    RequestAdapterOptions, Surface, Trace,
 };
 
 use crate::{
@@ -32,6 +32,8 @@ pub struct DeviceConfig {
     /// Which graphics backends may be used. Narrowing this is the usual cause of
     /// [`GlassError::AdapterNotFound`].
     pub backends: Backends,
+    /// Per-backend instance options, such as the DX12 shader compiler.
+    pub backend_options: BackendOptions,
     /// Instance-level debugging and validation flags.
     pub instance_flags: InstanceFlags,
     /// Directory to write a wgpu API trace into. Requires the `trace` feature; without it
@@ -57,6 +59,7 @@ impl Default for DeviceConfig {
             features: wgpu::Features::empty(),
             limits: Limits::default(),
             backends: Backends::all(),
+            backend_options: BackendOptions::default(),
             instance_flags: InstanceFlags::from_build_config(),
             trace_path: None,
         }
@@ -85,6 +88,7 @@ impl DeviceContext {
         let instance = Instance::new(InstanceDescriptor {
             backends: config.backends,
             flags: config.instance_flags,
+            backend_options: config.backend_options.clone(),
             ..InstanceDescriptor::new_without_display_handle()
         });
         let (adapter, device, queue) =
@@ -130,6 +134,7 @@ impl DeviceContext {
                 let probe = Instance::new(InstanceDescriptor {
                     backends: Backends::all(),
                     flags: config.instance_flags,
+                    backend_options: config.backend_options.clone(),
                     ..InstanceDescriptor::new_without_display_handle()
                 });
                 let available: Vec<_> = wait_async(probe.enumerate_adapters(Backends::all()))
